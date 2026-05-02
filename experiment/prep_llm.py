@@ -1,35 +1,66 @@
-from langchain_community.document_loaders.csv_loader import CSVLoader
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_community.llms import Ollama
-from langchain.chains import RetrievalQA
-from langchain.chains.llm import LLMChain
-from langchain.chains.combine_documents.stuff import StuffDocumentsChain
-from langchain.prompts import PromptTemplate
-from langchain_core.prompts import ChatPromptTemplate
+from dataclasses import dataclass
+import re
+from typing import Any
+
 import pandas as pd
+import requests
+
+
+@dataclass
+class _SimpleDocument:
+    page_content: str
+
+
+class _SimpleRetriever:
+    def __init__(self, rows: list[str], top_k: int = 2):
+        self.rows = rows
+        self.top_k = top_k
+
+    @staticmethod
+    def _tokens(value: str) -> set[str]:
+        return set(re.findall(r"[a-z0-9_./:-]+", value.lower()))
+
+    def invoke(self, query: str) -> list[_SimpleDocument]:
+        query_tokens = self._tokens(query)
+        ranked = sorted(
+            self.rows,
+            key=lambda row: len(query_tokens & self._tokens(row)),
+            reverse=True,
+        )
+        return [_SimpleDocument(page_content=row) for row in ranked[: self.top_k]]
 
 def create_retriever(file_path:str, top_k:int = 2):
-    loader = CSVLoader(file_path=file_path)
-    docs = loader.load()
-    text_splitter = SemanticChunker(HuggingFaceEmbeddings())
-    documents = text_splitter.split_documents(docs)
-    # Instantiate the embedding model
-    embedder = HuggingFaceEmbeddings()
-    # Create the vector store 
-    vector = FAISS.from_documents(documents, embedder)
-    retriever = vector.as_retriever(search_type="similarity", search_kwargs={"k": top_k})
-    return retriever
+    try:
+        from langchain_community.document_loaders.csv_loader import CSVLoader
+        from langchain_experimental.text_splitter import SemanticChunker
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+        from langchain_community.vectorstores import FAISS
+
+        loader = CSVLoader(file_path=file_path)
+        docs = loader.load()
+        embedder = HuggingFaceEmbeddings()
+        text_splitter = SemanticChunker(embedder)
+        documents = text_splitter.split_documents(docs)
+        vector = FAISS.from_documents(documents, embedder)
+        return vector.as_retriever(search_type="similarity", search_kwargs={"k": top_k})
+    except ModuleNotFoundError:
+        df = pd.read_csv(file_path)
+        rows = [
+            f"Head:{row['Head']}\t Relation:{row['Relation']}\t Tail:{row['Tail']}"
+            for _, row in df.iterrows()
+            if {"Head", "Relation", "Tail"}.issubset(df.columns)
+        ]
+        return _SimpleRetriever(rows, top_k=top_k)
 
 def prompt_answer(prompt_template:str, **kwargs) -> str:
-    # Define llm
-    llm = Ollama(model="mistral", temperature=0.1)
-    prompt = ChatPromptTemplate.from_template(prompt_template)
-    model = llm
-    chain = prompt | model
-    result = chain.invoke(kwargs)
-    return result
+    prompt = prompt_template.format(**kwargs)
+    response = requests.post(
+        "http://127.0.0.1:11434/api/generate",
+        json={"model": kwargs.get("model_name", "mistral"), "prompt": prompt, "stream": False, "options": {"temperature": 0.1}},
+        timeout=120,
+    )
+    response.raise_for_status()
+    return str(response.json().get("response", ""))
 
 def get_triple_sentence(triple):
     head = triple['Head']
@@ -253,5 +284,146 @@ def context_sentence(evaluation_df:pd.DataFrame, original_df:pd.DataFrame):
     return score_list
 
 
+def parse_score(text: str | None) -> int:
+    match = re.search(r"Score:\s*(-?1|0)", text or "", flags=re.IGNORECASE)
+    if not match:
+        return -1
+    return int(match.group(1))
+
+
+def _decision_from_score(score: int) -> str:
+    if score == 1:
+        return "accepted"
+    if score == 0:
+        return "rejected"
+    return "unresolved"
+
+
+def _triple_text(row: pd.Series) -> str:
+    return f"Head:{row['Head']}\t Relation:{row['Relation']}\t Tail:{row['Tail']}"
+
+
+def _sentence_text(row: pd.Series) -> str:
+    relation = str(row["Relation"]).replace("_", " ").replace("/", " ").replace(".", " ").strip()
+    return f"{row['Head']} {relation} {row['Tail']}."
+
+
+def _context_from_original(row: pd.Series, original_df: pd.DataFrame | None, limit: int = 3) -> list[str]:
+    if original_df is None or original_df.empty:
+        return []
+    context_frames = []
+    for column in ("Head", "Relation", "Tail"):
+        matches = original_df[original_df[column].astype(str) == str(row[column])]
+        if not matches.empty:
+            context_frames.append(matches.head(1))
+    if not context_frames:
+        return []
+    context_df = pd.concat(context_frames, ignore_index=True).drop_duplicates().head(limit)
+    return [_triple_text(context_row) for _, context_row in context_df.iterrows()]
+
+
+def _context_from_retriever(query: str, retriever: Any | None) -> list[str]:
+    if retriever is None:
+        return []
+    documents = retriever.invoke(query)
+    return [str(getattr(document, "page_content", document)) for document in documents]
+
+
+def _build_triple_prompt(row: pd.Series, strategy: str, context: list[str]) -> str:
+    context_text = "\n".join(context) if context else "No additional context."
+    return (
+        "Evaluate whether the candidate knowledge graph triple is correct.\n"
+        "Return only one leading score line: Score: 1 for correct, Score: 0 for incorrect, "
+        "or Score: -1 if unresolved.\n"
+        f"Strategy: {strategy}\n"
+        f"Context:\n{context_text}\n"
+        f"Triple:\n{_triple_text(row)}"
+    )
+
+
+def _build_sentence_prompt(row: pd.Series, strategy: str, context: list[str]) -> str:
+    context_text = "\n".join(context) if context else "No additional context."
+    return (
+        "Evaluate whether the candidate sentence states a correct fact.\n"
+        "Return only one leading score line: Score: 1 for correct, Score: 0 for incorrect, "
+        "or Score: -1 if unresolved.\n"
+        f"Strategy: {strategy}\n"
+        f"Context:\n{context_text}\n"
+        f"Sentence:\n{_sentence_text(row)}"
+    )
+
+
+def mock_llm_response(row: pd.Series, *, context: list[str] | None = None) -> str:
+    if "Missing" in row and pd.notna(row["Missing"]):
+        score = 1 if int(row["Missing"]) == 1 else 0
+    else:
+        key = f"{row['Head']}|{row['Relation']}|{row['Tail']}"
+        score = 1 if sum(ord(char) for char in key) % 3 == 0 else 0
+    reason = "Matches held-out evaluation data." if score == 1 else "No supporting held-out signal found."
+    if context:
+        reason += f" Context rows inspected: {len(context)}."
+    return f"Score: {score}\nReason: {reason}"
+
+
+def _real_llm_response(prompt: str, model_name: str) -> str:
+    response = requests.post(
+        "http://127.0.0.1:11434/api/generate",
+        json={"model": model_name, "prompt": prompt, "stream": False, "options": {"temperature": 0.1}},
+        timeout=180,
+    )
+    response.raise_for_status()
+    return str(response.json().get("response", ""))
+
+
+def evaluate_candidates(
+    evaluation_df: pd.DataFrame,
+    *,
+    original_df: pd.DataFrame | None = None,
+    format_name: str = "triples",
+    strategy: str = "rag",
+    retriever: Any | None = None,
+    top_k: int = 2,
+    model_name: str = "mistral",
+    mock: bool = False,
+) -> pd.DataFrame:
+    """Evaluate candidate triples and keep auditable prompt/response fields."""
+    if evaluation_df.empty:
+        return evaluation_df.copy()
+
+    evaluated_rows: list[dict[str, Any]] = []
+    for _, row in evaluation_df.reset_index(drop=True).iterrows():
+        row_dict = row.to_dict()
+        query = _triple_text(row)
+        if strategy == "rag":
+            context = _context_from_retriever(query, retriever)[:top_k]
+        elif strategy == "context":
+            context = _context_from_original(row, original_df, limit=max(top_k, 1))
+        else:
+            context = []
+
+        if format_name == "sentences":
+            prompt = _build_sentence_prompt(row, strategy, context)
+            sentence = _sentence_text(row)
+        else:
+            prompt = _build_triple_prompt(row, strategy, context)
+            sentence = None
+
+        raw_response = mock_llm_response(row, context=context) if mock else _real_llm_response(prompt, model_name)
+        parsed_score = parse_score(raw_response)
+        row_dict.update(
+            {
+                "triple_text": query,
+                "sentence_text": sentence,
+                "retrieved_context": context,
+                "prompt": prompt,
+                "raw_response": raw_response,
+                "parsed_score": parsed_score,
+                "decision": _decision_from_score(parsed_score),
+                "is_mock": bool(mock),
+            }
+        )
+        evaluated_rows.append(row_dict)
+
+    return pd.DataFrame(evaluated_rows)
 
 

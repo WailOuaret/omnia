@@ -10,10 +10,10 @@ def get_triplet_emb(model: pykeen.models.TransE, triple_factory: pykeen.triples.
     """ Return the triplet embedding from model, dataset and triplet list """
     # get total entity embedding
     entities_embedding = model.entity_representations[0](
-        indices=None).detach().numpy()
+        indices=None).detach().cpu().numpy()
     # get total relation embedding
     relations_embedding = model.relation_representations[0](
-        indices=None).detach().numpy()
+        indices=None).detach().cpu().numpy()
 
     # get id of each element of the triplet
     head_id = triple_factory.entity_to_id[head]

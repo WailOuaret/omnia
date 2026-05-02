@@ -154,6 +154,19 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# Frontend build and local runtime outputs
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.env.local
+test-results/
+frontend/test-results/
+playwright-report/
+frontend/playwright-report/
+!frontend/src/lib/
+!frontend/src/lib/**
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
@@ -163,4 +176,15 @@ cython_debug/
 
 
 data/
+external_data/
 wandb/
+
+# Local demo / IDE artifacts (do not publish)
+.omnia_demo_cache/
+.runenv/
+*.zip
+
+# Root-level papers / screenshots / exports (optional local files)
+/*.pdf
+/*.docx
+Capture*.png

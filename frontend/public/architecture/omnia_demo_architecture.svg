@@ -1,0 +1,60 @@
+<svg width="1280" height="760" viewBox="0 0 1280 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="760" fill="#F5F3ED"/>
+  <rect x="40" y="40" width="1200" height="680" rx="32" fill="#EEF2F3" stroke="#D8DEE2"/>
+  <text x="80" y="100" fill="#2E556D" font-family="Arial, sans-serif" font-size="20" font-weight="700">OMNIA Demo Architecture</text>
+  <text x="80" y="130" fill="#5A6771" font-family="Arial, sans-serif" font-size="13">System-demonstration stack for clustering, filtering, validation, and KG diff inspection.</text>
+
+  <rect x="80" y="180" width="260" height="140" rx="24" fill="white" stroke="#2E556D" stroke-width="2"/>
+  <text x="105" y="220" fill="#101820" font-family="Arial, sans-serif" font-size="18" font-weight="700">React Demo Frontend</text>
+  <text x="105" y="250" fill="#4B5563" font-family="Arial, sans-serif" font-size="14">Landing, Upload, KG Overview</text>
+  <text x="105" y="275" fill="#4B5563" font-family="Arial, sans-serif" font-size="14">Clusters, Candidates, Filtering</text>
+  <text x="105" y="300" fill="#4B5563" font-family="Arial, sans-serif" font-size="14">LLM Validation, Completed KG</text>
+
+  <rect x="390" y="150" width="500" height="470" rx="28" fill="white" stroke="#101820" stroke-width="2"/>
+  <text x="425" y="195" fill="#101820" font-family="Arial, sans-serif" font-size="22" font-weight="700">FastAPI Backend</text>
+  <text x="425" y="225" fill="#4B5563" font-family="Arial, sans-serif" font-size="14">Session state, ingestion, graph analytics, export, event log</text>
+
+  <rect x="425" y="260" width="430" height="70" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text x="450" y="292" fill="#101820" font-family="Arial, sans-serif" font-size="16" font-weight="700">Ingestion + Sparsity Analysis</text>
+  <text x="450" y="315" fill="#4B5563" font-family="Arial, sans-serif" font-size="13">Schema mapping, duplicates, malformed rows, density, components, isolated nodes</text>
+
+  <rect x="425" y="350" width="430" height="70" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text x="450" y="382" fill="#101820" font-family="Arial, sans-serif" font-size="16" font-weight="700">Candidate Generation</text>
+  <text x="450" y="405" fill="#4B5563" font-family="Arial, sans-serif" font-size="13">Relation-tail clustering, provenance, lifecycle status, missing triple labels</text>
+
+  <rect x="425" y="440" width="430" height="70" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text x="450" y="472" fill="#101820" font-family="Arial, sans-serif" font-size="16" font-weight="700">TransE Filtering</text>
+  <text x="450" y="495" fill="#4B5563" font-family="Arial, sans-serif" font-size="13">GPU-aware training, distance histogram, threshold diagnostics, accepted/rejected split</text>
+
+  <rect x="425" y="530" width="430" height="70" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text x="450" y="562" fill="#101820" font-family="Arial, sans-serif" font-size="16" font-weight="700">LLM Validation + Diff</text>
+  <text x="450" y="585" fill="#4B5563" font-family="Arial, sans-serif" font-size="13">Prompt, context, raw response, parsed score, completed KG export</text>
+
+  <rect x="940" y="170" width="240" height="100" rx="24" fill="white" stroke="#CB6A4F" stroke-width="2"/>
+  <text x="970" y="210" fill="#101820" font-family="Arial, sans-serif" font-size="18" font-weight="700">Ollama</text>
+  <text x="970" y="238" fill="#4B5563" font-family="Arial, sans-serif" font-size="14">mistral prompt execution</text>
+
+  <rect x="940" y="310" width="240" height="100" rx="24" fill="white" stroke="#567057" stroke-width="2"/>
+  <text x="970" y="350" fill="#101820" font-family="Arial, sans-serif" font-size="18" font-weight="700">PyKEEN / TransE</text>
+  <text x="970" y="378" fill="#4B5563" font-family="Arial, sans-serif" font-size="14">embedding training + scoring</text>
+
+  <rect x="940" y="450" width="240" height="140" rx="24" fill="white" stroke="#2E556D" stroke-width="2"/>
+  <text x="970" y="490" fill="#101820" font-family="Arial, sans-serif" font-size="18" font-weight="700">Data Sources</text>
+  <text x="970" y="518" fill="#4B5563" font-family="Arial, sans-serif" font-size="14">Uploaded CSV / TSV / JSON</text>
+  <text x="970" y="542" fill="#4B5563" font-family="Arial, sans-serif" font-size="14">Benchmark splits</text>
+  <text x="970" y="566" fill="#4B5563" font-family="Arial, sans-serif" font-size="14">Known KG for RAG retrieval</text>
+
+  <line x1="340" y1="250" x2="390" y2="250" stroke="#2E556D" stroke-width="3"/>
+  <polygon points="390,250 378,244 378,256" fill="#2E556D"/>
+
+  <line x1="890" y1="565" x2="940" y2="520" stroke="#2E556D" stroke-width="3"/>
+  <polygon points="940,520 927,520 935,530" fill="#2E556D"/>
+
+  <line x1="890" y1="565" x2="940" y2="220" stroke="#CB6A4F" stroke-width="3"/>
+  <polygon points="940,220 931,230 943,233" fill="#CB6A4F"/>
+
+  <line x1="890" y1="475" x2="940" y2="360" stroke="#567057" stroke-width="3"/>
+  <polygon points="940,360 928,366 940,372" fill="#567057"/>
+
+  <text x="85" y="660" fill="#5A6771" font-family="Arial, sans-serif" font-size="13">Frontend inspection views read the same backend session state, so clustering, filtering, validation, and diff pages remain synchronized.</text>
+</svg>

@@ -9,6 +9,16 @@ def compute_missing_df(original_df:pd.DataFrame, sample_df:pd.DataFrame) -> pd.D
     df_missing = original_df[~original_df.apply(tuple, axis=1).isin(sample_df.apply(tuple, axis=1))]
     return df_missing
 
+def split_known_missing(original_df: pd.DataFrame, sample_proportion: float = 0.8, random_state: int = 42) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Split a KG into observed triples and held-out triples for smoke/demo evaluation.
+    """
+    if not 0 < sample_proportion < 1:
+        raise ValueError("sample_proportion must be between 0 and 1.")
+    known_df = original_df.sample(frac=sample_proportion, random_state=random_state).reset_index(drop=True)
+    missing_df = compute_missing_df(original_df, known_df).reset_index(drop=True)
+    return known_df, missing_df
+
 def create_ground_truth(candidates_df:pd.DataFrame, missing_df:pd.DataFrame, nb_true_cand:int=0, nb_false_cand:int=0) -> pd.DataFrame:
     """
     Function to compute the ground truth of the generated candidates.

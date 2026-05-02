@@ -1,0 +1,367 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design tokens (CSS variables) ─── */
+@layer base {
+  :root {
+    /* Surface palette */
+    --color-bg: #111318;
+    --color-surface: #181C23;
+    --color-border: #303845;
+    --color-panel: #181C23;
+    --color-ink: #F4F7FB;
+    --color-muted: #A4AFBE;
+    --color-deep: #D5DCE7;
+
+    /* Accent palette */
+    --color-accent: #2F80ED;
+    --color-cyan: #20C7D4;
+    --color-green: #16A34A;
+    --color-red: #EF4444;
+    --color-pink: #EC4899;
+    --color-amber: #F59E0B;
+    --color-violet: #8B5CF6;
+
+    /* Status palette (matches graphStatusTokens.ts) */
+    --status-original: #64748B;
+    --status-generated: #7C3AED;
+    --status-missing: #F59E0B;
+    --status-filtered-passed: #10B981;
+    --status-filtered-rejected: #EF4444;
+    --status-llm-accepted: #10B981;
+    --status-llm-rejected: #EF4444;
+    --status-unresolved: #64748B;
+
+    color: var(--color-ink);
+    background: var(--color-bg);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+      Arial, sans-serif;
+  }
+
+  body {
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--color-bg) 0%, #0D0F14 100%);
+    background-attachment: fixed;
+    color: var(--color-ink);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 148, 158, 0.55) transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  main,
+  section,
+  article,
+  aside,
+  pre {
+    min-width: 0;
+  }
+
+  pre {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Respect user motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ─── Component classes ─── */
+@layer components {
+  .panel {
+    @apply rounded-card border border-border bg-panel shadow-panel;
+    min-width: 0;
+  }
+
+  .panel-glass {
+    @apply rounded-card border border-border bg-surface shadow-panel;
+    min-width: 0;
+  }
+
+  .panel-title {
+    @apply font-display text-xl font-semibold text-ink;
+  }
+
+  .section-copy {
+    @apply text-sm leading-6 text-muted;
+  }
+
+  .data-grid {
+    @apply grid gap-4 md:grid-cols-2 xl:grid-cols-4;
+  }
+
+  .nav-link {
+    @apply flex items-center justify-between rounded-card border border-transparent px-4 py-3 text-sm font-medium text-muted transition hover:border-border hover:bg-bg hover:text-ink;
+  }
+
+  .nav-link-active {
+    @apply border-accent/40 bg-accent/10 text-ink shadow-none;
+  }
+
+  /* Glow effects for key interactive elements */
+  .glow-cyan {
+    box-shadow: 0 0 0 1px rgba(32, 199, 212, 0.18);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 0 1px rgba(47, 128, 237, 0.18);
+  }
+
+  /* React Flow node/edge styling */
+  .react-flow__node {
+    @apply transition-shadow duration-200;
+    animation: node-enter 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  }
+
+  /* Disable node animation for large graphs */
+  .omnia-large-graph .react-flow__node {
+    animation: none;
+  }
+
+  .react-flow__node.selected {
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+  }
+
+  .react-flow__edge path {
+    transition: opacity 160ms ease, stroke-width 160ms ease;
+  }
+
+  .omnia-edge-animated {
+    stroke-dasharray: 10;
+    animation: omnia-edge-flow 1.2s linear infinite;
+  }
+
+  .react-flow__edge-text {
+    paint-order: stroke;
+    stroke: rgba(22, 27, 34, 0.82);
+    stroke-width: 6px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .react-flow__controls {
+    @apply rounded-card border border-border bg-surface/95 shadow-lg;
+  }
+
+  .react-flow__controls button {
+    background: transparent;
+    color: var(--color-ink);
+  }
+
+  .react-flow__minimap {
+    @apply overflow-hidden rounded-card border border-border bg-surface/95 shadow-lg;
+  }
+
+  .react-flow__minimap svg {
+    background: var(--color-bg);
+  }
+
+  .react-flow__minimap-mask {
+    fill: rgba(13, 17, 23, 0.62);
+  }
+}
+
+/* ─── Form controls (dark theme) ─── */
+input,
+select,
+textarea {
+  color: var(--color-ink);
+  color-scheme: dark;
+}
+
+/* Paper demo: light academic UI must not inherit dark form scheme from the main app shell */
+.paper-demo input,
+.paper-demo select,
+.paper-demo textarea {
+  color-scheme: light;
+  color: #0f172a;
+}
+
+input::file-selector-button {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+    background: var(--color-surface);
+  color: var(--color-ink);
+  padding: 0.55rem 0.8rem;
+}
+
+/* ─── Presenter mode ─── */
+.omnia-presenter-mode .omnia-sidebar,
+.omnia-presenter-mode .omnia-stepper {
+  display: none;
+}
+
+.omnia-presenter-mode .omnia-shell-grid {
+  display: block;
+  max-width: none;
+}
+
+/* ─── Animations ─── */
+@keyframes node-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes omnia-edge-flow {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes step-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(124, 58, 237, 0);
+  }
+}
+
+.step-active {
+  animation: step-pulse 2s ease-in-out infinite;
+}
+
+/* ─── Inspector drawer transition ─── */
+.inspector-drawer {
+  transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease;
+}
+
+.inspector-drawer[data-open="false"] {
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.inspector-drawer[data-open="true"] {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* ─── /paper-demo layout (light academic screenshot) ─── */
+.paper-demo {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+.paper-demo-layout {
+  display: grid;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  /* Graph column takes remaining space; side panels capped so the graph stays dominant */
+  grid-template-columns: 72px minmax(0, min(280px, 22vw)) minmax(0, 1fr) minmax(0, min(320px, 24vw));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "header header header header"
+    "rail candidates graph explanation"
+    "caption caption caption caption";
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.paper-demo-header {
+  grid-area: header;
+}
+
+.paper-demo-rail-wrap {
+  grid-area: rail;
+  min-height: 0;
+}
+
+.paper-demo-candidates {
+  grid-area: candidates;
+  min-height: 0;
+}
+
+.paper-demo-graph {
+  grid-area: graph;
+  min-height: 0;
+  min-width: min(100%, 480px);
+}
+
+.paper-demo-explanation {
+  grid-area: explanation;
+  min-height: 0;
+}
+
+.paper-demo-caption {
+  grid-area: caption;
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  background: #ffffff;
+  box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.06);
+}
+
+/* Compact vertical fit for paper screenshots (e.g. 1366×768) */
+@media (max-height: 860px) and (min-width: 1024px) {
+  .paper-demo-main-svg {
+    max-height: min(340px, 34vh) !important;
+    min-height: min(280px, 30vh) !important;
+  }
+}
+
+.paper-demo-screenshot .paper-demo-rail-wrap {
+  display: none;
+}
+
+.paper-demo-screenshot .paper-demo-layout {
+  grid-template-columns: minmax(0, min(280px, 22vw)) minmax(0, 1fr) minmax(0, min(320px, 24vw));
+  grid-template-areas:
+    "header header header"
+    "candidates graph explanation"
+    "caption caption caption";
+}
+
+@media (max-width: 1279px) {
+  .paper-demo-layout {
+    grid-template-columns: 72px minmax(0, 260px) minmax(0, 1fr) minmax(0, 300px);
+  }
+}
+
+@media (max-width: 1023px) {
+  .paper-demo-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(160px, 28vh) minmax(320px, 48vh) minmax(200px, 32vh) auto;
+    grid-template-areas:
+      "header"
+      "rail"
+      "candidates"
+      "graph"
+      "explanation"
+      "caption";
+  }
+
+  .paper-demo-graph {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .paper-demo-layout {
+    grid-template-rows: auto auto minmax(140px, 26vh) minmax(260px, 44vh) minmax(180px, 30vh) auto;
+  }
+}
