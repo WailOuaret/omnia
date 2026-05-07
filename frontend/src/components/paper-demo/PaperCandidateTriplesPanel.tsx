@@ -9,6 +9,7 @@ interface PaperCandidateTriplesPanelProps {
   candidates: PaperDemoCandidate[];
   selectedId: string;
   onSelect: (id: string) => void;
+  decisions: Record<string, "accepted" | "rejected" | "uncertain" | null>;
   screenshotMode?: boolean;
 }
 
@@ -21,7 +22,7 @@ function statusClass(status: PaperDemoCandidate["status"]): string {
     case "unresolved":
       return "border-amber-700/30 text-amber-950";
     default:
-      return "border-slate-300 text-slate-800";
+      return "border-slate-300 text-slate-700";
   }
 }
 
@@ -29,10 +30,12 @@ export function PaperCandidateTriplesPanel({
   candidates,
   selectedId,
   onSelect,
+  decisions,
   screenshotMode,
 }: PaperCandidateTriplesPanelProps) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("combined");
+  const [sortDirection, setSortDirection] = useState<"desc" | "asc">("desc");
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -43,8 +46,8 @@ export function PaperCandidateTriplesPanel({
         c.relation.toLowerCase().includes(q) ||
         c.tail.toLowerCase().includes(q),
     );
-    return sortPaperDemoCandidates(list, sortKey);
-  }, [candidates, query, sortKey]);
+    return sortPaperDemoCandidates(list, sortKey, sortDirection);
+  }, [candidates, query, sortKey, sortDirection]);
 
   return (
     <section
@@ -88,6 +91,15 @@ export function PaperCandidateTriplesPanel({
               <option value="structural">Structural Score</option>
               <option value="llm">LLM Score</option>
             </select>
+            <button
+              type="button"
+              onClick={() => setSortDirection((v) => (v === "desc" ? "asc" : "desc"))}
+              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-medium text-slate-700"
+              title={sortDirection === "desc" ? "High to low" : "Low to high"}
+              aria-label="Toggle sort direction"
+            >
+              {sortDirection === "desc" ? "↓" : "↑"}
+            </button>
           </div>
         </div>
       ) : null}
@@ -96,6 +108,9 @@ export function PaperCandidateTriplesPanel({
         <ul className="space-y-2" role="list">
           {rows.map((c) => {
             const sel = c.id === selectedId;
+            const effectiveStatus = decisions[c.id] ?? c.status;
+            const visualStatus = effectiveStatus === null ? c.status : effectiveStatus;
+            const classStatus = visualStatus === "uncertain" ? "unresolved" : visualStatus;
             return (
               <li key={c.id}>
                 <button
@@ -118,16 +133,30 @@ export function PaperCandidateTriplesPanel({
                         <span>{c.tail}</span>
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-slate-600">
+                        <span className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                          {c.demoRole === "missing"
+                            ? "true missing triple"
+                            : c.demoRole === "invalid"
+                              ? "generated invalid candidate"
+                              : "needs review"}
+                        </span>
                         <span>
                           Structural: <span className="font-mono text-slate-800">{c.structuralScore.toFixed(2)}</span>
                         </span>
-                        <span>LLM: {c.llmVerdict}</span>
+                        <span>{c.filterResult ?? (c.transEDistance < c.transEThreshold ? "PASSED" : "FILTERED_OUT")}</span>
+                        <span>LLM: {c.llmVerdict} ({(c.llmConfidence * 100).toFixed(0)}%)</span>
                       </div>
                     </div>
                     <span
-                      className={`shrink-0 rounded border bg-white px-1.5 py-0.5 text-[12px] font-semibold tabular-nums ${statusClass(c.status)}`}
+                      className={`shrink-0 rounded border bg-white px-1.5 py-0.5 text-[12px] font-semibold tabular-nums ${statusClass(classStatus)}`}
                     >
-                      {c.combinedScore.toFixed(2)}
+                      {visualStatus === "accepted"
+                        ? "accepted"
+                        : visualStatus === "rejected"
+                          ? "rejected"
+                          : visualStatus === "uncertain"
+                            ? "uncertain"
+                            : c.combinedScore.toFixed(2)}
                     </span>
                   </div>
                 </button>

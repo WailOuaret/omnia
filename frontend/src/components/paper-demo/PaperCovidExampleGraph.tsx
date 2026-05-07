@@ -1,622 +1,283 @@
-import type { PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
+import type { PaperDemoCandidate, PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
+import { CANDIDATE_GENERATION_MATRIX, ORIGINAL_TRIPLES, PAPER_DEMO_CANDIDATES } from "./paperDemoScenario";
 
-const R = 42;
-const VB_W = 880;
-const VB_H = 520;
+const VB_W = 1220;
+const VB_H = 780;
+const R = 38;
 
 type NodeId =
-  | "remdesivir"
-  | "chloroquine"
-  | "sars_cov_2"
-  | "ncov"
-  | "fda"
-  | "hcq"
-  | "severe"
-  | "mers"
-  | "favipiravir"
-  | "covid19";
-
-/** Faded in the paper figure so the COVID running-example evidence stays dominant. */
-const SECONDARY_NODE_IDS = new Set<NodeId>(["mers", "favipiravir", "hcq", "covid19", "severe"]);
+  | "remdesivir" | "chloroquine" | "sars_cov_2" | "ncov" | "fda" | "hcq" | "mers"
+  | "severe" | "niclosamide" | "covid19" | "pneumonia" | "delta" | "favipiravir";
+type EdgeDef = { id: string; from: NodeId; to: NodeId; label: string; kind?: "candidate" };
 
 const NODES: Record<NodeId, { x: number; y: number; label: string }> = {
-  remdesivir: { x: 260, y: 260, label: "remdesivir" },
-  chloroquine: { x: 520, y: 260, label: "chloroquine" },
-  sars_cov_2: { x: 390, y: 110, label: "sars-cov-2" },
-  ncov: { x: 390, y: 420, label: "2019-ncov" },
-  fda: { x: 680, y: 150, label: "FDA" },
-  hcq: { x: 720, y: 320, label: "hydroxychloroquine" },
-  severe: { x: 130, y: 420, label: "severe covid-19" },
-  mers: { x: 100, y: 170, label: "MERS" },
-  favipiravir: { x: 610, y: 470, label: "favipiravir" },
-  covid19: { x: 760, y: 470, label: "covid-19" },
+  remdesivir: { x: 260, y: 250, label: "remdesivir" },
+  chloroquine: { x: 500, y: 250, label: "chloroquine" },
+  sars_cov_2: { x: 380, y: 100, label: "sars-cov-2" },
+  ncov: { x: 370, y: 420, label: "2019-ncov" },
+  fda: { x: 760, y: 130, label: "FDA" },
+  hcq: { x: 790, y: 300, label: "hydroxychloroquine" },
+  mers: { x: 110, y: 170, label: "MERS" },
+  severe: { x: 140, y: 470, label: "severe covid-19" },
+  niclosamide: { x: 120, y: 610, label: "niclosamide" },
+  covid19: { x: 980, y: 420, label: "covid-19" },
+  pneumonia: { x: 980, y: 240, label: "pneumonia" },
+  delta: { x: 1110, y: 500, label: "delta-variant" },
+  favipiravir: { x: 860, y: 590, label: "favipiravir" },
 };
 
-type EdgeDef = {
-  id: string;
-  from: NodeId;
-  to: NodeId;
-  label: string;
+const EDGE_NODE_MAP: Record<string, { from: NodeId; to: NodeId; label: string; kind?: "candidate" }> = {
+  t1: { from: "remdesivir", to: "sars_cov_2", label: "treats" },
+  t2: { from: "remdesivir", to: "ncov", label: "inhibits" },
+  t3: { from: "chloroquine", to: "ncov", label: "inhibits" },
+  t5: { from: "fda", to: "chloroquine", label: "approves" },
+  t6: { from: "fda", to: "hcq", label: "approves" },
+  t7: { from: "niclosamide", to: "sars_cov_2", label: "prevents" },
+  t8: { from: "remdesivir", to: "mers", label: "affects" },
+  t9: { from: "remdesivir", to: "severe", label: "affects" },
+  t10: { from: "sars_cov_2", to: "pneumonia", label: "causes" },
+  t11: { from: "covid19", to: "pneumonia", label: "causes" },
+  t12: { from: "delta", to: "pneumonia", label: "causes" },
+  t13: { from: "favipiravir", to: "covid19", label: "treats" },
+  t14: { from: "favipiravir", to: "delta", label: "treats" },
+  c1: { from: "chloroquine", to: "sars_cov_2", label: "treats", kind: "candidate" },
+  c2: { from: "chloroquine", to: "mers", label: "affects", kind: "candidate" },
+  c3: { from: "chloroquine", to: "severe", label: "affects", kind: "candidate" },
+  c4: { from: "remdesivir", to: "ncov", label: "treats", kind: "candidate" },
 };
+const EDGES: EdgeDef[] = [...ORIGINAL_TRIPLES.map((t) => ({ id: t.id, ...EDGE_NODE_MAP[t.id] })), ...CANDIDATE_GENERATION_MATRIX.map((c) => ({ id: c.id, ...EDGE_NODE_MAP[c.id] }))];
 
-const EDGES: EdgeDef[] = [
-  { id: "t1", from: "remdesivir", to: "sars_cov_2", label: "treats" },
-  { id: "t2", from: "remdesivir", to: "ncov", label: "inhibits" },
-  { id: "t3", from: "chloroquine", to: "ncov", label: "inhibits" },
-  { id: "t5", from: "fda", to: "chloroquine", label: "approves" },
-  { id: "t6", from: "remdesivir", to: "severe", label: "affects" },
-  { id: "t4", from: "chloroquine", to: "sars_cov_2", label: "treats" },
-  { id: "r1", from: "chloroquine", to: "mers", label: "affects" },
-  { id: "e_f", from: "favipiravir", to: "covid19", label: "treats" },
-  { id: "e_h", from: "hcq", to: "covid19", label: "treats" },
-];
+function candidateEdgeId(c: PaperDemoCandidate | undefined): string {
+  if (!c) return "c1";
+  if (c.id === "c2") return "c2";
+  if (c.id === "c3") return "c3";
+  if (c.id === "c4") return "c4";
+  return "c1";
+}
 
-function segment(a: NodeId, b: NodeId): { x1: number; y1: number; x2: number; y2: number } {
+function seg(a: NodeId, b: NodeId) {
   const A = NODES[a];
   const B = NODES[b];
   const dx = B.x - A.x;
   const dy = B.y - A.y;
-  const len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len;
-  const uy = dy / len;
-  return {
-    x1: A.x + ux * R,
-    y1: A.y + uy * R,
-    x2: B.x - ux * R,
-    y2: B.y - uy * R,
-  };
+  const l = Math.hypot(dx, dy) || 1;
+  return { x1: A.x + (dx / l) * R, y1: A.y + (dy / l) * R, x2: B.x - (dx / l) * R, y2: B.y - (dy / l) * R };
 }
 
-function edgeVisible(
-  step: PaperDemoStep,
-  edgeId: string,
-  curatorDecision: UserRefinementDecision,
-): boolean {
-  if (step === "after" && curatorDecision === "rejected" && edgeId === "t4") {
-    return false;
-  }
-  if (step === "before") {
-    return ["t1", "t2", "t3", "t5", "t6"].includes(edgeId);
-  }
-  if (step === "missing") {
-    return ["t1", "t2", "t3", "t4", "t5", "t6", "e_f", "e_h"].includes(edgeId);
-  }
-  if (step === "cluster") {
-    return ["t1", "t2", "t3", "t4", "t5", "t6"].includes(edgeId);
-  }
-  if (step === "filtering") {
-    return ["t1", "t2", "t3", "t4", "t5", "t6", "r1", "e_f", "e_h"].includes(edgeId);
-  }
-  if (step === "llm") {
-    return ["t1", "t2", "t3", "t4", "t5", "t6", "e_f", "e_h"].includes(edgeId);
-  }
-  if (step === "after") {
-    return ["t1", "t2", "t3", "t4", "t5", "t6", "e_f", "e_h"].includes(edgeId);
-  }
-  return false;
+function visible(step: PaperDemoStep, id: string, sel: string, decision: UserRefinementDecision) {
+  const base = id.startsWith("t");
+  if (step === "before") return base;
+  if (step === "missing") return base || id === sel;
+  if (step === "cluster") return base || id === sel;
+  if (step === "generation" || step === "filtering" || step === "llm" || step === "human") return base || id.startsWith("c");
+  if (step === "after" || step === "diff") return base || (id === sel && decision !== null);
+  return base;
 }
 
-function edgeStyle(
-  step: PaperDemoStep,
-  e: EdgeDef,
-  curatorDecision: UserRefinementDecision,
-): { stroke: string; strokeWidth: number; dash: string; opacity: number } {
-  const dim = { stroke: "#64748b", strokeWidth: 1.25, dash: "", opacity: 0.36 };
-  /** Original / validated KG triples — thin neutral-green (paper-style). */
-  const orig = { stroke: "#15803d", strokeWidth: 1.35, dash: "", opacity: 1 };
-  /** Missing candidate t4 — thick dashed orange. */
-  const cand = { stroke: "#ea580c", strokeWidth: 4.25, dash: "14 9", opacity: 1 };
-  /** Accepted t4 — thick solid green. */
-  const candSolid = { stroke: "#15803d", strokeWidth: 3.6, dash: "", opacity: 1 };
-  /** Rejected candidate — faint dashed red. */
-  const rej = { stroke: "#dc2626", strokeWidth: 1.15, dash: "5 5", opacity: 0.16 };
-  const ctx = { stroke: "#64748b", strokeWidth: 1.35, dash: "", opacity: 0.82 };
-
-  if (step === "before") {
-    if (e.id === "t1" || e.id === "t2" || e.id === "t3") return orig;
-    if (e.id === "t5" || e.id === "t6") return ctx;
-    return orig;
+function style(step: PaperDemoStep, id: string, sel: string, decision: UserRefinementDecision, hi?: string | null) {
+  if (hi === id) return { stroke: "#f59e0b", sw: 3.6, dash: "", op: 1 };
+  if (id.startsWith("t")) return { stroke: "#15803d", sw: 1.5, dash: "", op: 0.9 };
+  const filtered = PAPER_DEMO_CANDIDATES.find((c) => c.id === id)?.transEDistance ? (PAPER_DEMO_CANDIDATES.find((c) => c.id === id)!.transEDistance > PAPER_DEMO_CANDIDATES.find((c) => c.id === id)!.transEThreshold) : false;
+  if (step === "missing" || step === "cluster" || step === "generation") return { stroke: "#ea580c", sw: 3, dash: "10 8", op: 1 };
+  if (step === "filtering") return filtered ? { stroke: "#dc2626", sw: 1.4, dash: "6 5", op: 0.5 } : { stroke: "#2563eb", sw: 2.8, dash: "8 6", op: 1 };
+  if (step === "llm" || step === "human") return filtered ? { stroke: "#dc2626", sw: 1.6, dash: "6 5", op: 0.6 } : { stroke: "#ea580c", sw: 3, dash: "10 8", op: 1 };
+  if (step === "after" || step === "diff") {
+    if (id !== sel) return { stroke: "#94a3b8", sw: 1.2, dash: "5 5", op: 0.18 };
+    if (decision === "accepted") return { stroke: "#16a34a", sw: 5.2, dash: "", op: 1 };
+    if (decision === "rejected") return { stroke: "#dc2626", sw: 3.4, dash: "8 6", op: 0.95 };
+    if (decision === "uncertain") return { stroke: "#6b7280", sw: 3, dash: "4 5", op: 0.95 };
+    return { stroke: "#ea580c", sw: 3, dash: "10 8", op: 1 };
   }
-  if (step === "missing") {
-    if (e.id === "t4") return cand;
-    return dim;
-  }
-  if (step === "cluster") {
-    if (e.id === "t4") return cand;
-    if (e.id === "t2" || e.id === "t3") return { ...orig, strokeWidth: 1.65, stroke: "#16a34a" };
-    if (e.id === "t1") return { ...orig, opacity: 0.78 };
-    return { stroke: "#64748b", strokeWidth: 1.35, dash: "", opacity: 0.48 };
-  }
-  if (step === "filtering") {
-    if (e.id === "r1") return rej;
-    if (e.id === "t4") return cand;
-    if (e.id === "t1" || e.id === "t2" || e.id === "t3") return orig;
-    return ctx;
-  }
-  if (step === "llm") {
-    if (e.id === "t4") return cand;
-    if (e.id === "t1" || e.id === "t2" || e.id === "t3") return orig;
-    return ctx;
-  }
-  if (step === "after") {
-    if (e.id === "t4") {
-      if (curatorDecision === "accepted") return candSolid;
-      return cand;
-    }
-    if (e.id === "t1" || e.id === "t2" || e.id === "t3") return orig;
-    return ctx;
-  }
-  return orig;
+  return { stroke: "#64748b", sw: 1.2, dash: "", op: 0.6 };
 }
 
-function highlightNodes(step: PaperDemoStep): Set<NodeId> {
-  const h = new Set<NodeId>();
-  if (step === "missing") {
-    h.add("chloroquine");
-    h.add("sars_cov_2");
-  }
-  if (step === "llm") {
-    h.add("chloroquine");
-    h.add("sars_cov_2");
-  }
-  return h;
-}
-
-function NodeLabel({
-  x,
-  y,
-  label,
-  opacity = 1,
-}: {
-  x: number;
-  y: number;
-  label: string;
-  opacity?: number;
-}) {
-  const fs = label.length > 16 ? 8 : 10;
-  const parts = label.split(/[\s-]+/).filter(Boolean);
-  if (parts.length <= 1) {
-    return (
-      <text x={x} y={y + 4} textAnchor="middle" fill="#1e293b" opacity={opacity} style={{ fontSize: fs }}>
-        {label}
-      </text>
-    );
-  }
-  if (parts.length === 2) {
-    return (
-      <text x={x} y={y} textAnchor="middle" fill="#1e293b" opacity={opacity} style={{ fontSize: 9 }}>
-        <tspan x={x} dy="-3">
-          {parts[0]}
-        </tspan>
-        <tspan x={x} dy="12">
-          {parts[1]}
-        </tspan>
-      </text>
-    );
-  }
-  const line1 = `${parts[0]} ${parts[1]}`;
-  const line2 = parts.slice(2).join(" ");
-  return (
-    <text x={x} y={y} textAnchor="middle" fill="#1e293b" opacity={opacity} style={{ fontSize: 8 }}>
-      <tspan x={x} dy="-5">
-        {line1}
-      </tspan>
-      <tspan x={x} dy="11">
-        {line2}
-      </tspan>
-    </text>
-  );
-}
-
-function GraphSvgBody({
+function Graph({
   step,
-  variant,
-  markerPrefix = "paper",
-  curatorDecision = null,
+  selectedCandidate,
+  selectedDecision,
+  highlightedEdge,
+  highlightedNode,
+  diffFocus,
 }: {
   step: PaperDemoStep;
-  variant: "full" | "beforeOnly" | "afterOnly";
-  markerPrefix?: string;
-  curatorDecision?: UserRefinementDecision;
+  selectedCandidate: PaperDemoCandidate | undefined;
+  selectedDecision: UserRefinementDecision;
+  highlightedEdge?: string | null;
+  highlightedNode?: string | null;
+  diffFocus?: boolean;
 }) {
-  const effectiveStep = variant === "beforeOnly" ? "before" : variant === "afterOnly" ? "after" : step;
-  const mp = markerPrefix;
-  const hi = highlightNodes(effectiveStep);
-
-  const showClusterHalo = effectiveStep === "cluster";
-  const showClusterBanner = effectiveStep === "cluster" && variant === "full";
-  const showLlmChips = effectiveStep === "llm" && variant === "full";
-
-  const rx = (NODES.chloroquine.x + NODES.remdesivir.x) / 2;
-  const ry = (NODES.chloroquine.y + NODES.remdesivir.y) / 2;
-  const rw = 340;
-  const rh = 120;
-
-  const visibleEdges = EDGES.filter((e) => {
-    if (!edgeVisible(effectiveStep, e.id, curatorDecision)) return false;
-    if (variant === "beforeOnly" && e.id === "t4") return false;
-    if (variant === "afterOnly" && e.id === "r1") return false;
-    return true;
-  });
-
+  const sel = candidateEdgeId(selectedCandidate);
   return (
-    <>
+    <svg
+      viewBox={diffFocus ? "40 30 640 560" : `0 0 ${VB_W} ${VB_H}`}
+      className="paper-demo-main-svg h-full min-h-[45vh] w-full lg:min-h-[70vh]"
+      data-testid="paper-demo-graph-svg"
+      data-step={step}
+    >
       <defs>
-        <marker id={`${mp}-arrow`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
           <path d="M0,0 L8,4 L0,8 Z" fill="#475569" />
         </marker>
-        <marker id={`${mp}-arrow-green`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 Z" fill="#15803d" />
-        </marker>
-        <marker id={`${mp}-arrow-orange`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 Z" fill="#ea580c" />
-        </marker>
       </defs>
-
-      {/* 1 — Background / cluster halo */}
-      {showClusterHalo ? (
-        <ellipse
-          cx={rx}
-          cy={ry}
-          rx={rw / 2}
-          ry={rh / 2}
-          fill="none"
-          stroke="#1e40af"
-          strokeWidth="1.5"
-          strokeDasharray="5 4"
-          opacity={0.45}
-        />
+      {(step === "cluster" || step === "generation") ? (
+        <>
+          <rect x={160} y={145} width={430} height={355} fill="#dbeafe2e" stroke="#1d4ed8" strokeDasharray="6 4" />
+          <text x={170} y={165} style={{ fontSize: 11, fontWeight: 700 }} fill="#1d4ed8">C1 (inhibits, 2019-ncov)</text>
+          <rect x={905} y={170} width={260} height={370} fill="#dcfce72e" stroke="#15803d" strokeDasharray="6 4" />
+          <text x={915} y={190} style={{ fontSize: 11, fontWeight: 700 }} fill="#15803d">C2 (causes, pneumonia)</text>
+          <rect x={735} y={355} width={430} height={300} fill="#fef3c72e" stroke="#b45309" strokeDasharray="6 4" />
+          <text x={745} y={375} style={{ fontSize: 11, fontWeight: 700 }} fill="#b45309">C3 (treats, covid-19)</text>
+        </>
       ) : null}
-
-      {/* 2 — Edges (geometry only; paints below nodes) */}
-      {visibleEdges.map((e) => {
-        const { x1, y1, x2, y2 } = segment(e.from, e.to);
-        const st = edgeStyle(effectiveStep, e, curatorDecision);
-        const marker =
-          st.stroke === "#ea580c"
-            ? `url(#${mp}-arrow-orange)`
-            : st.stroke === "#15803d" || st.stroke === "#16a34a"
-              ? `url(#${mp}-arrow-green)`
-              : `url(#${mp}-arrow)`;
+      {EDGES.filter((e) => visible(step, e.id, sel, selectedDecision)).map((e) => {
+        const s = style(step, e.id, sel, selectedDecision, highlightedEdge);
+        const p = seg(e.from, e.to);
+        const mx = (p.x1 + p.x2) / 2;
+        const my = (p.y1 + p.y2) / 2;
         return (
-          <line
-            key={`${e.id}-${variant}-line`}
-            x1={x1}
-            y1={y1}
-            x2={x2}
-            y2={y2}
-            stroke={st.stroke}
-            strokeWidth={st.strokeWidth}
-            strokeDasharray={st.dash}
-            opacity={st.opacity}
-            markerEnd={marker}
-          />
-        );
-      })}
-
-      {/* 3 — Nodes */}
-      {(Object.entries(NODES) as [NodeId, (typeof NODES)[NodeId]][]).map(([id, n]) => {
-        const ringFocus = (effectiveStep === "missing" || effectiveStep === "llm") && hi.has(id);
-        const clusterHead = effectiveStep === "cluster" && (id === "remdesivir" || id === "chloroquine");
-        const secondary = SECONDARY_NODE_IDS.has(id);
-        const nodeOp = secondary ? 0.2 : 1;
-        const strokeSel = ringFocus ? "#1d4ed8" : clusterHead ? "#1e40af" : "#334155";
-        const strokeWSel = ringFocus ? 2.6 : clusterHead ? 2.5 : 1.85;
-        return (
-          <g key={id} opacity={nodeOp}>
-            <circle
-              cx={n.x}
-              cy={n.y}
-              r={R}
-              fill="#fafafa"
-              stroke={strokeSel}
-              strokeWidth={strokeWSel}
-              className="paper-demo-node"
-            />
-            <NodeLabel x={n.x} y={n.y} label={n.label} opacity={secondary ? 0.58 : 1} />
-          </g>
-        );
-      })}
-
-      {/* 4 — Edge labels & badges */}
-      {visibleEdges.map((e) => {
-        const { x1, y1, x2, y2 } = segment(e.from, e.to);
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
-        const showMissingSub = effectiveStep === "missing" && e.id === "t4" && variant === "full";
-        const showAcceptedSub =
-          (effectiveStep === "after" || variant === "afterOnly") &&
-          e.id === "t4" &&
-          variant !== "beforeOnly" &&
-          curatorDecision === "accepted";
-        const showPendingSub =
-          effectiveStep === "after" && e.id === "t4" && variant === "full" && curatorDecision === null;
-        const stackSubs = e.id === "t4" && (showMissingSub || showAcceptedSub || showPendingSub);
-        const labelY = stackSubs ? midY - 10 : midY - 2;
-        return (
-          <g key={`${e.id}-${variant}-labels`}>
-            <rect
-              x={midX - 38}
-              y={labelY - 9}
-              width={76}
-              height={15}
-              rx={2}
-              fill="#ffffff"
-              stroke="#cbd5e1"
-              opacity={0.98}
-            />
-            <text
-              x={midX}
-              y={labelY + 2}
-              textAnchor="middle"
-              fill="#334155"
-              style={{ fontSize: "10px", fontWeight: 500 }}
-            >
+          <g key={e.id}>
+            {e.id === "c4" ? (
+              <path
+                d={`M ${p.x1} ${p.y1} Q ${(p.x1 + p.x2) / 2} ${((p.y1 + p.y2) / 2) - 30} ${p.x2} ${p.y2}`}
+                fill="none"
+                stroke={s.stroke}
+                strokeWidth={s.sw}
+                strokeDasharray={s.dash}
+                opacity={s.op}
+                markerEnd="url(#arr)"
+              />
+            ) : (
+              <line
+                x1={p.x1}
+                y1={p.y1}
+                x2={p.x2}
+                y2={p.y2}
+                stroke={s.stroke}
+                strokeWidth={s.sw}
+                strokeDasharray={s.dash}
+                opacity={s.op}
+                markerEnd="url(#arr)"
+              />
+            )}
+            <text x={mx} y={my - 4} textAnchor="middle" fill="#334155" style={{ fontSize: 9 }}>
               {e.label}
             </text>
-            {showMissingSub ? (
+            {(step === "filtering" || step === "diff" || step === "after") && PAPER_DEMO_CANDIDATES.find((c) => c.id === e.id && c.transEDistance > c.transEThreshold) ? (
               <g>
-                <rect
-                  x={midX - 52}
-                  y={labelY + 12}
-                  width={104}
-                  height={13}
-                  rx={2}
-                  fill="#fffbeb"
-                  stroke="#fdba74"
-                  opacity={0.98}
-                />
-                <text
-                  x={midX}
-                  y={labelY + 21}
-                  textAnchor="middle"
-                  fill="#9a3412"
-                  style={{ fontSize: "9px", fontWeight: 600 }}
-                >
-                  missing candidate
-                </text>
+                <text x={mx + 28} y={my - 2} fill="#dc2626" style={{ fontSize: 14, fontWeight: 700 }}>✕</text>
+                <text x={mx + 44} y={my - 2} fill="#b91c1c" style={{ fontSize: 10, fontWeight: 700 }}>FILTERED OUT</text>
               </g>
             ) : null}
-            {showAcceptedSub ? (
+            {(step === "after" || step === "diff") && e.id === sel && selectedDecision === "accepted" ? (
               <g>
-                <rect
-                  x={midX - 36}
-                  y={labelY + 12}
-                  width={72}
-                  height={12}
-                  rx={2}
-                  fill="#ecfdf5"
-                  stroke="#86efac"
-                  opacity={0.98}
-                />
-                <text
-                  x={midX}
-                  y={labelY + 21}
-                  textAnchor="middle"
-                  fill="#166534"
-                  style={{ fontSize: "9px", fontWeight: 600 }}
-                >
-                  accepted
-                </text>
+                <circle cx={mx + 36} cy={my - 14} r={15} fill="#dcfce7" stroke="#16a34a" strokeWidth={2} />
+                <text x={mx + 36} y={my - 9} textAnchor="middle" fill="#166534" style={{ fontSize: 16, fontWeight: 900 }}>✓</text>
+                <text x={mx + 58} y={my - 10} fill="#166534" style={{ fontSize: 12, fontWeight: 800 }}>ACCEPTED +1</text>
               </g>
             ) : null}
-            {showPendingSub ? (
+            {(step === "after" || step === "diff") && e.id === sel && selectedDecision === "rejected" ? (
               <g>
-                <rect
-                  x={midX - 44}
-                  y={labelY + 12}
-                  width={88}
-                  height={12}
-                  rx={2}
-                  fill="#f8fafc"
-                  stroke="#94a3b8"
-                  opacity={0.98}
-                />
-                <text
-                  x={midX}
-                  y={labelY + 21}
-                  textAnchor="middle"
-                  fill="#475569"
-                  style={{ fontSize: "9px", fontWeight: 600 }}
-                >
-                  awaiting curator
-                </text>
+                <circle cx={mx + 36} cy={my - 14} r={15} fill="#fee2e2" stroke="#dc2626" strokeWidth={2} />
+                <text x={mx + 36} y={my - 9} textAnchor="middle" fill="#991b1b" style={{ fontSize: 16, fontWeight: 900 }}>✕</text>
+                <text x={mx + 58} y={my - 10} fill="#991b1b" style={{ fontSize: 12, fontWeight: 800 }}>REJECTED · not added</text>
+              </g>
+            ) : null}
+            {(step === "after" || step === "diff") && e.id === sel && selectedDecision === "uncertain" ? (
+              <g>
+                <circle cx={mx + 36} cy={my - 14} r={15} fill="#e5e7eb" stroke="#6b7280" strokeWidth={2} />
+                <text x={mx + 36} y={my - 9} textAnchor="middle" fill="#374151" style={{ fontSize: 14, fontWeight: 900 }}>?</text>
+                <text x={mx + 58} y={my - 10} fill="#374151" style={{ fontSize: 12, fontWeight: 800 }}>UNCERTAIN · not added</text>
               </g>
             ) : null}
           </g>
         );
       })}
-
-      {/* 5 — Top annotations (render above geometry for readability) */}
-      {showClusterBanner ? (
-        <g>
-          <text
-            x={VB_W / 2}
-            y={24}
-            textAnchor="middle"
-            fill="#0f172a"
-            style={{ fontSize: "13px", fontWeight: 600 }}
-          >
-            Shared relation-tail key: (inhibits, 2019-ncov)
-          </text>
-          <text
-            x={VB_W / 2}
-            y={42}
-            textAnchor="middle"
-            fill="#334155"
-            style={{ fontSize: "11px", fontWeight: 500 }}
-          >
-            OMNIA propagates (treats, sars-cov-2) from remdesivir to chloroquine.
-          </text>
-        </g>
-      ) : null}
-
-      {showLlmChips ? (
-        <g data-testid="paper-llm-chips">
-          <text
-            x={VB_W / 2}
-            y={22}
-            textAnchor="middle"
-            fill="#0f172a"
-            style={{ fontSize: "12px", fontWeight: 600 }}
-          >
-            LLM/RAG validates candidate c1
-          </text>
-          <g transform={`translate(${VB_W / 2 - (4 * 56) / 2}, 34)`}>
-            {["t1", "t2", "t3", "f2"].map((t, i) => (
-              <g key={t} transform={`translate(${i * 56}, 0)`}>
-                <rect width={50} height={20} rx={3} fill="#ffffff" stroke="#cbd5e1" strokeWidth={1} />
-                <text x={25} y={14} textAnchor="middle" fill="#334155" style={{ fontSize: "10px", fontWeight: 500 }}>
-                  {t}
-                </text>
-              </g>
-            ))}
+      {(Object.entries(NODES) as [NodeId, { x: number; y: number; label: string }][]).map(([id, n]) => {
+        const hi = highlightedNode === n.label;
+        return (
+          <g key={id}>
+            <circle cx={n.x} cy={n.y} r={R} fill="#fafafa" stroke={hi ? "#f59e0b" : "#334155"} strokeWidth={hi ? 3 : 1.8} />
+            <text x={n.x} y={n.y + 4} textAnchor="middle" fill="#0f172a" style={{ fontSize: 9 }}>
+              {n.label}
+            </text>
           </g>
-        </g>
-      ) : null}
-    </>
+        );
+      })}
+      <text x={18} y={VB_H - 44} fill="#334155" style={{ fontSize: 12, fontWeight: 700 }}>
+        {selectedDecision === "accepted"
+          ? "✓ Triple accepted: completed KG +1"
+          : selectedDecision === "rejected"
+            ? "✕ Triple rejected: KG unchanged (+0)"
+            : "Pending human decision: no difference yet"}
+      </text>
+      <text x={18} y={VB_H - 24} fill="#475569" style={{ fontSize: 12 }}>
+        {step === "filtering" && selectedCandidate?.id === "c2"
+          ? "0.93 > τ 0.80 → FILTERED OUT"
+          : step === "filtering" && selectedCandidate?.id === "c1"
+            ? "0.61 < τ 0.80 → PASSED"
+            : step === "after" && selectedDecision === "accepted"
+              ? "KG updated (+1 triple)"
+              : step === "after" && selectedDecision === "rejected"
+                ? "KG unchanged (+0 triples)"
+                : "The selected candidate is shown in context. Original KG edges remain unchanged until a curator decision is made."}
+      </text>
+    </svg>
   );
-}
-
-function AnnotationLabel({
-  step,
-  variant,
-  curatorDecision = null,
-}: {
-  step: PaperDemoStep;
-  variant: "full" | "beforeOnly" | "afterOnly";
-  curatorDecision?: UserRefinementDecision;
-}) {
-  const text =
-    variant === "beforeOnly"
-      ? "Before KG — no t4 edge"
-      : variant === "afterOnly"
-        ? curatorDecision === "rejected"
-          ? "After KG — t4 not integrated (curator rejected)"
-          : curatorDecision === null
-            ? "After KG — pending curator decision on c1"
-            : "After KG — t4 accepted"
-        : step === "diff"
-          ? ""
-          : {
-              before: "Input KG before OMNIA completion",
-              missing: "t4 = (chloroquine, treats, sars-cov-2) is absent from the original KG",
-              cluster: "Heads remdesivir and chloroquine co-cluster on the shared relation–tail key",
-              filtering: "TransE: candidate t4 passes threshold τ = 0.80 (rejected example r1 above τ)",
-              llm: "RAG context validates candidate (retrieved: t1, t2, t3, f2)",
-              after:
-                curatorDecision === "rejected"
-                  ? "Curator rejected t4 — completed KG unchanged for this candidate"
-                  : curatorDecision === "accepted"
-                    ? "t4 integrated as an accepted relation in the completed KG"
-                    : "Finalize Accept or Reject to lock in the completed KG view",
-              diff: "",
-            }[step];
-
-  if (!text) return null;
-  return (
-    <text x={24} y={VB_H - 20} className="fill-slate-600" style={{ fontSize: "12px" }}>
-      {text}
-    </text>
-  );
-}
-
-function mainFootline(step: PaperDemoStep, curatorDecision: UserRefinementDecision): string {
-  if (step === "after") {
-    if (curatorDecision === "rejected") return "Curator rejected t4 — completed KG unchanged for this candidate";
-    if (curatorDecision === "accepted") return "t4 integrated as an accepted relation in the completed KG";
-    return "Finalize Accept or Reject to lock in the completed KG view";
-  }
-  return {
-    before: "Input KG before OMNIA completion",
-    missing: "t4 = (chloroquine, treats, sars-cov-2) is absent from the original KG",
-    cluster: "Heads remdesivir and chloroquine co-cluster on the shared relation–tail key",
-    filtering: "TransE: candidate t4 passes threshold τ = 0.80 (rejected example r1 above τ)",
-    llm: "RAG context validates candidate (retrieved: t1, t2, t3, f2)",
-    after: "",
-    diff: "",
-  }[step];
 }
 
 export function PaperCovidExampleGraph({
   step,
-  curatorDecision = null,
+  selectedCandidate,
+  selectedDecision = null,
+  highlightedEdge = null,
+  highlightedNode = null,
 }: {
   step: PaperDemoStep;
-  curatorDecision?: UserRefinementDecision;
+  selectedCandidate: PaperDemoCandidate | undefined;
+  selectedDecision?: UserRefinementDecision;
+  highlightedEdge?: string | null;
+  highlightedNode?: string | null;
 }) {
   if (step === "diff") {
-    const diffSummary =
-      curatorDecision === "rejected"
-        ? "No triple added — curator rejected c1 (graphs match for the main candidate)."
-        : curatorDecision === "accepted"
-          ? "Added by OMNIA: chloroquine treats sars-cov-2"
-          : "Accept or Reject c1 on the LLM / After tabs to interpret this comparison.";
     return (
-      <div className="flex w-full min-w-0 flex-col gap-2" data-testid="paper-demo-diff">
-        <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-2">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col border border-slate-200 bg-white p-2">
-          <span className="mb-1 text-center text-[12px] font-semibold text-slate-800">Before KG</span>
-          <svg
-            role="img"
-            viewBox={`0 0 ${VB_W} ${VB_H}`}
-            className="h-auto w-full max-h-[280px]"
-            preserveAspectRatio="xMidYMid meet"
-            aria-hidden={false}
-          >
-            <title>Knowledge graph before OMNIA completion</title>
-            <desc>Original triples without the missing chloroquine treats sars-cov-2 edge.</desc>
-            <GraphSvgBody step="diff" variant="beforeOnly" markerPrefix="pdiff-a" curatorDecision={curatorDecision} />
-            <AnnotationLabel step="diff" variant="beforeOnly" curatorDecision={curatorDecision} />
-          </svg>
+      <div className="grid h-full min-h-[70vh] w-full grid-cols-1 gap-2 lg:grid-cols-2" data-testid="paper-demo-diff">
+        <div className="border border-slate-200 bg-white p-2">
+          <div className="text-center text-[12px] font-semibold">Before KG</div>
+          <Graph
+            step="before"
+            selectedCandidate={selectedCandidate}
+            selectedDecision={null}
+            highlightedEdge={highlightedEdge}
+            highlightedNode={highlightedNode}
+            diffFocus
+          />
         </div>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col border border-slate-200 bg-white p-2">
-          <span className="mb-1 text-center text-[12px] font-semibold text-slate-800">After KG</span>
-          <svg
-            role="img"
-            viewBox={`0 0 ${VB_W} ${VB_H}`}
-            className="h-auto w-full max-h-[280px]"
-            preserveAspectRatio="xMidYMid meet"
-            aria-hidden={false}
-          >
-            <title>Knowledge graph after OMNIA completion</title>
-            <desc>Completed graph including accepted treats edge from chloroquine to sars-cov-2.</desc>
-            <GraphSvgBody step="diff" variant="afterOnly" markerPrefix="pdiff-b" curatorDecision={curatorDecision} />
-            <AnnotationLabel step="diff" variant="afterOnly" curatorDecision={curatorDecision} />
-          </svg>
+        <div className="border border-slate-200 bg-white p-2">
+          <div className="text-center text-[12px] font-semibold">After KG</div>
+          {selectedDecision === null ? (
+            <p className="mb-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[12px] text-amber-900">
+              No human decision yet. Accept or reject the selected candidate to see the KG difference.
+            </p>
+          ) : null}
+          <Graph
+            step="after"
+            selectedCandidate={selectedCandidate}
+            selectedDecision={selectedDecision}
+            highlightedEdge={highlightedEdge}
+            highlightedNode={highlightedNode}
+            diffFocus
+          />
         </div>
-        </div>
-        <p className="border border-slate-200 bg-slate-50 px-3 py-2 text-center text-[12px] font-medium leading-snug text-slate-800">
-          {diffSummary}
-        </p>
       </div>
     );
   }
-
   return (
-    <svg
-      role="img"
-      viewBox={`0 0 ${VB_W} ${VB_H}`}
-      className="paper-demo-main-svg h-full min-h-[min(340px,36vh)] w-full max-h-[min(520px,48vh)]"
-      preserveAspectRatio="xMidYMid meet"
-      data-testid="paper-demo-graph-svg"
-      data-step={step}
-    >
-      <title>OMNIA COVID-19 running example knowledge graph</title>
-      <desc>
-        Fixed-layout demonstration graph with drugs, viruses, and regulatory entities. Edge styles change by demo
-        step to show original, missing candidate, cluster, filtering, validation, and completion states.
-      </desc>
-      <rect width={VB_W} height={VB_H} fill="#fafafa" />
-      <GraphSvgBody step={step} variant="full" curatorDecision={curatorDecision} />
-      {step === "llm" ? (
-        <text x={24} y={VB_H - 42} fill="#475569" style={{ fontSize: "11px" }}>
-          Offline demo mode: using precomputed OMNIA validation results.
-        </text>
-      ) : null}
-      <text x={24} y={step === "llm" ? VB_H - 22 : VB_H - 18} fill="#475569" style={{ fontSize: "12px" }}>
-        {mainFootline(step, curatorDecision)}
-      </text>
-    </svg>
+    <Graph
+      step={step}
+      selectedCandidate={selectedCandidate}
+      selectedDecision={selectedDecision}
+      highlightedEdge={highlightedEdge}
+      highlightedNode={highlightedNode}
+    />
   );
 }

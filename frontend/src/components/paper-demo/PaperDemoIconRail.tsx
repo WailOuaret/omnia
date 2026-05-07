@@ -1,5 +1,4 @@
-import { BookOpen, FlaskConical, LayoutList, MessageSquare, Network } from "lucide-react";
-import { Link } from "react-router-dom";
+import { LayoutList, MessageSquare, Network } from "lucide-react";
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -12,8 +11,6 @@ export function PaperDemoIconRail({
   screenshotMode?: boolean;
   captureMode?: boolean;
 }) {
-  const minimal = Boolean(screenshotMode || captureMode);
-
   const items = [
     {
       id: "candidates",
@@ -32,12 +29,6 @@ export function PaperDemoIconRail({
       label: "Validation & explanation",
       Icon: MessageSquare,
       onClick: () => scrollToId("paper-demo-explanation-section"),
-    },
-    {
-      id: "script",
-      label: "Presenter script",
-      Icon: BookOpen,
-      onClick: () => scrollToId("paper-demo-script-section"),
     },
   ] as const;
 
@@ -61,16 +52,6 @@ export function PaperDemoIconRail({
           </button>
         );
       })}
-      {!minimal ? (
-        <Link
-          to="/demo"
-          title="Full OMNIA workbench — live sessions, pipeline run, clustering"
-          aria-label="Open full OMNIA workbench with live benchmark sessions"
-          className="flex h-11 w-11 items-center justify-center rounded-lg text-emerald-300 transition hover:bg-slate-800 hover:text-emerald-200"
-        >
-          <FlaskConical className="h-5 w-5" strokeWidth={1.75} />
-        </Link>
-      ) : null}
     </nav>
   );
 }

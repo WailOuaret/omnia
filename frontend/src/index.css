@@ -272,7 +272,7 @@ input::file-selector-button {
   max-width: 100vw;
   overflow-x: hidden;
   /* Graph column takes remaining space; side panels capped so the graph stays dominant */
-  grid-template-columns: 72px minmax(0, min(280px, 22vw)) minmax(0, 1fr) minmax(0, min(320px, 24vw));
+  grid-template-columns: 72px minmax(280px, 320px) minmax(0, 1fr) minmax(400px, 480px);
   grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
     "header header header header"
@@ -294,17 +294,58 @@ input::file-selector-button {
 .paper-demo-candidates {
   grid-area: candidates;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .paper-demo-graph {
   grid-area: graph;
   min-height: 0;
-  min-width: min(100%, 480px);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .paper-demo-explanation {
   grid-area: explanation;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.paper-demo-presentation .paper-demo-layout {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) minmax(220px, 28vh) auto;
+  grid-template-areas:
+    "header"
+    "graph"
+    "explanation"
+    "caption";
+}
+
+.paper-demo-presentation .paper-demo-candidates {
+  display: none;
+}
+
+.paper-demo-presentation .paper-demo-rail-wrap {
+  display: none;
+}
+
+.paper-stats-tabs {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.paper-stats-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.paper-pipeline-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.paper-pipeline-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .paper-demo-caption {
@@ -338,14 +379,14 @@ input::file-selector-button {
 
 @media (max-width: 1279px) {
   .paper-demo-layout {
-    grid-template-columns: 72px minmax(0, 260px) minmax(0, 1fr) minmax(0, 300px);
+    grid-template-columns: 64px minmax(240px, 280px) minmax(0, 1fr) minmax(320px, 380px);
   }
 }
 
 @media (max-width: 1023px) {
   .paper-demo-layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(160px, 28vh) minmax(320px, 48vh) minmax(200px, 32vh) auto;
+    grid-template-rows: auto auto minmax(120px, 20vh) minmax(320px, 48vh) minmax(220px, 34vh) auto;
     grid-template-areas:
       "header"
       "rail"
@@ -362,6 +403,13 @@ input::file-selector-button {
 
 @media (max-width: 480px) {
   .paper-demo-layout {
-    grid-template-rows: auto auto minmax(140px, 26vh) minmax(260px, 44vh) minmax(180px, 30vh) auto;
+    grid-template-rows: auto auto minmax(100px, 16vh) minmax(250px, 42vh) minmax(210px, 36vh) auto;
+  }
+  .paper-demo-main-svg {
+    min-height: 38vh !important;
+  }
+  .paper-demo-caption {
+    position: static;
+    box-shadow: none;
   }
 }

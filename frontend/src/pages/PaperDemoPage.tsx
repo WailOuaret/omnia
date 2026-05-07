@@ -5,7 +5,8 @@ import { PaperDemoIconRail } from "../components/paper-demo/PaperDemoIconRail";
 import { PaperExplanationPanel } from "../components/paper-demo/PaperExplanationPanel";
 import { PaperFigureCaptions } from "../components/paper-demo/PaperFigureCaptions";
 import { PaperGraphPanel } from "../components/paper-demo/PaperGraphPanel";
-import { PaperModeToggle } from "../components/demo/PaperModeToggle";
+import { PaperModeToggle } from "../components/paper-demo/PaperModeToggle";
+import { PaperStatsPanel } from "../components/paper-demo/PaperStatsPanel";
 import { getCandidateById, OFFLINE_NOTE, PAPER_DEMO_CANDIDATES } from "../components/paper-demo/paperDemoScenario";
 import { PAPER_DEMO_STEP_ORDER, type PaperDemoStep, type UserRefinementDecision } from "../components/paper-demo/paperDemoTypes";
 
@@ -35,11 +36,14 @@ export function PaperDemoPage() {
   const [decisions, setDecisions] = useState<Record<string, UserRefinementDecision>>({});
   const [comment, setComment] = useState("");
   const [screenshotMode, setScreenshotMode] = useState(false);
+  const [presentationMode, setPresentationMode] = useState(false);
+  const [highlightedEdge, setHighlightedEdge] = useState<string | null>(null);
+  const [highlightedNode, setHighlightedNode] = useState<string | null>(null);
 
-  const userDecision = decisions[selectedCandidateId] ?? null;
-  /** Running-example graph (c1 / t4) always reflects the main candidate decision. */
-  const mainExampleDecision = decisions.c1 ?? null;
-
+  const selected = useMemo(() => getCandidateById(selectedCandidateId), [selectedCandidateId]);
+  const userDecision =
+    decisions[selectedCandidateId] ??
+    (selected?.status === "accepted" || selected?.status === "rejected" ? selected.status : null);
   useEffect(() => {
     const next = readStageParam(searchParams);
     if (next) setActiveStep(next);
@@ -60,15 +64,12 @@ export function PaperDemoPage() {
     [setSearchParams],
   );
 
-  const selected = useMemo(() => getCandidateById(selectedCandidateId), [selectedCandidateId]);
-
   useEffect(() => {
     setComment("");
   }, [selectedCandidateId]);
 
-  function handleUserDecision(decision: "accepted" | "rejected") {
-    if (selectedCandidateId !== "c1") return;
-    setDecisions((prev) => ({ ...prev, c1: decision }));
+  function handleUserDecision(decision: "accepted" | "rejected" | "uncertain") {
+    setDecisions((prev) => ({ ...prev, [selectedCandidateId]: decision }));
     commitStep("after");
   }
 
@@ -80,7 +81,7 @@ export function PaperDemoPage() {
   function handleResetMainValidation() {
     setDecisions((prev) => {
       const next = { ...prev };
-      delete next.c1;
+      delete next[selectedCandidateId];
       return next;
     });
     setComment("");
@@ -144,7 +145,7 @@ export function PaperDemoPage() {
         return;
       }
 
-      const digit = e.key >= "1" && e.key <= "7" ? Number.parseInt(e.key, 10) - 1 : -1;
+      const digit = e.key >= "1" && e.key <= "9" ? Number.parseInt(e.key, 10) - 1 : -1;
       if (digit >= 0 && digit < order.length) {
         e.preventDefault();
         commitStep(order[digit]!);
@@ -154,51 +155,89 @@ export function PaperDemoPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeStep, captureMode, commitStep, screenshotMode, setSearchParams]);
 
-  const showPresenterExtras = !screenshotMode && !captureMode;
-
   return (
     <div
-      className={`paper-demo min-h-screen bg-slate-50 text-slate-900 ${screenshotMode ? "paper-demo-screenshot" : ""}`}
+      className={`paper-demo min-h-screen bg-slate-50 text-slate-900 ${screenshotMode ? "paper-demo-screenshot" : ""} ${presentationMode ? "paper-demo-presentation" : ""}`}
       data-testid="paper-demo-root"
     >
       <div className="paper-demo-layout">
-        <header className="paper-demo-header border-b border-slate-200 bg-white px-4 py-2.5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
+        <header className="paper-demo-header border-b border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-3.5">
+          <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
+            <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-[17px] font-semibold leading-snug tracking-tight text-slate-900">
+                <h1 className="text-[19px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[20px]">
                   OMNIA — Interactive Knowledge Graph Completion
                 </h1>
                 <span
-                  className="rounded border border-slate-300 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700"
+                  className="rounded border border-slate-300 bg-slate-50 px-2 py-0.5 text-[11px] font-medium leading-tight text-slate-700"
                   data-testid="paper-demo-data-badge"
                 >
                   Offline COVID-Fact running example
                 </span>
               </div>
-              <p className="mt-1 text-[13px] leading-snug text-slate-600">{OFFLINE_NOTE}</p>
+              <p className="text-[13px] leading-relaxed text-slate-600 sm:text-[13.5px]">{OFFLINE_NOTE}</p>
               {!screenshotMode && !captureMode ? (
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p className="text-[11px] leading-relaxed text-slate-500">
                   Stage shortcuts: keys <kbd className="rounded border border-slate-300 bg-slate-100 px-1">1</kbd>–
-                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1">7</kbd> and arrows{" "}
+                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1">9</kbd> and arrows{" "}
                   <kbd className="rounded border border-slate-300 bg-slate-100 px-1">←</kbd>
                   <kbd className="rounded border border-slate-300 bg-slate-100 px-1">→</kbd>.
                 </p>
               ) : null}
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">
+            <div className="flex w-full flex-wrap items-center justify-start gap-2 self-start sm:w-auto sm:justify-end">
               {!screenshotMode && !captureMode ? <PaperModeToggle /> : null}
               {!captureMode ? (
                 <button
                   type="button"
                   onClick={() => setScreenshotMode((v) => !v)}
-                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-800 hover:bg-slate-50"
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold leading-tight text-slate-800 hover:bg-slate-50"
                   data-testid="paper-screenshot-mode-btn"
                 >
-                  {screenshotMode ? "Exit screenshot mode" : "Paper screenshot mode"}
+                  {screenshotMode ? "Exit figure mode" : "Figure mode"}
+                </button>
+              ) : null}
+              {!captureMode ? (
+                <button
+                  type="button"
+                  onClick={() => setPresentationMode((v) => !v)}
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold leading-tight text-slate-800 hover:bg-slate-50"
+                >
+                  {presentationMode ? "Exit live demo mode" : "Live demo mode"}
                 </button>
               ) : null}
             </div>
+          </div>
+          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 sm:p-3">
+            <div className="grid gap-2 text-[11px] sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                { label: "COVID-Fact", value: "28R · 1,416E · 908T" },
+                { label: "CoDEx-M", value: "49R · 16,759E · 60,000T" },
+                { label: "OMNIA candidates", value: "9,047,869 (~1,400x fewer)" },
+                { label: "Best CoDEx-M F1", value: "0.91" },
+              ].map((metric) => (
+                <div key={metric.label} className="rounded-md border border-slate-200 bg-white px-2.5 py-2">
+                  <div className="text-[10px] uppercase tracking-wide text-slate-500">{metric.label}</div>
+                  <div className="mt-0.5 text-[12px] font-semibold leading-snug text-slate-800">{metric.value}</div>
+                </div>
+              ))}
+            </div>
+            <details className="mt-2 text-[11px] text-slate-600">
+              <summary className="cursor-pointer select-none font-medium text-slate-700 hover:text-slate-900">
+                Show OMNIA benchmark evidence
+              </summary>
+              <div className="mt-1.5 flex flex-wrap gap-1.5 leading-relaxed">
+                {[
+                  "Exhaustive candidates: 12,958,932,528",
+                  "Filtering CoDEx-M: 71.08%",
+                  "RAG top-k: peak at 3, selected setting 2",
+                ].map((chip) => (
+                  <span key={chip} className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700">
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            </details>
           </div>
         </header>
 
@@ -207,19 +246,26 @@ export function PaperDemoPage() {
         </div>
 
         <div className="paper-demo-candidates min-h-0 overflow-hidden">
-          <PaperCandidateTriplesPanel
-            candidates={PAPER_DEMO_CANDIDATES}
-            selectedId={selectedCandidateId}
-            onSelect={setSelectedCandidateId}
-            screenshotMode={screenshotMode}
-          />
+          <div className="flex h-full min-h-0 flex-col">
+            <PaperCandidateTriplesPanel
+              candidates={PAPER_DEMO_CANDIDATES}
+              selectedId={selectedCandidateId}
+              onSelect={setSelectedCandidateId}
+              decisions={decisions}
+              screenshotMode={screenshotMode}
+            />
+            {!screenshotMode ? <PaperStatsPanel /> : null}
+          </div>
         </div>
 
         <div className="paper-demo-graph min-h-0 overflow-hidden">
           <PaperGraphPanel
             activeStep={activeStep}
             onStepChange={commitStep}
-            curatorDecision={mainExampleDecision}
+            selectedCandidate={selected}
+            selectedDecision={userDecision}
+            highlightedEdge={highlightedEdge}
+            highlightedNode={highlightedNode}
             screenshotMode={screenshotMode}
             captureMode={captureMode}
             onExportSvg={!captureMode && !screenshotMode ? handleExportSvg : undefined}
@@ -237,42 +283,12 @@ export function PaperDemoPage() {
             onReturnToMain={handleReturnToMain}
             onResetMainValidation={handleResetMainValidation}
             screenshotMode={screenshotMode}
+            onHighlightEdge={setHighlightedEdge}
+            onHighlightNode={setHighlightedNode}
           />
         </div>
 
-        <div className="paper-demo-caption" id="paper-demo-script-section">
-          {showPresenterExtras ? (
-            <>
-              <details className="border-t border-slate-200 bg-white px-4 py-2 text-[12px] text-slate-800" data-testid="paper-presenter-notes">
-                <summary className="cursor-pointer select-none font-semibold text-slate-900">Presenter note</summary>
-                <p className="mt-2 leading-snug text-slate-700">
-                  Here we show the missing triple t4. It is not in the original KG but is entailed by f2 and the shared
-                  relation–tail key (inhibits, 2019-ncov), which motivates OMNIA candidate generation.
-                </p>
-              </details>
-              <div
-                className="border-t border-slate-200 bg-slate-50/80 px-4 py-2 text-[11px] leading-snug text-slate-800"
-                data-testid="paper-demo-script-checklist"
-              >
-                <div className="font-semibold text-slate-900">Demo script (conference)</div>
-                <ol className="mt-1.5 list-decimal space-y-0.5 pl-4 text-slate-700">
-                  <li>Show Before KG</li>
-                  <li>Show Missing Triple</li>
-                  <li>Show Cluster Evidence</li>
-                  <li>Show TransE Filtering</li>
-                  <li>Show LLM Validation (expand evidence, follow-up Q&amp;A, raw prompt)</li>
-                  <li>Accept or Reject c1 — graph updates (or use Reset to try the other path)</li>
-                  <li>Show After KG</li>
-                  <li>Show Diff (side-by-side reflects curator outcome)</li>
-                </ol>
-                <p className="mt-2 border-t border-slate-200/80 pt-2 text-[10px] leading-snug text-slate-600">
-                  Narrative: original KG → missing t4 → shared relation–tail key → TransE filter → LLM/RAG validation →
-                  curator decision → completed KG (human-in-the-loop). Use the rail to jump to candidates, graph,
-                  validation, or the full live demo.
-                </p>
-              </div>
-            </>
-          ) : null}
+        <div className="paper-demo-caption">
           <PaperFigureCaptions />
         </div>
       </div>

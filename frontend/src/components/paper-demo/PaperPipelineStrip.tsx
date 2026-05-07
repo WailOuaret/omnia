@@ -2,18 +2,22 @@ import type { PaperDemoStep } from "./paperDemoTypes";
 
 const PIPELINE_LABELS = [
   "Input KG",
-  "Candidates + cluster",
+  "Missing + cluster",
+  "Generation",
   "TransE filter",
   "LLM validation",
-  "Curator + KG",
+  "Human validation",
+  "Completed KG",
 ] as const;
 
 function activePipelineIndex(step: PaperDemoStep): number {
   if (step === "before") return 0;
   if (step === "missing" || step === "cluster") return 1;
-  if (step === "filtering") return 2;
-  if (step === "llm") return 3;
-  return 4;
+  if (step === "generation") return 2;
+  if (step === "filtering") return 3;
+  if (step === "llm") return 4;
+  if (step === "human") return 5;
+  return 6;
 }
 
 export function PaperPipelineStrip({
@@ -30,7 +34,7 @@ export function PaperPipelineStrip({
 
   return (
     <div
-      className={`flex shrink-0 flex-wrap items-center gap-x-1 gap-y-1 bg-slate-50/90 text-[10px] text-slate-700 ${
+      className={`paper-pipeline-scroll flex min-w-0 shrink-0 flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap bg-slate-50/90 text-[10px] text-slate-700 ${
         aside
           ? "border-t border-slate-200 px-2 py-1 xl:border-l xl:border-t-0"
           : compact

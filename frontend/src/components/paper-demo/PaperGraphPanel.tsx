@@ -1,14 +1,16 @@
-import { Download, Expand, Hand, Maximize2, MousePointer2, Search } from "lucide-react";
-import { guidedStoryCaption } from "./paperDemoScenario";
+import { Download } from "lucide-react";
 import { PaperCovidExampleGraph } from "./PaperCovidExampleGraph";
 import { PaperDemoTabs } from "./PaperDemoTabs";
 import { PaperPipelineStrip } from "./PaperPipelineStrip";
-import type { PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
+import type { PaperDemoCandidate, PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
 
 interface PaperGraphPanelProps {
   activeStep: PaperDemoStep;
   onStepChange: (step: PaperDemoStep) => void;
-  curatorDecision: UserRefinementDecision;
+  selectedCandidate: PaperDemoCandidate | undefined;
+  selectedDecision: UserRefinementDecision;
+  highlightedEdge?: string | null;
+  highlightedNode?: string | null;
   screenshotMode?: boolean;
   captureMode?: boolean;
   onExportSvg?: () => void;
@@ -17,7 +19,10 @@ interface PaperGraphPanelProps {
 export function PaperGraphPanel({
   activeStep,
   onStepChange,
-  curatorDecision,
+  selectedCandidate,
+  selectedDecision,
+  highlightedEdge,
+  highlightedNode,
   screenshotMode,
   captureMode,
   onExportSvg,
@@ -32,10 +37,10 @@ export function PaperGraphPanel({
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-2 py-1.5">
         <h2 id="paper-graph-heading" className="text-[15px] font-semibold tracking-tight text-slate-900">
-          Graph Visualization
+          Knowledge graph workspace
         </h2>
         {showChrome ? (
-          <div className="flex flex-wrap items-center gap-1" data-testid="paper-graph-toolbar">
+          <div className="flex flex-wrap items-center gap-1.5" data-testid="paper-graph-toolbar">
             {onExportSvg ? (
               <button
                 type="button"
@@ -51,44 +56,28 @@ export function PaperGraphPanel({
             <span className="rounded-sm border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-700">
               Focused Demo Layout
             </span>
-            <button
-              type="button"
-              aria-label="Select mode"
-              className="rounded border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50"
-            >
-              <MousePointer2 className="h-3.5 w-3.5" />
-            </button>
-            <button type="button" aria-label="Pan mode" className="rounded border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50">
-              <Hand className="h-3.5 w-3.5" />
-            </button>
-            <button type="button" aria-label="Search graph" className="rounded border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50">
-              <Search className="h-3.5 w-3.5" />
-            </button>
-            <button type="button" aria-label="Fit view" className="rounded border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50">
-              <Expand className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              aria-label="Fullscreen graph"
-              className="rounded border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50"
-            >
-              <Maximize2 className="h-3.5 w-3.5" />
-            </button>
           </div>
         ) : null}
       </div>
 
-      {/* Tabs + pipeline on one row (paper Figure 3 alignment); story + legend next — more vertical space for SVG */}
       <div className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="flex flex-col xl:flex-row xl:items-end">
-          <div className="min-w-0 flex-1 xl:overflow-x-auto">
+        <div className="flex min-w-0 flex-col lg:flex-row lg:items-end lg:overflow-hidden">
+          <div className="min-w-0 flex-1 overflow-x-auto">
             <PaperDemoTabs activeStep={activeStep} onStepChange={onStepChange} embedded />
           </div>
-          <PaperPipelineStrip activeStep={activeStep} aside />
+          <div className="min-w-0 lg:max-w-[48%]">
+            <PaperPipelineStrip activeStep={activeStep} aside />
+          </div>
         </div>
         <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-t border-slate-100 px-2 py-1">
           <p className="min-w-0 flex-1 text-[11px] leading-snug text-slate-800" data-testid="paper-guided-story">
-            {guidedStoryCaption(activeStep, curatorDecision)}
+            {selectedCandidate?.demoRole === "invalid"
+              ? selectedCandidate.id === "c2"
+                ? "This is an invalid generated candidate. It demonstrates why filtering and human review are required."
+                : "This candidate is structurally weak and semantically unsupported. It should be rejected or marked uncertain."
+              : selectedCandidate?.demoRole === "review"
+                ? "This candidate passes initial checks but remains a review case because evidence is less direct."
+                : "This is the true missing triple. The demo path should end with an accepted edge in the completed KG."}
           </p>
           <div
             className="flex max-w-full shrink-0 flex-wrap justify-end gap-x-3 gap-y-0.5 text-[10px] text-slate-600"
@@ -101,7 +90,7 @@ export function PaperGraphPanel({
               <span className="h-0.5 w-4 bg-emerald-700" /> Original relation
             </span>
             <span className="flex items-center gap-1">
-              <span className="h-0.5 w-4 border-b-2 border-dashed border-orange-600" /> Missing candidate
+              <span className="h-0.5 w-4 border-b-2 border-dashed border-orange-600" /> Generated candidate
             </span>
             <span className="flex items-center gap-1">
               <span className="h-[3px] w-4 bg-emerald-700" /> Accepted triple
@@ -113,21 +102,50 @@ export function PaperGraphPanel({
         </div>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[#fafafa] p-2">
-        {activeStep === "filtering" ? (
-          <div className="pointer-events-none absolute bottom-4 left-4 z-10 border border-slate-300 bg-white px-3 py-2">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">TransE filtering</div>
-            <div className="mt-1.5 text-[13px] text-slate-900">
-              distance = <span className="font-mono font-semibold tabular-nums">0.42</span>
-            </div>
-            <div className="text-[13px] text-slate-900">
-              threshold τ = <span className="font-mono font-semibold tabular-nums">0.80</span>
-            </div>
-            <div className="mt-1.5 text-[12px] font-semibold text-emerald-800">Candidate c1 passed</div>
-          </div>
-        ) : null}
-        <PaperCovidExampleGraph step={activeStep} curatorDecision={curatorDecision} />
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#fafafa] p-1">
+        <PaperCovidExampleGraph
+          step={activeStep}
+          selectedCandidate={selectedCandidate}
+          selectedDecision={selectedDecision}
+          highlightedEdge={highlightedEdge}
+          highlightedNode={highlightedNode}
+        />
       </div>
+      <p className="border-t border-slate-200 bg-white px-3 py-2 text-[12px] text-slate-700">
+        {{
+          before: "The original COVID-19 KG extracted by GPT-4 from COVID-Fact. Triple t4 is absent.",
+          missing:
+            selectedCandidate?.demoRole === "invalid"
+              ? "Invalid generated candidate is shown as dashed edge for validation (not a true missing triple)."
+              : "t4 = (chloroquine, treats, sars-cov-2) is entailed by f2 but was not extracted. OMNIA targets this.",
+          cluster: "remdesivir and chloroquine share relation-tail key (inhibits, 2019-ncov) and are grouped in cluster C.",
+          generation:
+            "OMNIA propagates relation-tail patterns inside clusters. The generated candidates are hypotheses, not facts, until they pass validation.",
+          filtering:
+            selectedCandidate?.id === "c1"
+              ? "TransE distance 0.61 < tau 0.80 so c1 PASSES filtering."
+              : selectedCandidate?.id === "c2"
+                ? "TransE distance 0.93 > tau 0.80 so c2 is FILTERED OUT."
+                : selectedCandidate?.id === "c3"
+                  ? "TransE distance 0.88 > tau 0.80 so c3 is FILTERED OUT."
+                  : "TransE distance 0.68 < tau 0.80 so c4 PASSES filtering.",
+          llm:
+            selectedCandidate?.demoRole === "invalid"
+              ? "LLM verdict FALSE for invalid candidate; rejection keeps KG unchanged."
+              : "RAG retrieves t1, t2, t3, f2 as context. Mistral-7B classifies c1 as TRUE in the demo walkthrough.",
+          human: "Human quality checklist and evidence judgements are required before final decision.",
+          after:
+            selectedDecision === "accepted"
+              ? "Accepted candidate is integrated into the completed KG."
+              : selectedDecision === "rejected"
+                ? "Rejected candidate remains absent from the KG."
+                : "Awaiting curator decision.",
+          diff:
+            selectedDecision === "accepted"
+              ? "Diff confirms candidate added in after graph."
+              : "Diff confirms rejected candidate is not added (KG unchanged).",
+        }[activeStep]}
+      </p>
     </section>
   );
 }

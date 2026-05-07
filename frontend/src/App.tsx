@@ -18,17 +18,13 @@ function DemoWorkbenchEntry() {
   if (searchParams.get("paper") === "1") {
     return <Navigate to="/paper-demo" replace />;
   }
-  return (
-    <Suspense fallback={<RouteFallback />}>
-      <DemoWorkbenchPage />
-    </Suspense>
-  );
+  return <Navigate to="/paper-demo" replace />;
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<DemoWorkbenchEntry />} />
+      <Route path="/" element={<Navigate to="/paper-demo" replace />} />
       <Route path="/demo" element={<DemoWorkbenchEntry />} />
       <Route
         path="/paper-demo"
