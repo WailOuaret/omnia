@@ -2,10 +2,10 @@ import type { PaperDemoStep } from "./paperDemoTypes";
 
 const PIPELINE_LABELS = [
   "Input KG",
-  "Candidate generation",
-  "TransE filtering",
+  "Candidates + cluster",
+  "TransE filter",
   "LLM validation",
-  "Completed KG",
+  "Curator + KG",
 ] as const;
 
 function activePipelineIndex(step: PaperDemoStep): number {
@@ -16,13 +16,26 @@ function activePipelineIndex(step: PaperDemoStep): number {
   return 4;
 }
 
-export function PaperPipelineStrip({ activeStep, compact }: { activeStep: PaperDemoStep; compact?: boolean }) {
+export function PaperPipelineStrip({
+  activeStep,
+  compact,
+  aside,
+}: {
+  activeStep: PaperDemoStep;
+  compact?: boolean;
+  /** Sit beside tabs on wide screens: top border on mobile, left rule on xl */
+  aside?: boolean;
+}) {
   const hi = activePipelineIndex(activeStep);
 
   return (
     <div
       className={`flex shrink-0 flex-wrap items-center gap-x-1 gap-y-1 bg-slate-50/90 text-[10px] text-slate-700 ${
-        compact ? "border-b border-slate-200 px-2 py-1 lg:border-b-0" : "border-b border-slate-200 px-3 py-1.5"
+        aside
+          ? "border-t border-slate-200 px-2 py-1 xl:border-l xl:border-t-0"
+          : compact
+            ? "border-b border-slate-200 px-2 py-1 lg:border-b-0"
+            : "border-b border-slate-200 px-3 py-1.5"
       }`}
       aria-label="OMNIA pipeline stages"
       data-testid="paper-pipeline-strip"

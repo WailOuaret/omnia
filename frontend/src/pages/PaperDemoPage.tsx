@@ -37,6 +37,8 @@ export function PaperDemoPage() {
   const [screenshotMode, setScreenshotMode] = useState(false);
 
   const userDecision = decisions[selectedCandidateId] ?? null;
+  /** Running-example graph (c1 / t4) always reflects the main candidate decision. */
+  const mainExampleDecision = decisions.c1 ?? null;
 
   useEffect(() => {
     const next = readStageParam(searchParams);
@@ -67,14 +69,22 @@ export function PaperDemoPage() {
   function handleUserDecision(decision: "accepted" | "rejected") {
     if (selectedCandidateId !== "c1") return;
     setDecisions((prev) => ({ ...prev, c1: decision }));
-    if (decision === "accepted") {
-      commitStep("after");
-    }
+    commitStep("after");
   }
 
   function handleReturnToMain() {
     setSelectedCandidateId("c1");
     commitStep("missing");
+  }
+
+  function handleResetMainValidation() {
+    setDecisions((prev) => {
+      const next = { ...prev };
+      delete next.c1;
+      return next;
+    });
+    setComment("");
+    commitStep("llm");
   }
 
   const handleExportSvg = useCallback(() => {
@@ -167,6 +177,14 @@ export function PaperDemoPage() {
                 </span>
               </div>
               <p className="mt-1 text-[13px] leading-snug text-slate-600">{OFFLINE_NOTE}</p>
+              {!screenshotMode && !captureMode ? (
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Stage shortcuts: keys <kbd className="rounded border border-slate-300 bg-slate-100 px-1">1</kbd>–
+                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1">7</kbd> and arrows{" "}
+                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1">←</kbd>
+                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1">→</kbd>.
+                </p>
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">
               {!screenshotMode && !captureMode ? <PaperModeToggle /> : null}
@@ -185,7 +203,7 @@ export function PaperDemoPage() {
         </header>
 
         <div className="paper-demo-rail-wrap min-h-0 border-b border-slate-200 lg:border-b-0">
-          <PaperDemoIconRail />
+          <PaperDemoIconRail screenshotMode={screenshotMode} captureMode={captureMode} />
         </div>
 
         <div className="paper-demo-candidates min-h-0 overflow-hidden">
@@ -201,6 +219,7 @@ export function PaperDemoPage() {
           <PaperGraphPanel
             activeStep={activeStep}
             onStepChange={commitStep}
+            curatorDecision={mainExampleDecision}
             screenshotMode={screenshotMode}
             captureMode={captureMode}
             onExportSvg={!captureMode && !screenshotMode ? handleExportSvg : undefined}
@@ -216,11 +235,12 @@ export function PaperDemoPage() {
             comment={comment}
             onCommentChange={setComment}
             onReturnToMain={handleReturnToMain}
+            onResetMainValidation={handleResetMainValidation}
             screenshotMode={screenshotMode}
           />
         </div>
 
-        <div className="paper-demo-caption">
+        <div className="paper-demo-caption" id="paper-demo-script-section">
           {showPresenterExtras ? (
             <>
               <details className="border-t border-slate-200 bg-white px-4 py-2 text-[12px] text-slate-800" data-testid="paper-presenter-notes">
@@ -240,11 +260,16 @@ export function PaperDemoPage() {
                   <li>Show Missing Triple</li>
                   <li>Show Cluster Evidence</li>
                   <li>Show TransE Filtering</li>
-                  <li>Show LLM Validation</li>
-                  <li>Click Accept (main example c1)</li>
+                  <li>Show LLM Validation (expand evidence, follow-up Q&amp;A, raw prompt)</li>
+                  <li>Accept or Reject c1 — graph updates (or use Reset to try the other path)</li>
                   <li>Show After KG</li>
-                  <li>Show Diff</li>
+                  <li>Show Diff (side-by-side reflects curator outcome)</li>
                 </ol>
+                <p className="mt-2 border-t border-slate-200/80 pt-2 text-[10px] leading-snug text-slate-600">
+                  Narrative: original KG → missing t4 → shared relation–tail key → TransE filter → LLM/RAG validation →
+                  curator decision → completed KG (human-in-the-loop). Use the rail to jump to candidates, graph,
+                  validation, or the full live demo.
+                </p>
               </div>
             </>
           ) : null}

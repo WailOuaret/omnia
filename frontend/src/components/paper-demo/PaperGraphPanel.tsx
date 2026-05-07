@@ -1,13 +1,14 @@
 import { Download, Expand, Hand, Maximize2, MousePointer2, Search } from "lucide-react";
-import { GUIDED_STORY_CAPTIONS } from "./paperDemoScenario";
+import { guidedStoryCaption } from "./paperDemoScenario";
 import { PaperCovidExampleGraph } from "./PaperCovidExampleGraph";
 import { PaperDemoTabs } from "./PaperDemoTabs";
 import { PaperPipelineStrip } from "./PaperPipelineStrip";
-import type { PaperDemoStep } from "./paperDemoTypes";
+import type { PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
 
 interface PaperGraphPanelProps {
   activeStep: PaperDemoStep;
   onStepChange: (step: PaperDemoStep) => void;
+  curatorDecision: UserRefinementDecision;
   screenshotMode?: boolean;
   captureMode?: boolean;
   onExportSvg?: () => void;
@@ -16,6 +17,7 @@ interface PaperGraphPanelProps {
 export function PaperGraphPanel({
   activeStep,
   onStepChange,
+  curatorDecision,
   screenshotMode,
   captureMode,
   onExportSvg,
@@ -23,7 +25,11 @@ export function PaperGraphPanel({
   const showChrome = !screenshotMode && !captureMode;
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-col border-r border-slate-200 bg-white" aria-labelledby="paper-graph-heading">
+    <section
+      id="paper-demo-graph-section"
+      className="flex min-h-0 min-w-0 flex-col border-r border-slate-200 bg-white"
+      aria-labelledby="paper-graph-heading"
+    >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-2 py-1.5">
         <h2 id="paper-graph-heading" className="text-[15px] font-semibold tracking-tight text-slate-900">
           Graph Visualization
@@ -72,36 +78,39 @@ export function PaperGraphPanel({
         ) : null}
       </div>
 
-      <div className="flex min-h-0 shrink-0 flex-col border-b border-slate-200 lg:flex-row lg:items-stretch">
-        <div className="min-h-0 min-w-0 lg:flex-1">
-          <PaperPipelineStrip activeStep={activeStep} compact />
+      {/* Tabs + pipeline on one row (paper Figure 3 alignment); story + legend next — more vertical space for SVG */}
+      <div className="shrink-0 border-b border-slate-200 bg-white">
+        <div className="flex flex-col xl:flex-row xl:items-end">
+          <div className="min-w-0 flex-1 xl:overflow-x-auto">
+            <PaperDemoTabs activeStep={activeStep} onStepChange={onStepChange} embedded />
+          </div>
+          <PaperPipelineStrip activeStep={activeStep} aside />
         </div>
-        <p
-          className="shrink-0 border-t border-slate-100 bg-white px-2 py-1 text-[11px] leading-snug text-slate-800 lg:flex-1 lg:border-l lg:border-t-0 lg:py-1.5"
-          data-testid="paper-guided-story"
-        >
-          {GUIDED_STORY_CAPTIONS[activeStep]}
-        </p>
-      </div>
-
-      <PaperDemoTabs activeStep={activeStep} onStepChange={onStepChange} />
-
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 border-b border-slate-200 px-2 py-0.5 text-[10px] text-slate-600">
-        <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-slate-700" /> Entity
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-0.5 w-4 bg-emerald-700" /> Original relation
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-0.5 w-4 border-b-2 border-dashed border-orange-600" /> Missing candidate
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-[3px] w-4 bg-emerald-700" /> Accepted triple
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-0.5 w-4 border-b border-dashed border-red-500 opacity-60" /> Rejected candidate
-        </span>
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-t border-slate-100 px-2 py-1">
+          <p className="min-w-0 flex-1 text-[11px] leading-snug text-slate-800" data-testid="paper-guided-story">
+            {guidedStoryCaption(activeStep, curatorDecision)}
+          </p>
+          <div
+            className="flex max-w-full shrink-0 flex-wrap justify-end gap-x-3 gap-y-0.5 text-[10px] text-slate-600"
+            aria-label="Graph legend"
+          >
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-slate-700" /> Entity
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-0.5 w-4 bg-emerald-700" /> Original relation
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-0.5 w-4 border-b-2 border-dashed border-orange-600" /> Missing candidate
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-[3px] w-4 bg-emerald-700" /> Accepted triple
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-0.5 w-4 border-b border-dashed border-red-500 opacity-60" /> Rejected candidate
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[#fafafa] p-2">
@@ -117,7 +126,7 @@ export function PaperGraphPanel({
             <div className="mt-1.5 text-[12px] font-semibold text-emerald-800">Candidate c1 passed</div>
           </div>
         ) : null}
-        <PaperCovidExampleGraph step={activeStep} />
+        <PaperCovidExampleGraph step={activeStep} curatorDecision={curatorDecision} />
       </div>
     </section>
   );

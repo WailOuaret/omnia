@@ -3,12 +3,14 @@ import { PAPER_DEMO_STEP_ORDER, PAPER_DEMO_TAB_LABELS, type PaperDemoStep } from
 interface PaperDemoTabsProps {
   activeStep: PaperDemoStep;
   onStepChange: (step: PaperDemoStep) => void;
+  /** When true, omit bottom border (parent row supplies one — tabs + pipeline strip row). */
+  embedded?: boolean;
 }
 
-export function PaperDemoTabs({ activeStep, onStepChange }: PaperDemoTabsProps) {
+export function PaperDemoTabs({ activeStep, onStepChange, embedded }: PaperDemoTabsProps) {
   return (
     <div
-      className="flex min-h-[40px] flex-wrap gap-0.5 border-b border-slate-200 bg-white px-2 py-1"
+      className={`flex min-h-[38px] flex-wrap gap-0.5 bg-white px-2 py-1 ${embedded ? "" : "border-b border-slate-200"}`}
       role="tablist"
       aria-label="Paper demo stages"
     >

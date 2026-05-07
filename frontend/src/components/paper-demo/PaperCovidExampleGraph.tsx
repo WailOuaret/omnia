@@ -1,4 +1,4 @@
-import type { PaperDemoStep } from "./paperDemoTypes";
+import type { PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
 
 const R = 42;
 const VB_W = 880;
@@ -67,7 +67,14 @@ function segment(a: NodeId, b: NodeId): { x1: number; y1: number; x2: number; y2
   };
 }
 
-function edgeVisible(step: PaperDemoStep, edgeId: string): boolean {
+function edgeVisible(
+  step: PaperDemoStep,
+  edgeId: string,
+  curatorDecision: UserRefinementDecision,
+): boolean {
+  if (step === "after" && curatorDecision === "rejected" && edgeId === "t4") {
+    return false;
+  }
   if (step === "before") {
     return ["t1", "t2", "t3", "t5", "t6"].includes(edgeId);
   }
@@ -92,6 +99,7 @@ function edgeVisible(step: PaperDemoStep, edgeId: string): boolean {
 function edgeStyle(
   step: PaperDemoStep,
   e: EdgeDef,
+  curatorDecision: UserRefinementDecision,
 ): { stroke: string; strokeWidth: number; dash: string; opacity: number } {
   const dim = { stroke: "#64748b", strokeWidth: 1.25, dash: "", opacity: 0.36 };
   /** Original / validated KG triples — thin neutral-green (paper-style). */
@@ -131,7 +139,10 @@ function edgeStyle(
     return ctx;
   }
   if (step === "after") {
-    if (e.id === "t4") return candSolid;
+    if (e.id === "t4") {
+      if (curatorDecision === "accepted") return candSolid;
+      return cand;
+    }
     if (e.id === "t1" || e.id === "t2" || e.id === "t3") return orig;
     return ctx;
   }
@@ -201,10 +212,12 @@ function GraphSvgBody({
   step,
   variant,
   markerPrefix = "paper",
+  curatorDecision = null,
 }: {
   step: PaperDemoStep;
   variant: "full" | "beforeOnly" | "afterOnly";
   markerPrefix?: string;
+  curatorDecision?: UserRefinementDecision;
 }) {
   const effectiveStep = variant === "beforeOnly" ? "before" : variant === "afterOnly" ? "after" : step;
   const mp = markerPrefix;
@@ -220,7 +233,7 @@ function GraphSvgBody({
   const rh = 120;
 
   const visibleEdges = EDGES.filter((e) => {
-    if (!edgeVisible(effectiveStep, e.id)) return false;
+    if (!edgeVisible(effectiveStep, e.id, curatorDecision)) return false;
     if (variant === "beforeOnly" && e.id === "t4") return false;
     if (variant === "afterOnly" && e.id === "r1") return false;
     return true;
@@ -258,7 +271,7 @@ function GraphSvgBody({
       {/* 2 — Edges (geometry only; paints below nodes) */}
       {visibleEdges.map((e) => {
         const { x1, y1, x2, y2 } = segment(e.from, e.to);
-        const st = edgeStyle(effectiveStep, e);
+        const st = edgeStyle(effectiveStep, e, curatorDecision);
         const marker =
           st.stroke === "#ea580c"
             ? `url(#${mp}-arrow-orange)`
@@ -286,7 +299,7 @@ function GraphSvgBody({
         const ringFocus = (effectiveStep === "missing" || effectiveStep === "llm") && hi.has(id);
         const clusterHead = effectiveStep === "cluster" && (id === "remdesivir" || id === "chloroquine");
         const secondary = SECONDARY_NODE_IDS.has(id);
-        const nodeOp = secondary ? 0.34 : 1;
+        const nodeOp = secondary ? 0.2 : 1;
         const strokeSel = ringFocus ? "#1d4ed8" : clusterHead ? "#1e40af" : "#334155";
         const strokeWSel = ringFocus ? 2.6 : clusterHead ? 2.5 : 1.85;
         return (
@@ -300,7 +313,7 @@ function GraphSvgBody({
               strokeWidth={strokeWSel}
               className="paper-demo-node"
             />
-            <NodeLabel x={n.x} y={n.y} label={n.label} opacity={secondary ? 0.85 : 1} />
+            <NodeLabel x={n.x} y={n.y} label={n.label} opacity={secondary ? 0.58 : 1} />
           </g>
         );
       })}
@@ -312,8 +325,13 @@ function GraphSvgBody({
         const midY = (y1 + y2) / 2;
         const showMissingSub = effectiveStep === "missing" && e.id === "t4" && variant === "full";
         const showAcceptedSub =
-          (effectiveStep === "after" || variant === "afterOnly") && e.id === "t4" && variant !== "beforeOnly";
-        const stackSubs = e.id === "t4" && (showMissingSub || showAcceptedSub);
+          (effectiveStep === "after" || variant === "afterOnly") &&
+          e.id === "t4" &&
+          variant !== "beforeOnly" &&
+          curatorDecision === "accepted";
+        const showPendingSub =
+          effectiveStep === "after" && e.id === "t4" && variant === "full" && curatorDecision === null;
+        const stackSubs = e.id === "t4" && (showMissingSub || showAcceptedSub || showPendingSub);
         const labelY = stackSubs ? midY - 10 : midY - 2;
         return (
           <g key={`${e.id}-${variant}-labels`}>
@@ -382,6 +400,29 @@ function GraphSvgBody({
                 </text>
               </g>
             ) : null}
+            {showPendingSub ? (
+              <g>
+                <rect
+                  x={midX - 44}
+                  y={labelY + 12}
+                  width={88}
+                  height={12}
+                  rx={2}
+                  fill="#f8fafc"
+                  stroke="#94a3b8"
+                  opacity={0.98}
+                />
+                <text
+                  x={midX}
+                  y={labelY + 21}
+                  textAnchor="middle"
+                  fill="#475569"
+                  style={{ fontSize: "9px", fontWeight: 600 }}
+                >
+                  awaiting curator
+                </text>
+              </g>
+            ) : null}
           </g>
         );
       })}
@@ -437,12 +478,24 @@ function GraphSvgBody({
   );
 }
 
-function AnnotationLabel({ step, variant }: { step: PaperDemoStep; variant: "full" | "beforeOnly" | "afterOnly" }) {
+function AnnotationLabel({
+  step,
+  variant,
+  curatorDecision = null,
+}: {
+  step: PaperDemoStep;
+  variant: "full" | "beforeOnly" | "afterOnly";
+  curatorDecision?: UserRefinementDecision;
+}) {
   const text =
     variant === "beforeOnly"
       ? "Before KG — no t4 edge"
       : variant === "afterOnly"
-        ? "After KG — t4 accepted"
+        ? curatorDecision === "rejected"
+          ? "After KG — t4 not integrated (curator rejected)"
+          : curatorDecision === null
+            ? "After KG — pending curator decision on c1"
+            : "After KG — t4 accepted"
         : step === "diff"
           ? ""
           : {
@@ -451,7 +504,12 @@ function AnnotationLabel({ step, variant }: { step: PaperDemoStep; variant: "ful
               cluster: "Heads remdesivir and chloroquine co-cluster on the shared relation–tail key",
               filtering: "TransE: candidate t4 passes threshold τ = 0.80 (rejected example r1 above τ)",
               llm: "RAG context validates candidate (retrieved: t1, t2, t3, f2)",
-              after: "t4 integrated as an accepted relation in the completed KG",
+              after:
+                curatorDecision === "rejected"
+                  ? "Curator rejected t4 — completed KG unchanged for this candidate"
+                  : curatorDecision === "accepted"
+                    ? "t4 integrated as an accepted relation in the completed KG"
+                    : "Finalize Accept or Reject to lock in the completed KG view",
               diff: "",
             }[step];
 
@@ -463,8 +521,37 @@ function AnnotationLabel({ step, variant }: { step: PaperDemoStep; variant: "ful
   );
 }
 
-export function PaperCovidExampleGraph({ step }: { step: PaperDemoStep }) {
+function mainFootline(step: PaperDemoStep, curatorDecision: UserRefinementDecision): string {
+  if (step === "after") {
+    if (curatorDecision === "rejected") return "Curator rejected t4 — completed KG unchanged for this candidate";
+    if (curatorDecision === "accepted") return "t4 integrated as an accepted relation in the completed KG";
+    return "Finalize Accept or Reject to lock in the completed KG view";
+  }
+  return {
+    before: "Input KG before OMNIA completion",
+    missing: "t4 = (chloroquine, treats, sars-cov-2) is absent from the original KG",
+    cluster: "Heads remdesivir and chloroquine co-cluster on the shared relation–tail key",
+    filtering: "TransE: candidate t4 passes threshold τ = 0.80 (rejected example r1 above τ)",
+    llm: "RAG context validates candidate (retrieved: t1, t2, t3, f2)",
+    after: "",
+    diff: "",
+  }[step];
+}
+
+export function PaperCovidExampleGraph({
+  step,
+  curatorDecision = null,
+}: {
+  step: PaperDemoStep;
+  curatorDecision?: UserRefinementDecision;
+}) {
   if (step === "diff") {
+    const diffSummary =
+      curatorDecision === "rejected"
+        ? "No triple added — curator rejected c1 (graphs match for the main candidate)."
+        : curatorDecision === "accepted"
+          ? "Added by OMNIA: chloroquine treats sars-cov-2"
+          : "Accept or Reject c1 on the LLM / After tabs to interpret this comparison.";
     return (
       <div className="flex w-full min-w-0 flex-col gap-2" data-testid="paper-demo-diff">
         <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-2">
@@ -479,8 +566,8 @@ export function PaperCovidExampleGraph({ step }: { step: PaperDemoStep }) {
           >
             <title>Knowledge graph before OMNIA completion</title>
             <desc>Original triples without the missing chloroquine treats sars-cov-2 edge.</desc>
-            <GraphSvgBody step="diff" variant="beforeOnly" markerPrefix="pdiff-a" />
-            <AnnotationLabel step="diff" variant="beforeOnly" />
+            <GraphSvgBody step="diff" variant="beforeOnly" markerPrefix="pdiff-a" curatorDecision={curatorDecision} />
+            <AnnotationLabel step="diff" variant="beforeOnly" curatorDecision={curatorDecision} />
           </svg>
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col border border-slate-200 bg-white p-2">
@@ -494,13 +581,13 @@ export function PaperCovidExampleGraph({ step }: { step: PaperDemoStep }) {
           >
             <title>Knowledge graph after OMNIA completion</title>
             <desc>Completed graph including accepted treats edge from chloroquine to sars-cov-2.</desc>
-            <GraphSvgBody step="diff" variant="afterOnly" markerPrefix="pdiff-b" />
-            <AnnotationLabel step="diff" variant="afterOnly" />
+            <GraphSvgBody step="diff" variant="afterOnly" markerPrefix="pdiff-b" curatorDecision={curatorDecision} />
+            <AnnotationLabel step="diff" variant="afterOnly" curatorDecision={curatorDecision} />
           </svg>
         </div>
         </div>
         <p className="border border-slate-200 bg-slate-50 px-3 py-2 text-center text-[12px] font-medium leading-snug text-slate-800">
-          Added by OMNIA: chloroquine treats sars-cov-2
+          {diffSummary}
         </p>
       </div>
     );
@@ -521,24 +608,14 @@ export function PaperCovidExampleGraph({ step }: { step: PaperDemoStep }) {
         step to show original, missing candidate, cluster, filtering, validation, and completion states.
       </desc>
       <rect width={VB_W} height={VB_H} fill="#fafafa" />
-      <GraphSvgBody step={step} variant="full" />
+      <GraphSvgBody step={step} variant="full" curatorDecision={curatorDecision} />
       {step === "llm" ? (
         <text x={24} y={VB_H - 42} fill="#475569" style={{ fontSize: "11px" }}>
           Offline demo mode: using precomputed OMNIA validation results.
         </text>
       ) : null}
       <text x={24} y={step === "llm" ? VB_H - 22 : VB_H - 18} fill="#475569" style={{ fontSize: "12px" }}>
-        {
-          {
-            before: "Input KG before OMNIA completion",
-            missing: "t4 = (chloroquine, treats, sars-cov-2) is absent from the original KG",
-            cluster: "Heads remdesivir and chloroquine co-cluster on the shared relation–tail key",
-            filtering: "TransE: candidate t4 passes threshold τ = 0.80 (rejected example r1 above τ)",
-            llm: "RAG context validates candidate (retrieved: t1, t2, t3, f2)",
-            after: "t4 integrated as an accepted relation in the completed KG",
-            diff: "",
-          }[step]
-        }
+        {mainFootline(step, curatorDecision)}
       </text>
     </svg>
   );

@@ -48,6 +48,7 @@ export function PaperCandidateTriplesPanel({
 
   return (
     <section
+      id="paper-demo-candidates-section"
       className="flex min-h-0 flex-col border-r border-slate-200 bg-white"
       aria-labelledby="paper-candidate-heading"
     >

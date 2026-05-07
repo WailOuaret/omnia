@@ -1,4 +1,4 @@
-import type { PaperDemoCandidate, PaperDemoStep } from "./paperDemoTypes";
+import type { PaperDemoCandidate, PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
 
 export const SOURCE_F1 =
   "Remdesivir and chloroquine effectively inhibit the recently emerged 2019-ncov in vitro";
@@ -47,6 +47,51 @@ export const GUIDED_STORY_CAPTIONS: Record<PaperDemoStep, string> = {
   after: "t4 is accepted and added to the completed KG.",
   diff: "The after graph contains the OMNIA-added triple.",
 };
+
+/** Story line under the tabs; depends on curator outcome for late stages. */
+export function guidedStoryCaption(step: PaperDemoStep, curatorDecision: UserRefinementDecision): string {
+  if (step === "after") {
+    if (curatorDecision === "rejected") {
+      return "Curator rejected c1 — t4 is not integrated; the completed KG matches the input for this candidate.";
+    }
+    if (curatorDecision === "accepted") {
+      return GUIDED_STORY_CAPTIONS.after;
+    }
+    return "Use Accept or Reject in the validation panel to finalize whether t4 is integrated into the KG.";
+  }
+  if (step === "diff") {
+    if (curatorDecision === "rejected") {
+      return "Before/after: no new edge — the curator rejected the main candidate.";
+    }
+    if (curatorDecision === "accepted") {
+      return GUIDED_STORY_CAPTIONS.diff;
+    }
+    return "After you decide on c1, open Diff to compare graphs side by side.";
+  }
+  return GUIDED_STORY_CAPTIONS[step];
+}
+
+/** Offline pedagogical follow-ups — expands the validation step beyond accept/reject. */
+export const PAPER_DEMO_FOLLOWUP_QA = [
+  {
+    id: "rag-f2",
+    question: "Why is FDA statement f2 included in the RAG context?",
+    answer:
+      "f2 ties chloroquine to emergency COVID-19 use, complementing structural propagation from (inhibits, 2019-ncov) and supporting a treats link to sars-cov-2.",
+  },
+  {
+    id: "transe-pass",
+    question: "Why does t4 pass TransE filtering while r1 does not?",
+    answer:
+      "t4 has embedding distance 0.42 below τ = 0.80; the counterexample (chloroquine, affects, MERS) lies at 1.14 and is filtered out as structurally implausible.",
+  },
+  {
+    id: "human-loop",
+    question: "What does the curator add that the LLM does not?",
+    answer:
+      "The LLM scores plausibility from retrieved text; the curator can override with policy, risk tolerance, or domain knowledge — closing the human-in-the-loop loop.",
+  },
+] as const;
 
 /** Collapsible demo-only placeholders (offline paper figure). */
 export const DEMO_RAW_PROMPT_SNIPPET = `[SYSTEM] Validate candidate triple against KG context.
