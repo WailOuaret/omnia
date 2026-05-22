@@ -157,6 +157,7 @@ export interface TripleRecord {
 }
 
 export interface CandidateRecord {
+  candidate_id?: string;
   Head: string;
   Relation: string;
   Tail: string;
@@ -179,6 +180,11 @@ export interface CandidateRecord {
   retrieved_context?: string[];
   sentence_text?: string | null;
   is_mock?: boolean;
+  provenance?: string;
+  feedback_id?: string;
+  user_decision?: "accept" | "reject" | "uncertain" | "correct";
+  feedback_reason?: string;
+  feedback_comment?: string;
 }
 
 export interface ValidationStrategyComparison {

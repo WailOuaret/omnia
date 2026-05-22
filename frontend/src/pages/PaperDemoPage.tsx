@@ -1,296 +1,385 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { PaperCandidateTriplesPanel } from "../components/paper-demo/PaperCandidateTriplesPanel";
-import { PaperDemoIconRail } from "../components/paper-demo/PaperDemoIconRail";
-import { PaperExplanationPanel } from "../components/paper-demo/PaperExplanationPanel";
-import { PaperFigureCaptions } from "../components/paper-demo/PaperFigureCaptions";
-import { PaperGraphPanel } from "../components/paper-demo/PaperGraphPanel";
-import { PaperModeToggle } from "../components/paper-demo/PaperModeToggle";
-import { PaperStatsPanel } from "../components/paper-demo/PaperStatsPanel";
-import { getCandidateById, OFFLINE_NOTE, PAPER_DEMO_CANDIDATES } from "../components/paper-demo/paperDemoScenario";
-import { PAPER_DEMO_STEP_ORDER, type PaperDemoStep, type UserRefinementDecision } from "../components/paper-demo/paperDemoTypes";
+import { useMemo, useState } from "react";
+import { DatasetSelectorPanel } from "../components/paper-demo/DatasetSelectorPanel";
+import { GraphComparisonPanel } from "../components/paper-demo/GraphComparisonPanel";
+import { RestoredGraphStagePanel } from "../components/paper-demo/RestoredGraphStagePanel";
+import { StepStatsPanel } from "../components/paper-demo/StepStatsPanel";
+import { UserFeedbackPanel } from "../components/paper-demo/UserFeedbackPanel";
+import { WorkflowStepMenu } from "../components/paper-demo/WorkflowStepMenu";
+import { DATASET_LIST, DATASETS } from "../demo-data/datasets";
+import type { DemoCandidate, DemoDatasetId } from "../demo-data/types";
+import { useFeedbackBridge } from "../hooks/useFeedbackBridge";
+import { exportCompletedTsvUrl } from "../lib/api";
+import {
+  exportCompletedKGTSV,
+  exportFeedbackJSON,
+  exportKGDiffJSON,
+  getCompletedKG,
+  getKGDiff,
+  getSummary,
+  getFeedbackForDataset,
+  type UserFeedback,
+} from "../stores/feedbackStore";
 
-function readStageParam(params: URLSearchParams): PaperDemoStep | null {
-  const raw = params.get("stage");
-  if (!raw) return null;
-  return PAPER_DEMO_STEP_ORDER.includes(raw as PaperDemoStep) ? (raw as PaperDemoStep) : null;
-}
-
-function downloadSvgEl(svg: SVGSVGElement, filename: string) {
-  const xml = new XMLSerializer().serializeToString(svg);
-  const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+function downloadFile(content: string, fileName: string, contentType: string) {
+  const blob = new Blob([content], { type: contentType });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
   URL.revokeObjectURL(url);
 }
 
+function explanationForStep(step: string): string {
+  if (step === "kg") return "OMNIA starts from an incomplete knowledge graph. The goal is to find plausible missing triples using only the internal structure of the graph.";
+  if (step === "clustering") return "OMNIA groups head entities that share the same relation-tail pattern. Entities in similar relational contexts may share additional relations.";
+  if (step === "candidates") return "Candidate generation proposes possible missing triples by combining head entities from the same cluster with relation-tail pairs observed in that cluster. Some candidates will be valid; others will be filtered out.";
+  if (step === "filtering") return "TransE embedding filtering reduces the candidate set before calling the LLM. Candidates with a structural distance above the threshold are discarded, improving efficiency.";
+  if (step === "llm") return "The LLM acts as a semantic judge, not a generator. It validates only the candidates that passed structural filtering. RAG provides retrieved context triples to improve accuracy.";
+  if (step === "feedback") return "The user reviews candidates that passed both filtering and LLM validation. Accept, reject, correct, or mark as uncertain. All decisions are stored and immediately reflected in the completed KG.";
+  return "The completed KG shows the original triples plus all accepted and corrected additions. Rejected triples are excluded. Uncertain triples go to a review queue.";
+}
+
 export function PaperDemoPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const captureMode = searchParams.get("capture") === "1";
+  const [selectedDatasetId, setSelectedDatasetId] = useState<DemoDatasetId | null>(null);
+  const [activeStep, setActiveStep] = useState<string>("kg");
+  const [demoStarted, setDemoStarted] = useState(false);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
+  const [refreshToken, setRefreshToken] = useState(0);
+  const feedbackBridge = useFeedbackBridge();
 
-  const [activeStep, setActiveStep] = useState<PaperDemoStep>(() => readStageParam(searchParams) ?? "missing");
-  const [selectedCandidateId, setSelectedCandidateId] = useState("c1");
-  const [decisions, setDecisions] = useState<Record<string, UserRefinementDecision>>({});
-  const [comment, setComment] = useState("");
-  const [screenshotMode, setScreenshotMode] = useState(false);
-  const [presentationMode, setPresentationMode] = useState(false);
-  const [highlightedEdge, setHighlightedEdge] = useState<string | null>(null);
-  const [highlightedNode, setHighlightedNode] = useState<string | null>(null);
+  const selectedDataset = selectedDatasetId ? DATASETS[selectedDatasetId] : null;
+  const feedbackSummary = useMemo(
+    () => (selectedDatasetId ? getSummary(selectedDatasetId) : { accepted: 0, rejected: 0, uncertain: 0, corrected: 0, total: 0 }),
+    [selectedDatasetId, refreshToken],
+  );
+  const completedKG = useMemo(() => (selectedDatasetId ? getCompletedKG(selectedDatasetId) : []), [selectedDatasetId, refreshToken]);
+  const kgDiff = useMemo(
+    () => (selectedDatasetId ? getKGDiff(selectedDatasetId) : { added: [], rejected: [], corrected: [], review: [] }),
+    [selectedDatasetId, refreshToken],
+  );
+  const feedbackEvents = useMemo(() => (selectedDatasetId ? getFeedbackForDataset(selectedDatasetId) : []), [selectedDatasetId, refreshToken]);
+  const feedbackDecisions = useMemo<Record<string, "accept" | "reject" | "uncertain" | "correct">>(() => {
+    const map: Record<string, "accept" | "reject" | "uncertain" | "correct"> = {};
+    const sorted = [...feedbackEvents].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    for (const event of sorted) {
+      map[event.candidateId] = event.userDecision;
+    }
+    return map;
+  }, [feedbackEvents]);
+  const feedbackCandidates = useMemo<DemoCandidate[]>(
+    () =>
+      selectedDataset
+        ? selectedDataset.candidates.filter(
+            (candidate) => candidate.status !== "removed" && candidate.llmVerdict !== undefined,
+          )
+        : [],
+    [selectedDataset],
+  );
+  const allCandidates = selectedDataset?.candidates ?? [];
+  const selectedCandidate: DemoCandidate | null =
+    allCandidates.find((candidate) => candidate.candidateId === selectedCandidateId) ??
+    feedbackCandidates[0] ??
+    allCandidates[0] ??
+    null;
+  const latestDecisionForSelected = selectedCandidate
+    ? feedbackEvents
+        .filter((event) => event.candidateId === selectedCandidate.candidateId)
+        .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]?.userDecision ?? null
+    : null;
 
-  const selected = useMemo(() => getCandidateById(selectedCandidateId), [selectedCandidateId]);
-  const userDecision =
-    decisions[selectedCandidateId] ??
-    (selected?.status === "accepted" || selected?.status === "rejected" ? selected.status : null);
-  useEffect(() => {
-    const next = readStageParam(searchParams);
-    if (next) setActiveStep(next);
-  }, [searchParams]);
+  const startDemo = () => {
+    if (!selectedDataset) return;
+    setDemoStarted(true);
+    setActiveStep("kg");
+    setSelectedCandidateId((feedbackCandidates[0] ?? selectedDataset.candidates[0])?.candidateId ?? "");
+  };
 
-  const commitStep = useCallback(
-    (step: PaperDemoStep) => {
-      setActiveStep(step);
-      setSearchParams(
-        (prev) => {
-          const n = new URLSearchParams(prev);
-          n.set("stage", step);
-          return n;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
+  const onDatasetChange = (datasetId: DemoDatasetId) => {
+    setSelectedDatasetId(datasetId);
+    const firstCandidate = DATASETS[datasetId].candidates.find(
+      (candidate) => candidate.status !== "removed" && candidate.llmVerdict !== undefined,
+    );
+    if (firstCandidate) {
+      setSelectedCandidateId(firstCandidate.candidateId);
+    }
+  };
+
+  const onFeedbackSubmit = (feedback: UserFeedback) => {
+    void feedbackBridge.submit(feedback);
+    setRefreshToken((value) => value + 1);
+  };
+
+  if (!demoStarted) {
+    return (
+      <div className="paper-demo min-h-screen bg-slate-50 px-4 py-6 text-slate-900" data-testid="paper-demo-root">
+        <div className="mx-auto max-w-4xl space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+          <h1 className="text-3xl font-bold tracking-tight">OMNIA+</h1>
+          <p className="text-sm text-slate-600">Interactive Knowledge Graph Completion with LLM Validation and Human Feedback</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-900">Select dataset</h2>
+            <select
+              className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+              value={selectedDatasetId ?? ""}
+              onChange={(event) => onDatasetChange(event.target.value as DemoDatasetId)}
+            >
+              <option value="" disabled>
+                Choose dataset
+              </option>
+              {DATASET_LIST.map((dataset) => (
+                <option key={dataset.id} value={dataset.id}>
+                  {dataset.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedDataset ? (
+            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <p className="font-semibold text-slate-900">{selectedDataset.label}</p>
+              <p className="mt-1">{selectedDataset.description}</p>
+              <p className="mt-1">
+                <span className="font-semibold">Entities:</span> {selectedDataset.entities.toLocaleString()} |{" "}
+                <span className="font-semibold">Relations:</span> {selectedDataset.relations.toLocaleString()} |{" "}
+                <span className="font-semibold">Triples:</span> {selectedDataset.triples.toLocaleString()}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold">Why this matters for OMNIA:</span> {selectedDataset.whyInteresting}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold">Recommended mode:</span>{" "}
+                {selectedDataset.recommendedMode === "sentence-rag" ? "sentence-based RAG" : "triple-based RAG"}
+              </p>
+              {selectedDataset.warning ? (
+                <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-900">{selectedDataset.warning}</p>
+              ) : null}
+            </section>
+          ) : null}
+          <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            <p className="font-semibold text-slate-900">Why OMNIA+ matters</p>
+            <p className="mt-1">OMNIA+ combines structural reasoning, LLM semantic validation, and human feedback to make KG completion transparent and interactive.</p>
+          </section>
+          <div className="flex flex-wrap items-center gap-2">
+            {selectedDatasetId ? (
+              <button
+                type="button"
+                onClick={startDemo}
+                className="rounded-md border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Start Demo
+              </button>
+            ) : null}
+            <a href="https://github.com/fieng94/OMNIA.git" target="_blank" rel="noreferrer" className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+              GitHub
+            </a>
+            <a href="https://arxiv.org/abs/2603.11820v1" target="_blank" rel="noreferrer" className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+              Paper
+            </a>
+            <button type="button" className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600">
+              Video (coming soon)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (!selectedDatasetId || !selectedDataset) return null;
+
+  const isCompleted = activeStep === "completed";
+  const layoutGridClass = isCompleted
+    ? "demo-layout grid items-start gap-4 grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)]"
+    : "demo-layout grid items-start gap-4 grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_340px]";
+
+  const bridgeBadge = (
+    <div
+      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+        feedbackBridge.mode === "live"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+          : "border-slate-200 bg-slate-50 text-slate-700"
+      }`}
+      data-testid="feedback-bridge-badge"
+    >
+      <span
+        className={`inline-block h-2 w-2 rounded-full ${
+          feedbackBridge.mode === "live"
+            ? feedbackBridge.status === "sync-failed"
+              ? "bg-amber-500"
+              : "bg-emerald-500"
+            : "bg-slate-400"
+        }`}
+        aria-hidden
+      />
+      <div className="min-w-0">
+        <p className="truncate font-semibold">
+          {feedbackBridge.mode === "live"
+            ? "Live backend feedback connected"
+            : "Static demo mode"}
+        </p>
+        {feedbackBridge.lastMessage ? (
+          <p className="truncate text-[11px] text-slate-600">{feedbackBridge.lastMessage}</p>
+        ) : null}
+      </div>
+    </div>
   );
 
-  useEffect(() => {
-    setComment("");
-  }, [selectedCandidateId]);
-
-  function handleUserDecision(decision: "accepted" | "rejected" | "uncertain") {
-    setDecisions((prev) => ({ ...prev, [selectedCandidateId]: decision }));
-    commitStep("after");
-  }
-
-  function handleReturnToMain() {
-    setSelectedCandidateId("c1");
-    commitStep("missing");
-  }
-
-  function handleResetMainValidation() {
-    setDecisions((prev) => {
-      const next = { ...prev };
-      delete next[selectedCandidateId];
-      return next;
-    });
-    setComment("");
-    commitStep("llm");
-  }
-
-  const handleExportSvg = useCallback(() => {
-    const main = document.querySelector('[data-testid="paper-demo-graph-svg"]');
-    if (main) {
-      downloadSvgEl(main as SVGSVGElement, "omnia-paper-demo-graph.svg");
-      return;
-    }
-    const diffRoot = document.querySelector('[data-testid="paper-demo-diff"]');
-    if (diffRoot) {
-      const svgs = diffRoot.querySelectorAll("svg");
-      svgs.forEach((svg, i) => {
-        downloadSvgEl(
-          svg as SVGSVGElement,
-          i === 0 ? "omnia-paper-demo-before.svg" : "omnia-paper-demo-after.svg",
-        );
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select" || (e.target as HTMLElement)?.isContentEditable) {
-        return;
-      }
-
-      if (e.key === "Escape") {
-        if (captureMode) {
-          setSearchParams(
-            (prev) => {
-              const n = new URLSearchParams(prev);
-              n.delete("capture");
-              return n;
-            },
-            { replace: true },
-          );
-        } else if (screenshotMode) {
-          setScreenshotMode(false);
-        }
-        return;
-      }
-
-      const order = PAPER_DEMO_STEP_ORDER;
-      const idx = order.indexOf(activeStep);
-
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        const next = order[Math.min(order.length - 1, idx + 1)];
-        if (next) commitStep(next);
-        return;
-      }
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        const prev = order[Math.max(0, idx - 1)];
-        if (prev) commitStep(prev);
-        return;
-      }
-
-      const digit = e.key >= "1" && e.key <= "9" ? Number.parseInt(e.key, 10) - 1 : -1;
-      if (digit >= 0 && digit < order.length) {
-        e.preventDefault();
-        commitStep(order[digit]!);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [activeStep, captureMode, commitStep, screenshotMode, setSearchParams]);
-
   return (
-    <div
-      className={`paper-demo min-h-screen bg-slate-50 text-slate-900 ${screenshotMode ? "paper-demo-screenshot" : ""} ${presentationMode ? "paper-demo-presentation" : ""}`}
-      data-testid="paper-demo-root"
-    >
-      <div className="paper-demo-layout">
-        <header className="paper-demo-header border-b border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-3.5">
-          <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-[19px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[20px]">
-                  OMNIA — Interactive Knowledge Graph Completion
-                </h1>
-                <span
-                  className="rounded border border-slate-300 bg-slate-50 px-2 py-0.5 text-[11px] font-medium leading-tight text-slate-700"
-                  data-testid="paper-demo-data-badge"
-                >
-                  Offline COVID-Fact running example
-                </span>
-              </div>
-              <p className="text-[13px] leading-relaxed text-slate-600 sm:text-[13.5px]">{OFFLINE_NOTE}</p>
-              {!screenshotMode && !captureMode ? (
-                <p className="text-[11px] leading-relaxed text-slate-500">
-                  Stage shortcuts: keys <kbd className="rounded border border-slate-300 bg-slate-100 px-1">1</kbd>–
-                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1">9</kbd> and arrows{" "}
-                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1">←</kbd>
-                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1">→</kbd>.
-                </p>
-              ) : null}
-            </div>
-            <div className="flex w-full flex-wrap items-center justify-start gap-2 self-start sm:w-auto sm:justify-end">
-              {!screenshotMode && !captureMode ? <PaperModeToggle /> : null}
-              {!captureMode ? (
-                <button
-                  type="button"
-                  onClick={() => setScreenshotMode((v) => !v)}
-                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold leading-tight text-slate-800 hover:bg-slate-50"
-                  data-testid="paper-screenshot-mode-btn"
-                >
-                  {screenshotMode ? "Exit figure mode" : "Figure mode"}
-                </button>
-              ) : null}
-              {!captureMode ? (
-                <button
-                  type="button"
-                  onClick={() => setPresentationMode((v) => !v)}
-                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold leading-tight text-slate-800 hover:bg-slate-50"
-                >
-                  {presentationMode ? "Exit live demo mode" : "Live demo mode"}
-                </button>
-              ) : null}
-            </div>
-          </div>
-          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 sm:p-3">
-            <div className="grid gap-2 text-[11px] sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                { label: "COVID-Fact", value: "28R · 1,416E · 908T" },
-                { label: "CoDEx-M", value: "49R · 16,759E · 60,000T" },
-                { label: "OMNIA candidates", value: "9,047,869 (~1,400x fewer)" },
-                { label: "Best CoDEx-M F1", value: "0.91" },
-              ].map((metric) => (
-                <div key={metric.label} className="rounded-md border border-slate-200 bg-white px-2.5 py-2">
-                  <div className="text-[10px] uppercase tracking-wide text-slate-500">{metric.label}</div>
-                  <div className="mt-0.5 text-[12px] font-semibold leading-snug text-slate-800">{metric.value}</div>
-                </div>
-              ))}
-            </div>
-            <details className="mt-2 text-[11px] text-slate-600">
-              <summary className="cursor-pointer select-none font-medium text-slate-700 hover:text-slate-900">
-                Show OMNIA benchmark evidence
-              </summary>
-              <div className="mt-1.5 flex flex-wrap gap-1.5 leading-relaxed">
-                {[
-                  "Exhaustive candidates: 12,958,932,528",
-                  "Filtering CoDEx-M: 71.08%",
-                  "RAG top-k: peak at 3, selected setting 2",
-                ].map((chip) => (
-                  <span key={chip} className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700">
-                    {chip}
-                  </span>
-                ))}
-              </div>
-            </details>
-          </div>
-        </header>
-
-        <div className="paper-demo-rail-wrap min-h-0 border-b border-slate-200 lg:border-b-0">
-          <PaperDemoIconRail screenshotMode={screenshotMode} captureMode={captureMode} />
-        </div>
-
-        <div className="paper-demo-candidates min-h-0 overflow-hidden">
-          <div className="flex h-full min-h-0 flex-col">
-            <PaperCandidateTriplesPanel
-              candidates={PAPER_DEMO_CANDIDATES}
-              selectedId={selectedCandidateId}
-              onSelect={setSelectedCandidateId}
-              decisions={decisions}
-              screenshotMode={screenshotMode}
+    <div className="paper-demo min-h-screen bg-slate-50 p-4 text-slate-900" data-testid="paper-demo-root">
+      <div className="mx-auto max-w-[1600px] space-y-3">
+        <div className={layoutGridClass}>
+          <aside className="space-y-3 min-w-0">
+            <DatasetSelectorPanel
+              selectedDatasetId={selectedDatasetId}
+              onSelect={onDatasetChange}
             />
-            {!screenshotMode ? <PaperStatsPanel /> : null}
-          </div>
+            <WorkflowStepMenu activeStep={activeStep} onStepChange={setActiveStep} />
+            {bridgeBadge}
+          </aside>
+
+          <main className="center-panel min-w-0 space-y-3 overflow-hidden">
+            {isCompleted ? (
+              <GraphComparisonPanel
+                dataset={selectedDataset}
+                selectedCandidate={selectedCandidate}
+                feedbackDecisions={feedbackDecisions}
+                feedbackEvents={feedbackEvents}
+              />
+            ) : (
+              <RestoredGraphStagePanel
+                dataset={selectedDataset}
+                activeStep={activeStep}
+                selectedCandidate={selectedCandidate}
+                selectedDecision={latestDecisionForSelected}
+                feedbackDecisions={feedbackDecisions}
+              />
+            )}
+
+            {(activeStep === "candidates" ||
+              activeStep === "filtering" ||
+              activeStep === "llm" ||
+              activeStep === "feedback") && allCandidates.length > 0 ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm">
+                <p className="font-semibold text-slate-900">
+                  {activeStep === "feedback" ? "Candidates ready for review" : "Candidates"}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(activeStep === "feedback" ? feedbackCandidates : allCandidates).map((candidate) => (
+                    <button
+                      key={candidate.candidateId}
+                      type="button"
+                      onClick={() => setSelectedCandidateId(candidate.candidateId)}
+                      className={`rounded border px-2 py-1 text-xs ${
+                        selectedCandidate?.candidateId === candidate.candidateId
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-300 bg-white text-slate-700"
+                      }`}
+                      title={`(${candidate.head}, ${candidate.relation}, ${candidate.tail})`}
+                    >
+                      {candidate.candidateId}: {candidate.head} → {candidate.tail}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {activeStep === "feedback" && selectedCandidate ? (
+              <UserFeedbackPanel
+                datasetId={selectedDatasetId}
+                candidate={selectedCandidate}
+                onFeedbackSubmit={onFeedbackSubmit}
+                existingFeedback={feedbackEvents.find((event) => event.candidateId === selectedCandidate.candidateId)}
+              />
+            ) : null}
+
+            {isCompleted ? (
+              <section className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-slate-900">Exports & summary</h3>
+                  <div className="text-[11px] text-slate-600">
+                    {feedbackBridge.mode === "live"
+                      ? "Backend export endpoints are also available at /api/sessions/{sessionId}/export/*"
+                      : "Static demo: exports are derived from localStorage."}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadFile(exportFeedbackJSON(selectedDatasetId), `${selectedDatasetId}_feedback.json`, "application/json")
+                    }
+                    className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm"
+                  >
+                    Export feedback JSON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (feedbackBridge.sessionId) {
+                        window.open(exportCompletedTsvUrl(feedbackBridge.sessionId), "_blank", "noopener,noreferrer");
+                        return;
+                      }
+                      downloadFile(
+                        exportCompletedKGTSV(selectedDatasetId),
+                        `${selectedDatasetId}_completed_kg.tsv`,
+                        "text/tab-separated-values",
+                      );
+                    }}
+                    className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm"
+                  >
+                    Export completed KG
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadFile(exportKGDiffJSON(selectedDatasetId), `${selectedDatasetId}_kg_diff.json`, "application/json")
+                    }
+                    className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm"
+                  >
+                    Export KG diff
+                  </button>
+                </div>
+                <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
+                  <div className="rounded border border-slate-200 bg-slate-50 p-2">
+                    <p className="font-semibold text-slate-800">Feedback summary</p>
+                    <p className="text-emerald-700">Accepted: {feedbackSummary.accepted}</p>
+                    <p className="text-rose-700">Rejected: {feedbackSummary.rejected}</p>
+                    <p className="text-amber-700">Uncertain: {feedbackSummary.uncertain}</p>
+                    <p className="text-violet-700">Corrected: {feedbackSummary.corrected}</p>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-slate-50 p-2">
+                    <p className="font-semibold text-slate-800">KG diff preview</p>
+                    <p>Added: {kgDiff.added.length}</p>
+                    <p>Rejected: {kgDiff.rejected.length}</p>
+                    <p>Corrected: {kgDiff.corrected.length}</p>
+                    <p>Review queue: {kgDiff.review.length}</p>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-slate-50 p-2">
+                    <p className="font-semibold text-slate-800">Completed KG</p>
+                    <p>Original triples: {selectedDataset.graph.edges.filter((edge) => edge.status === "known" || !edge.status).length}</p>
+                    <p>Final completed triples: {completedKG.length}</p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Completed KG = original known triples + accepted + corrected − rejected.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+          </main>
+
+          {!isCompleted ? (
+            <aside className="right-panel min-w-0">
+              <StepStatsPanel
+                dataset={selectedDataset}
+                step={activeStep}
+                selectedCandidate={selectedCandidate}
+                feedbackSummary={feedbackSummary}
+              />
+            </aside>
+          ) : null}
         </div>
 
-        <div className="paper-demo-graph min-h-0 overflow-hidden">
-          <PaperGraphPanel
-            activeStep={activeStep}
-            onStepChange={commitStep}
-            selectedCandidate={selected}
-            selectedDecision={userDecision}
-            highlightedEdge={highlightedEdge}
-            highlightedNode={highlightedNode}
-            screenshotMode={screenshotMode}
-            captureMode={captureMode}
-            onExportSvg={!captureMode && !screenshotMode ? handleExportSvg : undefined}
-          />
-        </div>
-
-        <div className="paper-demo-explanation min-h-0 overflow-hidden">
-          <PaperExplanationPanel
-            candidate={selected}
-            activeStep={activeStep}
-            userDecision={userDecision}
-            onUserDecision={handleUserDecision}
-            comment={comment}
-            onCommentChange={setComment}
-            onReturnToMain={handleReturnToMain}
-            onResetMainValidation={handleResetMainValidation}
-            screenshotMode={screenshotMode}
-            onHighlightEdge={setHighlightedEdge}
-            onHighlightNode={setHighlightedNode}
-          />
-        </div>
-
-        <div className="paper-demo-caption">
-          <PaperFigureCaptions />
-        </div>
+        <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bottom explanation</p>
+          <p className="mt-1 text-sm text-slate-700">{explanationForStep(activeStep)}</p>
+        </section>
       </div>
     </div>
   );

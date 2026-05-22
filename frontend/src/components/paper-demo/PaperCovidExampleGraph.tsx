@@ -64,17 +64,37 @@ function seg(a: NodeId, b: NodeId) {
   return { x1: A.x + (dx / l) * R, y1: A.y + (dy / l) * R, x2: B.x - (dx / l) * R, y2: B.y - (dy / l) * R };
 }
 
-function visible(step: PaperDemoStep, id: string, sel: string, decision: UserRefinementDecision) {
+function visible(
+  step: PaperDemoStep,
+  id: string,
+  sel: string,
+  decision: UserRefinementDecision,
+  feedbackDecisions?: Record<string, UserRefinementDecision>,
+) {
   const base = id.startsWith("t");
   if (step === "before") return base;
   if (step === "missing") return base || id === sel;
   if (step === "cluster") return base || id === sel;
   if (step === "generation" || step === "filtering" || step === "llm" || step === "human") return base || id.startsWith("c");
-  if (step === "after" || step === "diff") return base || (id === sel && decision !== null);
+  if (step === "after" || step === "diff") {
+    if (feedbackDecisions && Object.keys(feedbackDecisions).length > 0) {
+      const edgeDecision = feedbackDecisions[id];
+      return base || (edgeDecision !== undefined && edgeDecision !== null);
+    }
+    return base || (id === sel && decision !== null);
+  }
   return base;
 }
 
-function style(step: PaperDemoStep, id: string, sel: string, decision: UserRefinementDecision, hi?: string | null) {
+function style(
+  step: PaperDemoStep,
+  id: string,
+  sel: string,
+  decision: UserRefinementDecision,
+  hi?: string | null,
+  feedbackDecisions?: Record<string, UserRefinementDecision>,
+) {
+  const edgeDecision = feedbackDecisions?.[id] ?? (id === sel ? decision : null);
   if (hi === id) return { stroke: "#f59e0b", sw: 3.6, dash: "", op: 1 };
   if (id.startsWith("t")) return { stroke: "#15803d", sw: 1.5, dash: "", op: 0.9 };
   const filtered = PAPER_DEMO_CANDIDATES.find((c) => c.id === id)?.transEDistance ? (PAPER_DEMO_CANDIDATES.find((c) => c.id === id)!.transEDistance > PAPER_DEMO_CANDIDATES.find((c) => c.id === id)!.transEThreshold) : false;
@@ -82,10 +102,13 @@ function style(step: PaperDemoStep, id: string, sel: string, decision: UserRefin
   if (step === "filtering") return filtered ? { stroke: "#dc2626", sw: 1.4, dash: "6 5", op: 0.5 } : { stroke: "#2563eb", sw: 2.8, dash: "8 6", op: 1 };
   if (step === "llm" || step === "human") return filtered ? { stroke: "#dc2626", sw: 1.6, dash: "6 5", op: 0.6 } : { stroke: "#ea580c", sw: 3, dash: "10 8", op: 1 };
   if (step === "after" || step === "diff") {
+    if (edgeDecision === "accepted") return { stroke: "#16a34a", sw: 5.2, dash: "", op: 1 };
+    if (edgeDecision === "rejected") return { stroke: "#dc2626", sw: 3.4, dash: "8 6", op: 0.95 };
+    if (edgeDecision === "uncertain") return { stroke: "#6b7280", sw: 3, dash: "4 5", op: 0.95 };
+    if (feedbackDecisions && Object.keys(feedbackDecisions).length > 0) {
+      return { stroke: "#94a3b8", sw: 1.2, dash: "5 5", op: 0.18 };
+    }
     if (id !== sel) return { stroke: "#94a3b8", sw: 1.2, dash: "5 5", op: 0.18 };
-    if (decision === "accepted") return { stroke: "#16a34a", sw: 5.2, dash: "", op: 1 };
-    if (decision === "rejected") return { stroke: "#dc2626", sw: 3.4, dash: "8 6", op: 0.95 };
-    if (decision === "uncertain") return { stroke: "#6b7280", sw: 3, dash: "4 5", op: 0.95 };
     return { stroke: "#ea580c", sw: 3, dash: "10 8", op: 1 };
   }
   return { stroke: "#64748b", sw: 1.2, dash: "", op: 0.6 };
@@ -98,6 +121,7 @@ function Graph({
   highlightedEdge,
   highlightedNode,
   diffFocus,
+  feedbackDecisions,
 }: {
   step: PaperDemoStep;
   selectedCandidate: PaperDemoCandidate | undefined;
@@ -105,6 +129,7 @@ function Graph({
   highlightedEdge?: string | null;
   highlightedNode?: string | null;
   diffFocus?: boolean;
+  feedbackDecisions?: Record<string, UserRefinementDecision>;
 }) {
   const sel = candidateEdgeId(selectedCandidate);
   return (
@@ -129,8 +154,9 @@ function Graph({
           <text x={745} y={375} style={{ fontSize: 11, fontWeight: 700 }} fill="#b45309">C3 (treats, covid-19)</text>
         </>
       ) : null}
-      {EDGES.filter((e) => visible(step, e.id, sel, selectedDecision)).map((e) => {
-        const s = style(step, e.id, sel, selectedDecision, highlightedEdge);
+      {EDGES.filter((e) => visible(step, e.id, sel, selectedDecision, feedbackDecisions)).map((e) => {
+        const s = style(step, e.id, sel, selectedDecision, highlightedEdge, feedbackDecisions);
+        const edgeDecision = feedbackDecisions?.[e.id] ?? (e.id === sel ? selectedDecision : null);
         const p = seg(e.from, e.to);
         const mx = (p.x1 + p.x2) / 2;
         const my = (p.y1 + p.y2) / 2;
@@ -168,7 +194,7 @@ function Graph({
                 <text x={mx + 44} y={my - 2} fill="#b91c1c" style={{ fontSize: 10, fontWeight: 700 }}>FILTERED OUT</text>
               </g>
             ) : null}
-            {(step === "after" || step === "diff") && e.id === sel && selectedDecision === "accepted" ? (
+            {(step === "after" || step === "diff") && edgeDecision === "accepted" ? (
               <g>
                 <circle cx={mx + 36} cy={my - 14} r={15} fill="#dcfce7" stroke="#16a34a" strokeWidth={2} />
                 <text x={mx + 36} y={my - 9} textAnchor="middle" fill="#166534" style={{ fontSize: 16, fontWeight: 900 }}>✓</text>
@@ -231,12 +257,14 @@ export function PaperCovidExampleGraph({
   selectedDecision = null,
   highlightedEdge = null,
   highlightedNode = null,
+  feedbackDecisions,
 }: {
   step: PaperDemoStep;
   selectedCandidate: PaperDemoCandidate | undefined;
   selectedDecision?: UserRefinementDecision;
   highlightedEdge?: string | null;
   highlightedNode?: string | null;
+  feedbackDecisions?: Record<string, UserRefinementDecision>;
 }) {
   if (step === "diff") {
     return (
@@ -266,6 +294,7 @@ export function PaperCovidExampleGraph({
             highlightedEdge={highlightedEdge}
             highlightedNode={highlightedNode}
             diffFocus
+            feedbackDecisions={feedbackDecisions}
           />
         </div>
       </div>
@@ -278,6 +307,7 @@ export function PaperCovidExampleGraph({
       selectedDecision={selectedDecision}
       highlightedEdge={highlightedEdge}
       highlightedNode={highlightedNode}
+      feedbackDecisions={feedbackDecisions}
     />
   );
 }

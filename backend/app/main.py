@@ -8,8 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
 from .config import DEFAULT_LLM_LIMIT, DEFAULT_MODEL_NAME, DEFAULT_TOP_K
+from .models import FeedbackBody
 from .store import get_session
-from .services import analytics, ingestion, pipeline
+from .services import analytics, feedback as feedback_service, ingestion, pipeline
+from .services.feedback import build_feedback_summary
 
 
 app = FastAPI(
@@ -142,8 +144,14 @@ def get_logs(session_id: str):
 def post_demo_refinement(session_id: str, body: DemoRefinementBody):
     session = _session_or_404(session_id)
     try:
-        pipeline.record_demo_refinement(
+        feedback_service.record_feedback(
             session,
+            candidate_id=feedback_service.make_candidate_id(
+                session.dataset_name,
+                body.Head,
+                body.Relation,
+                body.Tail,
+            ),
             head=body.Head,
             relation=body.Relation,
             tail=body.Tail,
@@ -153,6 +161,38 @@ def post_demo_refinement(session_id: str, body: DemoRefinementBody):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     total = len(session.artifacts.get("user_refinements", []))
     return {"status": "ok", "total_refinements": total}
+
+
+@app.post("/api/sessions/{session_id}/feedback")
+def post_feedback(session_id: str, body: FeedbackBody):
+    session = _session_or_404(session_id)
+    try:
+        event = feedback_service.record_feedback(
+            session,
+            candidate_id=body.candidate_id,
+            head=body.Head,
+            relation=body.Relation,
+            tail=body.Tail,
+            decision=body.decision,
+            reason=body.reason,
+            comment=body.comment,
+            corrected_triple=body.corrected_triple.model_dump() if body.corrected_triple else None,
+            user_confidence=body.user_confidence,
+            evidence_judgement=body.evidence_judgement,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"status": "ok", "feedback": event}
+
+
+@app.get("/api/sessions/{session_id}/feedback")
+def get_feedback(session_id: str):
+    session = _session_or_404(session_id)
+    events = list(session.artifacts.get("feedback_events", []))
+    return {
+        "feedback": events,
+        "summary": build_feedback_summary(events),
+    }
 
 
 @app.get("/api/sessions/{session_id}/overview")
@@ -345,3 +385,74 @@ def export_diff_json(session_id: str):
         media_type="application/json",
         headers={"Content-Disposition": f'attachment; filename="{session.dataset_name}_diff.json"'},
     )
+
+
+@app.get("/api/sessions/{session_id}/export/diff")
+def export_kg_diff(session_id: str):
+    import json
+
+    session = _session_or_404(session_id)
+    payload = pipeline.get_completed_payload(session)
+    diff = {
+        "added": payload.get("additions", []),
+        "rejected": payload.get("rejected", []),
+        "unresolved": payload.get("unresolved", []),
+    }
+    return PlainTextResponse(
+        json.dumps(diff, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{session.dataset_name}_kg_diff.json"'},
+    )
+
+
+@app.get("/api/sessions/{session_id}/export/completed.tsv")
+def export_completed_tsv(session_id: str):
+    session = _session_or_404(session_id)
+    return PlainTextResponse(
+        pipeline.export_completed_tsv(session),
+        media_type="text/tab-separated-values",
+        headers={"Content-Disposition": f'attachment; filename="{session.dataset_name}_completed_kg.tsv"'},
+    )
+
+
+@app.post("/api/demo/create-paper-session")
+def create_paper_demo_session(
+    holdout_mode: bool = Query(default=True),
+    sample_proportion: float = Query(default=0.8),
+):
+    """Create a ready-to-use backend session for the /paper-demo live feedback flow."""
+    samples = ingestion.list_samples()
+    if not samples:
+        raise HTTPException(status_code=503, detail="No built-in samples available.")
+    sample_id = samples[0]["id"]
+    try:
+        session = ingestion.create_session_from_sample(
+            sample_id,
+            holdout_mode=holdout_mode,
+            sample_proportion=sample_proportion,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "session_id": session.session_id,
+        "sample_id": sample_id,
+        "url": f"/paper-demo?sessionId={session.session_id}",
+    }
+
+
+@app.get("/api/sessions/{session_id}/export/feedback.json")
+def export_feedback_json(session_id: str):
+    session = _session_or_404(session_id)
+    import json
+
+    events = list(session.artifacts.get("feedback_events", []))
+    return PlainTextResponse(
+        json.dumps(events, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{session.dataset_name}_feedback.json"'},
+    )
+
+
+@app.get("/api/sessions/{session_id}/export/feedback")
+def export_feedback_default(session_id: str):
+    return export_feedback_json(session_id)

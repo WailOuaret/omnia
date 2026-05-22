@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel
 
 import pandas as pd
 
@@ -44,3 +46,37 @@ STEP_ORDER = [
     "llm_validation",
     "completed_kg",
 ]
+
+
+class CorrectedTriple(BaseModel):
+    Head: str
+    Relation: str
+    Tail: str
+
+
+class FeedbackBody(BaseModel):
+    candidate_id: str
+    Head: str
+    Relation: str
+    Tail: str
+    decision: Literal["accept", "reject", "uncertain", "correct"]
+    reason: Literal[
+        "correct",
+        "wrong_relation",
+        "wrong_head",
+        "wrong_tail",
+        "not_enough_evidence",
+        "duplicate",
+        "too_general",
+        "too_specific",
+        "other",
+    ] | None = None
+    comment: str | None = None
+    corrected_triple: CorrectedTriple | None = None
+    user_confidence: Literal["high", "medium", "low"] | None = None
+    evidence_judgement: Literal[
+        "evidence_supports",
+        "evidence_contradicts",
+        "evidence_insufficient",
+        "not_checked",
+    ] | None = None

@@ -18,7 +18,8 @@ from ..config import (
     DEMO_CACHE_DIR,
 )
 from ..models import DemoSession
-from ..store import log_event, put_session, update_step
+from ..store import log_event, update_step
+from . import feedback as feedback_service
 
 STRATEGY_LABELS = {
     "zero": "Zero-shot",
@@ -188,6 +189,15 @@ def ensure_candidates(session: DemoSession) -> dict[str, Any]:
         return payload
 
     candidate_records = candidate_records.copy()
+    candidate_records["candidate_id"] = candidate_records.apply(
+        lambda row: feedback_service.make_candidate_id(
+            session.dataset_name,
+            str(row.get("Head", "")),
+            str(row.get("Relation", "")),
+            str(row.get("Tail", "")),
+        ),
+        axis=1,
+    )
     candidate_records["Missing"] = _missing_mask(candidate_records, session.missing_df).astype(int)
     candidate_records["status"] = candidate_records.apply(
         lambda row: "duplicate existing" if row["status_duplicate_existing"] else "generated",
@@ -549,6 +559,16 @@ def _evaluate_llm_candidates(
         )
         ollama_info = {**ollama_info, "fallback_error": fallback_error}
     runtime = time.perf_counter() - start
+    if "candidate_id" not in evaluated_df.columns:
+        evaluated_df["candidate_id"] = evaluated_df.apply(
+            lambda row: feedback_service.make_candidate_id(
+                session.dataset_name,
+                str(row.get("Head", "")),
+                str(row.get("Relation", "")),
+                str(row.get("Tail", "")),
+            ),
+            axis=1,
+        )
 
     summary = {
         "accepted": int((evaluated_df["decision"] == "accepted").sum()),
@@ -743,14 +763,15 @@ def get_llm_comparison_payload(
     }
 
 
-def _apply_user_refinements(
+def _apply_user_feedback(
     session: DemoSession,
     additions_df: pd.DataFrame,
     rejected_df: pd.DataFrame,
     unresolved_df: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    refs: list[dict[str, Any]] = list(session.artifacts.get("user_refinements") or [])
-    if not refs:
+    events: list[dict[str, Any]] = list(session.artifacts.get("feedback_events") or [])
+    legacy_refs: list[dict[str, Any]] = list(session.artifacts.get("user_refinements") or [])
+    if not events and not legacy_refs:
         return additions_df, rejected_df, unresolved_df
 
     additions = additions_df.copy()
@@ -758,47 +779,143 @@ def _apply_user_refinements(
     unresolved = unresolved_df.copy()
     known_keys = set(_triple_key(session.known_df[["Head", "Relation", "Tail"]]))
 
-    def keys_of(frame: pd.DataFrame) -> pd.Series:
+    def ensure_columns(frame: pd.DataFrame, extra: dict[str, Any]) -> pd.DataFrame:
+        if frame.empty:
+            return pd.DataFrame(columns=list({*frame.columns.tolist(), *extra.keys()}))
+        for key in extra:
+            if key not in frame.columns:
+                frame[key] = None
+        return frame
+
+    def rows_to_keys(frame: pd.DataFrame) -> pd.Series:
         if frame.empty:
             return pd.Series(dtype=object)
         return _triple_key(frame[["Head", "Relation", "Tail"]])
 
-    for ref in refs:
+    def remove_key(frame: pd.DataFrame, key: str) -> pd.DataFrame:
+        if frame.empty:
+            return frame
+        return frame[rows_to_keys(frame) != key].copy()
+
+    def append_row(frame: pd.DataFrame, row: dict[str, Any]) -> pd.DataFrame:
+        key = feedback_service.triple_key(str(row["Head"]), str(row["Relation"]), str(row["Tail"]))
+        if key in known_keys:
+            return frame
+        if not frame.empty and key in set(rows_to_keys(frame)):
+            return frame
+        frame = ensure_columns(frame, row)
+        for col in frame.columns:
+            row.setdefault(col, None)
+        return pd.concat([frame, pd.DataFrame([row])], ignore_index=True)
+
+    normalized_events: list[dict[str, Any]] = events.copy()
+    for ref in legacy_refs:
         decision = str(ref.get("decision", "")).strip().lower()
-        if decision not in {"accept", "reject"}:
+        if decision not in {"accept", "reject", "uncertain", "correct"}:
             continue
-        h = str(ref.get("Head", "")).strip()
-        rel = str(ref.get("Relation", "")).strip()
-        t = str(ref.get("Tail", "")).strip()
+        normalized_events.append(
+            {
+                "feedback_id": None,
+                "candidate_id": ref.get("candidate_id"),
+                "triple": {"Head": ref.get("Head"), "Relation": ref.get("Relation"), "Tail": ref.get("Tail")},
+                "user": {
+                    "decision": decision,
+                    "reason": ref.get("reason"),
+                    "comment": ref.get("comment"),
+                    "corrected_triple": ref.get("corrected_triple"),
+                },
+                "effect": {},
+            }
+        )
+
+    for event in normalized_events:
+        triple = event.get("triple", {})
+        user = event.get("user", {})
+        h = str(triple.get("Head", "")).strip()
+        rel = str(triple.get("Relation", "")).strip()
+        t = str(triple.get("Tail", "")).strip()
+        decision = str(user.get("decision", "")).strip().lower()
         if not (h and rel and t):
             continue
-        row_key = _triple_key(pd.DataFrame([{"Head": h, "Relation": rel, "Tail": t}])).iloc[0]
+        if decision not in {"accept", "reject", "uncertain", "correct"}:
+            continue
+        row_key = feedback_service.triple_key(h, rel, t)
+        feedback_id = event.get("feedback_id")
+        candidate_id = event.get("candidate_id")
 
-        if decision == "reject":
-            if not additions.empty:
-                additions = additions[keys_of(additions) != row_key]
-            if not unresolved.empty:
-                unresolved = unresolved[keys_of(unresolved) != row_key]
-            if row_key not in set(keys_of(rejected)) and row_key not in known_keys:
-                rejected = pd.concat(
-                    [rejected, pd.DataFrame([{"Head": h, "Relation": rel, "Tail": t}])],
-                    ignore_index=True,
+        additions = remove_key(additions, row_key)
+        rejected = remove_key(rejected, row_key)
+        unresolved = remove_key(unresolved, row_key)
+
+        if decision == "accept":
+            additions = append_row(
+                additions,
+                {
+                    "Head": h,
+                    "Relation": rel,
+                    "Tail": t,
+                    "decision": "accepted",
+                    "provenance": "human_confirmed",
+                    "feedback_id": feedback_id,
+                    "candidate_id": candidate_id,
+                },
+            )
+        elif decision == "reject":
+            rejected = append_row(
+                rejected,
+                {
+                    "Head": h,
+                    "Relation": rel,
+                    "Tail": t,
+                    "decision": "rejected",
+                    "provenance": "human_rejected",
+                    "feedback_id": feedback_id,
+                    "candidate_id": candidate_id,
+                },
+            )
+        elif decision == "uncertain":
+            unresolved = append_row(
+                unresolved,
+                {
+                    "Head": h,
+                    "Relation": rel,
+                    "Tail": t,
+                    "decision": "unresolved",
+                    "provenance": "needs_expert_review",
+                    "feedback_id": feedback_id,
+                    "candidate_id": candidate_id,
+                },
+            )
+        elif decision == "correct":
+            corrected = user.get("corrected_triple") or {}
+            rejected = append_row(
+                rejected,
+                {
+                    "Head": h,
+                    "Relation": rel,
+                    "Tail": t,
+                    "decision": "rejected",
+                    "provenance": "replaced_by_user_correction",
+                    "feedback_id": feedback_id,
+                    "candidate_id": candidate_id,
+                },
+            )
+            ch = str(corrected.get("Head", "")).strip()
+            cr = str(corrected.get("Relation", "")).strip()
+            ct = str(corrected.get("Tail", "")).strip()
+            if ch and cr and ct:
+                additions = append_row(
+                    additions,
+                    {
+                        "Head": ch,
+                        "Relation": cr,
+                        "Tail": ct,
+                        "decision": "accepted",
+                        "provenance": "human_corrected",
+                        "feedback_id": feedback_id,
+                        "candidate_id": candidate_id,
+                    },
                 )
-        else:
-            if not rejected.empty:
-                rejected = rejected[keys_of(rejected) != row_key]
-            if not unresolved.empty:
-                unresolved = unresolved[keys_of(unresolved) != row_key]
-            if row_key in known_keys:
-                continue
-            add_keys = set(keys_of(additions)) if not additions.empty else set()
-            if row_key in add_keys:
-                continue
-            template: dict[str, Any] = {col: None for col in additions.columns}
-            template.update({"Head": h, "Relation": rel, "Tail": t})
-            if "decision" in template:
-                template["decision"] = "accepted"
-            additions = pd.concat([additions, pd.DataFrame([template])], ignore_index=True)
 
     return additions, rejected, unresolved
 
@@ -807,15 +924,19 @@ def record_demo_refinement(session: DemoSession, *, head: str, relation: str, ta
     choice = decision.strip().lower()
     if choice not in {"accept", "reject"}:
         raise ValueError("decision must be accept or reject")
-    session.artifacts.setdefault("user_refinements", []).append(
-        {
-            "Head": head.strip(),
-            "Relation": relation.strip(),
-            "Tail": tail.strip(),
-            "decision": choice,
-        }
+    feedback_service.record_feedback(
+        session,
+        candidate_id=feedback_service.make_candidate_id(
+            session.dataset_name,
+            head.strip(),
+            relation.strip(),
+            tail.strip(),
+        ),
+        head=head.strip(),
+        relation=relation.strip(),
+        tail=tail.strip(),
+        decision=choice,
     )
-    put_session(session)
     log_event(
         session,
         "demo_refinement",
@@ -830,21 +951,29 @@ def get_completed_payload(session: DemoSession) -> dict[str, Any]:
     filtering_artifact = session.artifacts.get("filtering")
 
     if llm_artifact is not None and "decision" in llm_artifact["evaluated_df"].columns:
-        additions_df = llm_artifact["evaluated_df"][llm_artifact["evaluated_df"]["decision"] == "accepted"][
-            ["Head", "Relation", "Tail", "parsed_score", "decision"]
-        ].copy()
+        additions_df = llm_artifact["evaluated_df"][llm_artifact["evaluated_df"]["decision"] == "accepted"].copy()
+        keep_cols = [col for col in ["Head", "Relation", "Tail", "parsed_score", "decision", "candidate_id"] if col in additions_df.columns]
+        additions_df = additions_df[keep_cols].copy()
+        additions_df["provenance"] = "llm_accepted"
         rejected_df = llm_artifact["evaluated_df"][llm_artifact["evaluated_df"]["decision"] == "rejected"].copy()
+        if "provenance" not in rejected_df.columns:
+            rejected_df["provenance"] = "llm_rejected"
         unresolved_df = llm_artifact["evaluated_df"][llm_artifact["evaluated_df"]["decision"] == "unresolved"].copy()
+        if "provenance" not in unresolved_df.columns:
+            unresolved_df["provenance"] = "llm_unresolved"
     elif filtering_artifact is not None:
         additions_df = filtering_artifact["accepted_df"][["Head", "Relation", "Tail"]].copy()
+        additions_df["provenance"] = "filter_accepted"
         rejected_df = filtering_artifact["rejected_df"].copy()
+        if "provenance" not in rejected_df.columns:
+            rejected_df["provenance"] = "filter_rejected"
         unresolved_df = filtering_artifact["accepted_df"].iloc[0:0].copy()
     else:
         additions_df = pd.DataFrame(columns=["Head", "Relation", "Tail"])
         rejected_df = pd.DataFrame(columns=["Head", "Relation", "Tail"])
         unresolved_df = pd.DataFrame(columns=["Head", "Relation", "Tail"])
 
-    additions_df, rejected_df, unresolved_df = _apply_user_refinements(
+    additions_df, rejected_df, unresolved_df = _apply_user_feedback(
         session,
         additions_df,
         rejected_df,
@@ -856,6 +985,10 @@ def get_completed_payload(session: DemoSession) -> dict[str, Any]:
         ignore_index=True,
     ).drop_duplicates().reset_index(drop=True)
     recovered_mask = _missing_mask(additions_df, session.missing_df) if len(additions_df) else pd.Series(dtype=bool)
+    feedback_events = list(session.artifacts.get("feedback_events", []))
+    feedback_summary = feedback_service.build_feedback_summary(feedback_events)
+    feedback_diagnostics = feedback_service.build_feedback_diagnostics(feedback_events)
+    threshold_suggestion = feedback_service.calibrate_threshold_from_feedback(session)
 
     payload = {
         "summary": {
@@ -867,10 +1000,22 @@ def get_completed_payload(session: DemoSession) -> dict[str, Any]:
             "unresolved_candidates": int(len(unresolved_df)),
             "recovered_true_missing": int(recovered_mask.sum()) if len(recovered_mask) else 0,
             "novel_not_in_reference": int(len(additions_df) - recovered_mask.sum()) if len(recovered_mask) else int(len(additions_df)),
+            **feedback_summary,
+            "feedback_total": len(feedback_events),
+            "user_accepted": sum(1 for e in feedback_events if e.get("user", {}).get("decision") == "accept"),
+            "user_rejected": sum(1 for e in feedback_events if e.get("user", {}).get("decision") == "reject"),
+            "user_uncertain": sum(1 for e in feedback_events if e.get("user", {}).get("decision") == "uncertain"),
+            "user_corrected": sum(1 for e in feedback_events if e.get("user", {}).get("decision") == "correct"),
+            "agreement_rate": feedback_diagnostics.get("agreement_rate", 0.0),
         },
         "additions": _to_records(session, additions_df),
         "rejected": _to_records(session, rejected_df),
         "unresolved": _to_records(session, unresolved_df),
+        "feedback_summary": feedback_summary,
+        "feedback_diagnostics": feedback_diagnostics,
+        "feedback_priors": session.artifacts.get("feedback_priors", {}),
+        "feedback_cluster_stats": session.artifacts.get("feedback_cluster_stats", {}),
+        "suggested_threshold": threshold_suggestion,
         "original_graph": {
             "triples": _to_records(session, session.known_df),
         },
@@ -910,6 +1055,52 @@ def export_diff_csv(session: DemoSession) -> str:
 def export_diff_json(session: DemoSession) -> str:
     payload = get_completed_payload(session)
     return json.dumps(payload["additions"], indent=2)
+
+
+def _normalize_export_provenance(provenance: str | None) -> str:
+    if not provenance:
+        return "llm_validated"
+    normalized = {
+        "llm_accepted": "llm_validated",
+        "filter_accepted": "llm_validated",
+    }
+    return normalized.get(provenance, provenance)
+
+
+def export_completed_tsv(session: DemoSession) -> str:
+    payload = get_completed_payload(session)
+    rejected_keys = {
+        feedback_service.triple_key(str(row["Head"]), str(row["Relation"]), str(row["Tail"]))
+        for row in payload.get("rejected", [])
+    }
+    unresolved_keys = {
+        feedback_service.triple_key(str(row["Head"]), str(row["Relation"]), str(row["Tail"]))
+        for row in payload.get("unresolved", [])
+    }
+
+    rows: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    def append_if_new(head: str, relation: str, tail: str, provenance: str) -> None:
+        key = feedback_service.triple_key(head, relation, tail)
+        if key in rejected_keys or key in unresolved_keys:
+            return
+        if key in seen:
+            return
+        seen.add(key)
+        rows.append({"head": head, "relation": relation, "tail": tail, "provenance": provenance})
+
+    for record in payload.get("original_graph", {}).get("triples", []):
+        append_if_new(str(record["Head"]), str(record["Relation"]), str(record["Tail"]), "original")
+
+    for record in payload.get("additions", []):
+        prov = _normalize_export_provenance(str(record.get("provenance") or "llm_validated"))
+        append_if_new(str(record["Head"]), str(record["Relation"]), str(record["Tail"]), prov)
+
+    lines = ["head\trelation\ttail\tprovenance"]
+    for row in rows:
+        lines.append(f"{row['head']}\t{row['relation']}\t{row['tail']}\t{row['provenance']}")
+    return "\n".join(lines) + "\n"
 
 
 def get_comparison_payload(

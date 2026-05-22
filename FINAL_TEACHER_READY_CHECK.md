@@ -1,0 +1,160 @@
+# Final teacher-ready check
+
+Date: 2026-05-22 (final cleanup pass)
+
+---
+
+## 1. Executive status
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Frontend dataset-first UI | **PASS** | Unchanged workflow; `/paper-demo` |
+| Graph comparison | **PASS** | Before/after for all 5 datasets |
+| Dataset values | **PASS** | COVID-Fact has no F1; Table I counts |
+| Feedback backend link | **PASS** | `useFeedbackBridge` + POST/GET verified |
+| Exports | **PASS** | Static + backend completed TSV added |
+| Paper cleanup | **PASS** | `docs/demo_paper_outline.md` — no retraining claims |
+| Build/tests | **PASS** | 18 pytest · frontend build |
+| Browser 1366px layout | **PASS** | Playwright screenshots + no-overflow assertion |
+
+---
+
+## 2. Backend sessions
+
+**Status: documented limitation + demo-session helper**
+
+- Sessions are **in-memory**. Restarting the backend clears all sessions.
+- Documented in `README.md`, `MANUAL_FEEDBACK_QA.md`, and this file.
+- **Before each live presentation:** create a fresh session.
+
+Helper endpoint (no UI change):
+
+```http
+POST /api/demo/create-paper-session
+→ { "session_id": "...", "sample_id": "...", "url": "/paper-demo?sessionId=..." }
+```
+
+Correct backend start command (repo root):
+
+```shell
+cd <repo-root>
+python -m uvicorn backend.app.main:app --reload --port 8000
+```
+
+No file-backed persistence or database migration in this pass.
+
+---
+
+## 3. Browser layout at 1366px
+
+**Status: PASS**
+
+Automated verification:
+
+```shell
+cd frontend
+npm run verify:responsive
+```
+
+- Script: `frontend/scripts/verify-responsive.mjs`
+- Report: `RESPONSIVE_SCREENSHOT_REPORT.md`
+- Screenshots: `docs/screenshots/1366/`, `docs/screenshots/1920/`
+- Assertion: `document.documentElement.scrollWidth <= window.innerWidth + 2` on every capture
+- Result: **ALL OVERFLOW CHECKS PASSED** (2026-05-22)
+
+Minimum screenshots captured:
+- Landing, COVID-Fact (all 7 workflow steps), Completed KG for CoDEx-M, FB15K-237, WN18RR, Socio-Economic
+
+---
+
+## 4. Online retraining
+
+**Status: intentionally not implemented — future work**
+
+Exact language in `README.md`:
+
+> OMNIA+ currently uses human feedback to update the completed KG, KG diff, review queue, feedback log, and next-iteration diagnostics. It does **not** retrain the embedding model or LLM online. Online active learning and persistent multi-user feedback are future work.
+
+Paper draft uses *feedback-aware KG refinement*, not *online retraining*.
+
+---
+
+## 5. Backend completed KG TSV export
+
+**Status: PASS**
+
+Endpoint:
+
+```http
+GET /api/sessions/{session_id}/export/completed.tsv
+```
+
+TSV header: `head    relation    tail    provenance`
+
+Includes:
+- Original known triples → `original`
+- Accepted additions → `human_confirmed` or `llm_validated`
+- Corrected triples → `human_corrected`
+
+Excludes: rejected, review queue, duplicates.
+
+Test: `test_export_completed_tsv_contains_original_and_accepted_triples` — **PASS**
+
+Frontend: when `?sessionId=` is present, **Export completed KG** opens the backend TSV URL.
+
+---
+
+## 6. COVID-Fact F1
+
+**Confirmed removed.** `datasets.ts` has `role` + `note`, no `bestF1`. UI guards use `bestF1 !== undefined`.
+
+---
+
+## 7. Dataset table
+
+| Dataset | Entities | Relations | Triples | F1 | UI note | Source |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| COVID-Fact | 1 416 | 28 | 908 | — | Running example; not Table IV | OMNIA Table I |
+| CoDEx-M | 16 759 | 49 | 60 000 | 0.91 | OMNIA sample; tsafavi/codex counts differ | OMNIA Table I/IV |
+| FB15K-237 | 12 993 | 29 | 59 270 | 0.86 | Mapped metadata caveat | OMNIA Table I/IV |
+| WN18RR | 40 943 | 11 | 93 003 | 0.87 | Triple-based RAG preferred | OMNIA Table I/IV |
+| Socio-Economic | 33 563 | 17 175 | 64 417 | 0.68 | Private / sparse | OMNIA Table IV |
+
+---
+
+## 8. Build / test results (latest)
+
+```
+frontend> npm run build          → PASS
+repo-root> python -m pytest ...  → 18 passed
+frontend> npm run verify:responsive → PASS (all overflow checks)
+```
+
+---
+
+## 9. Files changed (this cleanup pass)
+
+| File | Change |
+| --- | --- |
+| `backend/app/services/pipeline.py` | `export_completed_tsv()` |
+| `backend/app/main.py` | `GET /export/completed.tsv`, `POST /api/demo/create-paper-session` |
+| `tests/test_backend_units.py` | `test_export_completed_tsv_contains_original_and_accepted_triples` |
+| `frontend/src/lib/api.ts` | `exportCompletedTsvUrl`, `createPaperSession` |
+| `frontend/src/pages/PaperDemoPage.tsx` | Backend TSV export when `sessionId` present |
+| `frontend/scripts/verify-responsive.mjs` | Playwright screenshot + overflow verification |
+| `frontend/package.json` | `verify:responsive` script |
+| `README.md` | Backend command, sessions, exports, retraining limitation |
+| `MANUAL_FEEDBACK_QA.md` | Correct backend command, completed TSV check |
+| `docs/demo_paper_outline.md` | No retraining claims |
+| `RESPONSIVE_SCREENSHOT_REPORT.md` | Generated by verify script |
+| `docs/screenshots/1366/*.png`, `docs/screenshots/1920/*.png` | Screenshot artifacts |
+| `FINAL_TEACHER_READY_CHECK.md` | This file |
+
+---
+
+## 10. Remaining limitations (honest)
+
+1. Backend sessions are in-memory (documented; use `POST /api/demo/create-paper-session` before live demo).
+2. No online embedding/LLM retraining (documented as future work).
+3. Static completed TSV uses 3 columns; backend TSV uses 4 columns (includes `provenance`).
+4. Playwright verification requires frontend dev server running on port 5173.

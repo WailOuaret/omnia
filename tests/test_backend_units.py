@@ -5,9 +5,11 @@ import unittest
 from datetime import datetime
 
 import pandas as pd
+from fastapi.testclient import TestClient
 
+from backend.app.main import app
 from backend.app.config import BENCHMARK_SAMPLE_PREFIX
-from backend.app.services import analytics, ingestion, pipeline
+from backend.app.services import analytics, feedback, ingestion, pipeline
 from backend.app.store import SESSIONS, log_event
 from candidates_filtering import triple_filter
 
@@ -48,6 +50,7 @@ def large_demo_df() -> pd.DataFrame:
 class BackendUnitTests(unittest.TestCase):
     def setUp(self):
         SESSIONS.clear()
+        self.client = TestClient(app)
 
     def test_read_dataframe_from_bytes_supports_csv_tsv_and_json(self):
         csv_df = ingestion.read_dataframe_from_bytes(
@@ -225,6 +228,194 @@ class BackendUnitTests(unittest.TestCase):
         samples = ingestion.list_samples()
         sample_ids = {sample["id"] for sample in samples}
         self.assertTrue(all(sid.startswith(BENCHMARK_SAMPLE_PREFIX) for sid in sample_ids), sample_ids)
+
+    def _build_feedback_session(self):
+        session = ingestion.create_session_from_dataframe(
+            dataset_name="Feedback KG",
+            source_type="upload",
+            source_path=None,
+            df=demo_df(),
+            mapping={"Head": "Head", "Relation": "Relation", "Tail": "Tail"},
+            holdout_mode=False,
+        )
+        candidates = pipeline.ensure_candidates(session)
+        candidate = candidates["filterable_df"].iloc[0]
+        return session, candidate
+
+    def _triple_in_records(self, records: list[dict[str, str]], head: str, relation: str, tail: str) -> bool:
+        return any(
+            row.get("Head") == head and row.get("Relation") == relation and row.get("Tail") == tail
+            for row in records
+        )
+
+    def test_feedback_accept_adds_triple_to_completed_kg(self):
+        session, candidate = self._build_feedback_session()
+        feedback.record_feedback(
+            session,
+            candidate_id=str(candidate["candidate_id"]),
+            head=str(candidate["Head"]),
+            relation=str(candidate["Relation"]),
+            tail=str(candidate["Tail"]),
+            decision="accept",
+            reason="correct",
+        )
+        completed = pipeline.get_completed_payload(session)
+        self.assertTrue(
+            self._triple_in_records(
+                completed["additions"],
+                str(candidate["Head"]),
+                str(candidate["Relation"]),
+                str(candidate["Tail"]),
+            )
+        )
+
+    def test_feedback_reject_removes_llm_accepted_triple(self):
+        session, candidate = self._build_feedback_session()
+        session.artifacts["llm"] = {
+            "evaluated_df": pd.DataFrame(
+                [
+                    {
+                        "Head": candidate["Head"],
+                        "Relation": candidate["Relation"],
+                        "Tail": candidate["Tail"],
+                        "decision": "accepted",
+                        "candidate_id": candidate["candidate_id"],
+                    }
+                ]
+            ),
+            "strategy": "rag",
+            "mode": "triples",
+            "top_k": 2,
+        }
+        feedback.record_feedback(
+            session,
+            candidate_id=str(candidate["candidate_id"]),
+            head=str(candidate["Head"]),
+            relation=str(candidate["Relation"]),
+            tail=str(candidate["Tail"]),
+            decision="reject",
+            reason="wrong_relation",
+        )
+        completed = pipeline.get_completed_payload(session)
+        self.assertFalse(
+            self._triple_in_records(
+                completed["additions"],
+                str(candidate["Head"]),
+                str(candidate["Relation"]),
+                str(candidate["Tail"]),
+            )
+        )
+        self.assertTrue(
+            self._triple_in_records(
+                completed["rejected"],
+                str(candidate["Head"]),
+                str(candidate["Relation"]),
+                str(candidate["Tail"]),
+            )
+        )
+
+    def test_feedback_uncertain_puts_triple_in_unresolved(self):
+        session, candidate = self._build_feedback_session()
+        feedback.record_feedback(
+            session,
+            candidate_id=str(candidate["candidate_id"]),
+            head=str(candidate["Head"]),
+            relation=str(candidate["Relation"]),
+            tail=str(candidate["Tail"]),
+            decision="uncertain",
+            reason="not_enough_evidence",
+        )
+        completed = pipeline.get_completed_payload(session)
+        self.assertTrue(
+            self._triple_in_records(
+                completed["unresolved"],
+                str(candidate["Head"]),
+                str(candidate["Relation"]),
+                str(candidate["Tail"]),
+            )
+        )
+
+    def test_feedback_correct_replaces_original_with_corrected(self):
+        session, candidate = self._build_feedback_session()
+        corrected = {"Head": "Bob", "Relation": "livesIn", "Tail": "Paris"}
+        feedback.record_feedback(
+            session,
+            candidate_id=str(candidate["candidate_id"]),
+            head=str(candidate["Head"]),
+            relation=str(candidate["Relation"]),
+            tail=str(candidate["Tail"]),
+            decision="correct",
+            reason="wrong_tail",
+            corrected_triple=corrected,
+        )
+        completed = pipeline.get_completed_payload(session)
+        self.assertTrue(
+            self._triple_in_records(
+                completed["rejected"],
+                str(candidate["Head"]),
+                str(candidate["Relation"]),
+                str(candidate["Tail"]),
+            )
+        )
+        self.assertTrue(
+            self._triple_in_records(
+                completed["additions"],
+                corrected["Head"],
+                corrected["Relation"],
+                corrected["Tail"],
+            )
+        )
+
+    def test_feedback_export_endpoint_returns_json(self):
+        session, candidate = self._build_feedback_session()
+        response = self.client.post(
+            f"/api/sessions/{session.session_id}/feedback",
+            json={
+                "candidate_id": str(candidate["candidate_id"]),
+                "Head": str(candidate["Head"]),
+                "Relation": str(candidate["Relation"]),
+                "Tail": str(candidate["Tail"]),
+                "decision": "accept",
+                "reason": "correct",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        export_response = self.client.get(f"/api/sessions/{session.session_id}/export/feedback.json")
+        self.assertEqual(export_response.status_code, 200)
+        payload = json.loads(export_response.text)
+        self.assertTrue(isinstance(payload, list))
+        self.assertGreaterEqual(len(payload), 1)
+
+    def test_export_completed_tsv_contains_original_and_accepted_triples(self):
+        session, candidate = self._build_feedback_session()
+        feedback.record_feedback(
+            session,
+            candidate_id="cov-c1",
+            head="chloroquine",
+            relation="treats",
+            tail="sars-cov-2",
+            decision="accept",
+            reason="correct",
+        )
+        feedback.record_feedback(
+            session,
+            candidate_id=str(candidate["candidate_id"]),
+            head=str(candidate["Head"]),
+            relation=str(candidate["Relation"]),
+            tail=str(candidate["Tail"]),
+            decision="reject",
+            reason="wrong_relation",
+        )
+        export_response = self.client.get(f"/api/sessions/{session.session_id}/export/completed.tsv")
+        self.assertEqual(export_response.status_code, 200)
+        self.assertIn("text/tab-separated-values", export_response.headers.get("content-type", ""))
+        text = export_response.text
+        lines = [line for line in text.strip().splitlines() if line.strip()]
+        self.assertEqual(lines[0], "head\trelation\ttail\tprovenance")
+        self.assertIn("chloroquine\ttreats\tsars-cov-2\thuman_confirmed", text)
+        self.assertIn("\toriginal", text)
+        rejected_line = f"{candidate['Head']}\t{candidate['Relation']}\t{candidate['Tail']}\thuman_rejected"
+        self.assertNotIn(rejected_line, text)
 
 
 if __name__ == "__main__":

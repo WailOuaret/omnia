@@ -118,8 +118,65 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
+  postFeedback: (
+    sessionId: string,
+    body: {
+      candidate_id: string;
+      Head: string;
+      Relation: string;
+      Tail: string;
+      decision: "accept" | "reject" | "uncertain" | "correct";
+      reason?: string;
+      comment?: string;
+      corrected_triple?: { Head: string; Relation: string; Tail: string };
+      user_confidence?: "high" | "medium" | "low";
+      evidence_judgement?: "evidence_supports" | "evidence_contradicts" | "evidence_insufficient" | "not_checked";
+    },
+  ) =>
+    request<Record<string, unknown>>(`/api/sessions/${sessionId}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  getFeedback: (sessionId: string) => request<Record<string, unknown>>(`/api/sessions/${sessionId}/feedback`),
   getComparisons: (sessionId: string, params: URLSearchParams) =>
     request<Record<string, unknown>>(`/api/sessions/${sessionId}/comparisons?${params.toString()}`),
   exportCsvUrl: (sessionId: string) => `${API_BASE}/api/sessions/${sessionId}/export/diff.csv`,
   exportJsonUrl: (sessionId: string) => `${API_BASE}/api/sessions/${sessionId}/export/diff.json`,
+  exportFeedbackJsonUrl: (sessionId: string) => `${API_BASE}/api/sessions/${sessionId}/export/feedback.json`,
+  exportCompletedTsvUrl: (sessionId: string) => `${API_BASE}/api/sessions/${sessionId}/export/completed.tsv`,
+  createPaperSession: () =>
+    request<{ session_id: string; sample_id: string; url: string }>("/api/demo/create-paper-session", {
+      method: "POST",
+    }),
 };
+
+export async function postFeedback(
+  sessionId: string,
+  body: {
+    candidate_id: string;
+    Head: string;
+    Relation: string;
+    Tail: string;
+    decision: "accept" | "reject" | "uncertain" | "correct";
+    reason?: string;
+    comment?: string;
+    corrected_triple?: { Head: string; Relation: string; Tail: string };
+    user_confidence?: "high" | "medium" | "low";
+    evidence_judgement?: "evidence_supports" | "evidence_contradicts" | "evidence_insufficient" | "not_checked";
+  },
+): Promise<unknown> {
+  return api.postFeedback(sessionId, body);
+}
+
+export async function getFeedback(sessionId: string): Promise<unknown> {
+  return api.getFeedback(sessionId);
+}
+
+export function exportFeedbackJsonUrl(sessionId: string): string {
+  return api.exportFeedbackJsonUrl(sessionId);
+}
+
+export function exportCompletedTsvUrl(sessionId: string): string {
+  return api.exportCompletedTsvUrl(sessionId);
+}
