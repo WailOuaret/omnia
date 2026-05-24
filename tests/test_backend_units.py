@@ -229,6 +229,26 @@ class BackendUnitTests(unittest.TestCase):
         sample_ids = {sample["id"] for sample in samples}
         self.assertTrue(all(sid.startswith(BENCHMARK_SAMPLE_PREFIX) for sid in sample_ids), sample_ids)
 
+    def test_samples_reports_real_dataset_availability(self):
+        samples = ingestion.list_samples()
+        required = {"omnia_codex_m", "omnia_fb15k-237", "omnia_wn18rr", "omnia_covid_fact"}
+        ids = {sample["id"] for sample in samples}
+        self.assertTrue(required.issubset(ids), ids)
+        codex = next(sample for sample in samples if sample["id"] == "omnia_codex_m")
+        self.assertIn("available", codex)
+        if not codex["available"]:
+            self.assertIn("setup_real_datasets.py", codex.get("setup_hint", ""))
+
+    def test_create_session_from_real_codex_m_if_available(self):
+        samples = ingestion.list_samples()
+        codex = next(sample for sample in samples if sample["id"] == "omnia_codex_m")
+        if not codex.get("available"):
+            self.skipTest("Real CoDEx-M dataset not available on this machine.")
+        session = ingestion.create_session_from_sample("omnia_codex_m", holdout_mode=True, sample_proportion=0.8)
+        self.assertEqual(session.artifacts.get("sample_id"), "omnia_codex_m")
+        self.assertEqual(session.source_type, "real_dataset")
+        self.assertGreater(len(session.uploaded_df), 0)
+
     def _build_feedback_session(self):
         session = ingestion.create_session_from_dataframe(
             dataset_name="Feedback KG",
@@ -386,6 +406,86 @@ class BackendUnitTests(unittest.TestCase):
         self.assertTrue(isinstance(payload, list))
         self.assertGreaterEqual(len(payload), 1)
 
+    def test_completed_count_after_accept_correct_reject_matches_completed_kg_length(self):
+        """Regression for Ticket 2: the displayed completed count must equal the
+        actual completed-KG row count after a mixed Accept + Correct + Reject
+        sequence. The frontend consumes this same `summary.completed_triples`
+        value from `GET /api/sessions/{id}/completed`.
+        """
+        session, candidate = self._build_feedback_session()
+
+        # Seed an LLM artifact with three accepted candidates so each decision has
+        # a triple to act on.
+        other_candidates = [
+            {"Head": "Alice", "Relation": "researches", "Tail": "ProtonField", "candidate_id": "cand-2"},
+            {"Head": "Bob", "Relation": "usesTool", "Tail": "OmniaCLI", "candidate_id": "cand-3"},
+        ]
+        session.artifacts["llm"] = {
+            "evaluated_df": pd.DataFrame(
+                [
+                    {
+                        "Head": candidate["Head"],
+                        "Relation": candidate["Relation"],
+                        "Tail": candidate["Tail"],
+                        "decision": "accepted",
+                        "candidate_id": candidate["candidate_id"],
+                    },
+                    *[{**row, "decision": "accepted"} for row in other_candidates],
+                ]
+            ),
+            "strategy": "rag",
+            "mode": "triples",
+            "top_k": 2,
+        }
+
+        feedback.record_feedback(
+            session,
+            candidate_id=str(candidate["candidate_id"]),
+            head=str(candidate["Head"]),
+            relation=str(candidate["Relation"]),
+            tail=str(candidate["Tail"]),
+            decision="accept",
+            reason="correct",
+        )
+        feedback.record_feedback(
+            session,
+            candidate_id="cand-2",
+            head="Alice",
+            relation="researches",
+            tail="ProtonField",
+            decision="correct",
+            reason="wrong_tail",
+            corrected_triple={"Head": "Alice", "Relation": "researches", "Tail": "QuantumField"},
+        )
+        feedback.record_feedback(
+            session,
+            candidate_id="cand-3",
+            head="Bob",
+            relation="usesTool",
+            tail="OmniaCLI",
+            decision="reject",
+            reason="wrong_relation",
+        )
+
+        completed = pipeline.get_completed_payload(session)
+        summary_completed = completed["summary"]["completed_triples"]
+        # The completed KG ground-truth row count is known + accepted additions, deduplicated.
+        actual_completed_kg = pd.concat(
+            [
+                session.known_df[["Head", "Relation", "Tail"]],
+                pd.DataFrame(completed["additions"])[["Head", "Relation", "Tail"]],
+            ],
+            ignore_index=True,
+        ).drop_duplicates()
+        self.assertEqual(summary_completed, len(actual_completed_kg))
+        # The corrected triple must be present, the rejected one must be absent.
+        self.assertTrue(
+            self._triple_in_records(completed["additions"], "Alice", "researches", "QuantumField")
+        )
+        self.assertFalse(
+            self._triple_in_records(completed["additions"], "Bob", "usesTool", "OmniaCLI")
+        )
+
     def test_export_completed_tsv_contains_original_and_accepted_triples(self):
         session, candidate = self._build_feedback_session()
         feedback.record_feedback(
@@ -416,6 +516,149 @@ class BackendUnitTests(unittest.TestCase):
         self.assertIn("\toriginal", text)
         rejected_line = f"{candidate['Head']}\t{candidate['Relation']}\t{candidate['Tail']}\thuman_rejected"
         self.assertNotIn(rejected_line, text)
+
+
+class GraphSliceEndpointTests(unittest.TestCase):
+    """Acceptance tests for the new backend-first paper-demo slice endpoints."""
+
+    def setUp(self) -> None:  # noqa: D401 - unittest hook
+        SESSIONS.clear()
+        self.client = TestClient(app)
+        self.session = ingestion.create_session_from_dataframe(
+            dataset_name="Slice KG",
+            source_type="upload",
+            source_path=None,
+            df=demo_df(),
+            mapping={"Head": "Head", "Relation": "Relation", "Tail": "Tail"},
+            holdout_mode=False,
+        )
+        # Pre-compute candidates so the candidates endpoint has artifacts to read.
+        pipeline.ensure_candidates(self.session)
+        self.session_id = self.session.session_id
+
+    def test_entities_endpoint_returns_real_session_entities(self) -> None:
+        response = self.client.get(f"/api/sessions/{self.session_id}/entities?limit=50")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"], "backend_session")
+        ids = {item["id"] if isinstance(item, dict) else item for item in payload["entities"]}
+        self.assertIn("Alice", ids)
+        self.assertIn("OmniaLab", ids)
+
+    def test_relations_endpoint_filters_by_query(self) -> None:
+        response = self.client.get(f"/api/sessions/{self.session_id}/relations?q=works")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"], "backend_session")
+        labels = [item["label"] for item in payload["relations"]]
+        self.assertIn("worksAt", labels)
+        # Confirm filtering really applied.
+        self.assertTrue(all("works" in rel.lower() for rel in labels))
+
+    def test_graph_slice_guided_returns_bounded_payload(self) -> None:
+        response = self.client.get(
+            f"/api/sessions/{self.session_id}/graph/slice?mode=guided&limit_nodes=10&limit_edges=15"
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"], "backend_session")
+        self.assertLessEqual(payload["stats"]["nodes"], 10)
+        self.assertLessEqual(payload["stats"]["edges"], 15)
+        self.assertGreater(payload["stats"]["nodes"], 0)
+        # Every node must come from the real session, not static data.
+        for node in payload["nodes"]:
+            self.assertEqual(node["source"], "backend_session")
+        self.assertIn("data_available", payload)
+        self.assertIn("clusters", payload)
+        self.assertIn("candidates", payload)
+
+    def test_graph_slice_entity_mode_returns_neighborhood(self) -> None:
+        response = self.client.get(
+            f"/api/sessions/{self.session_id}/graph/slice?mode=entity&entity=Alice&depth=1"
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        node_ids = {node["id"] for node in payload["nodes"]}
+        self.assertIn("Alice", node_ids)
+        # Alice has worksAt OmniaLab + researches GraphCompletion + usesTool Ollama in the demo.
+        self.assertTrue({"OmniaLab", "GraphCompletion", "Ollama"} & node_ids)
+
+    def test_graph_slice_uses_session_triples_not_static(self) -> None:
+        response = self.client.get(
+            f"/api/sessions/{self.session_id}/graph/slice?mode=guided&limit_nodes=20&limit_edges=30"
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        node_ids = {node["id"] for node in payload["nodes"]}
+        self.assertIn("Alice", node_ids)
+        self.assertNotIn("Eiffel Tower", node_ids)
+        self.assertEqual(payload["source"], "backend_session")
+
+    def test_clusters_detailed_endpoint_returns_real_clusters(self) -> None:
+        response = self.client.get(f"/api/sessions/{self.session_id}/clusters/detailed")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"], "backend_session")
+        self.assertGreater(payload["count"], 0)
+        first = payload["clusters"][0]
+        self.assertIn("cluster_id", first)
+        self.assertIn("shared_relation", first)
+        self.assertIn("shared_tail", first)
+        self.assertIn("members", first)
+
+    def test_candidates_detailed_returns_candidate_id_and_buckets(self) -> None:
+        response = self.client.get(f"/api/sessions/{self.session_id}/candidates/detailed?limit=10")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"], "backend_session")
+        self.assertGreater(payload["count"], 0)
+        first = payload["candidates"][0]
+        self.assertIn("candidate_id", first)
+        self.assertIn("status_bucket", first)
+        self.assertTrue(first["candidate_id"])  # deterministic SHA-style id
+
+    def test_candidates_endpoint_includes_candidate_id_distance_llm_fields(self) -> None:
+        response = self.client.get(f"/api/sessions/{self.session_id}/candidates?limit=10")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(isinstance(payload, list))
+        self.assertGreater(len(payload), 0)
+        first = payload[0]
+        self.assertIn("candidate_id", first)
+        self.assertIn("distance", first)
+        self.assertIn("llm_decision", first)
+        self.assertIn("llm_rationale", first)
+
+    def test_completed_payload_after_feedback_uses_real_candidate(self) -> None:
+        candidates_response = self.client.get(f"/api/sessions/{self.session_id}/candidates?limit=1")
+        self.assertEqual(candidates_response.status_code, 200)
+        candidates = candidates_response.json()
+        self.assertGreater(len(candidates), 0)
+        candidate = candidates[0]
+        feedback_response = self.client.post(
+            f"/api/sessions/{self.session_id}/feedback",
+            json={
+                "candidate_id": candidate["candidate_id"],
+                "Head": candidate["Head"],
+                "Relation": candidate["Relation"],
+                "Tail": candidate["Tail"],
+                "decision": "accept",
+                "reason": "correct",
+            },
+        )
+        self.assertEqual(feedback_response.status_code, 200)
+        completed_response = self.client.get(f"/api/sessions/{self.session_id}/completed")
+        self.assertEqual(completed_response.status_code, 200)
+        completed = completed_response.json()
+        additions = completed.get("additions", [])
+        self.assertTrue(
+            any(
+                row.get("Head") == candidate["Head"]
+                and row.get("Relation") == candidate["Relation"]
+                and row.get("Tail") == candidate["Tail"]
+                for row in additions
+            )
+        )
 
 
 if __name__ == "__main__":

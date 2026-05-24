@@ -7,10 +7,16 @@ from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
-from .config import DEFAULT_LLM_LIMIT, DEFAULT_MODEL_NAME, DEFAULT_TOP_K
+from .config import DEFAULT_LLM_LIMIT, DEFAULT_MODEL_NAME, DEFAULT_TOP_K, DEMO_FAST_MODE
 from .models import FeedbackBody
 from .store import get_session
-from .services import analytics, feedback as feedback_service, ingestion, pipeline
+from .services import (
+    analytics,
+    feedback as feedback_service,
+    graph_slice,
+    ingestion,
+    pipeline,
+)
 from .services.feedback import build_feedback_summary
 
 
@@ -124,7 +130,17 @@ def create_session_from_sample(
             sample_proportion=sample_proportion,
             sampling_limit=sampling_limit,
         )
-        return _session_summary(session)
+        meta = graph_slice.session_overview(session)
+        return {
+            "session_id": session.session_id,
+            "sample_id": session.artifacts.get("sample_id", sample_id),
+            "dataset_name": session.dataset_name,
+            "triple_count": meta["triple_count"],
+            "entity_count": meta["entity_count"],
+            "relation_count": meta["relation_count"],
+            "url": f"/paper-demo?sessionId={session.session_id}",
+            **_session_summary(session),
+        }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -217,7 +233,202 @@ def get_component_focus(
 @app.get("/api/sessions/{session_id}/clusters")
 def get_clusters(session_id: str):
     session = _session_or_404(session_id)
-    return analytics.build_cluster_payload(session)
+    return graph_slice.list_clusters(session)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Dataset Navigator / Graph Slice Explorer endpoints
+#
+# These power the frontend `DatasetNavigatorPanel` and `usePaperDemoSession`
+# hook. Each one reads the real session artifacts; nothing falls back to static
+# demo data on the server side. If an artifact does not exist yet (e.g. the
+# pipeline hasn't been run for that step) the endpoint returns a clear empty
+# state with a warning so the frontend can show "Run this step first".
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@app.get("/api/sessions/{session_id}/overview/meta")
+def get_session_meta(session_id: str):
+    session = _session_or_404(session_id)
+    return graph_slice.session_overview(session)
+
+
+@app.get("/api/sessions/{session_id}/entities")
+def list_session_entities(
+    session_id: str,
+    q: str = Query(default=""),
+    limit: int = Query(default=20, ge=1, le=200),
+):
+    session = _session_or_404(session_id)
+    items = graph_slice.list_entities(session, query=q, limit=limit)
+    return {"entities": items, "source": "backend_session"}
+
+
+@app.get("/api/sessions/{session_id}/relations")
+def list_session_relations(
+    session_id: str,
+    q: str = Query(default=""),
+    limit: int = Query(default=50, ge=1, le=500),
+):
+    session = _session_or_404(session_id)
+    items = graph_slice.list_relations(session, query=q, limit=limit)
+    return {"relations": items, "source": "backend_session"}
+
+
+@app.get("/api/sessions/{session_id}/graph/slice")
+def get_graph_slice_endpoint(
+    session_id: str,
+    mode: str = Query(default="guided"),
+    entity: str | None = Query(default=None),
+    relation: str | None = Query(default=None),
+    cluster_id: str | None = Query(default=None),
+    candidate_status: str | None = Query(default=None),
+    feedback_bucket: str | None = Query(default=None),
+    depth: int = Query(default=1, ge=1, le=2),
+    limit_nodes: int = Query(default=80, ge=1, le=500),
+    limit_edges: int = Query(default=150, ge=1, le=800),
+):
+    session = _session_or_404(session_id)
+    return graph_slice.build_graph_slice(
+        session,
+        mode=mode,
+        entity=entity,
+        relation=relation,
+        cluster_id=cluster_id,
+        candidate_status=candidate_status,
+        feedback_bucket=feedback_bucket,
+        depth=depth,
+        limit_nodes=limit_nodes,
+        limit_edges=limit_edges,
+    )
+
+
+@app.get("/api/sessions/{session_id}/graph/neighborhood")
+def get_graph_neighborhood(
+    session_id: str,
+    entity: str = Query(...),
+    depth: int = Query(default=1, ge=1, le=2),
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    """Convenience wrapper around the slice endpoint for entity neighbourhoods."""
+    session = _session_or_404(session_id)
+    payload = graph_slice.build_graph_slice(
+        session,
+        mode="entity",
+        entity=entity,
+        depth=depth,
+        limit_edges=limit,
+        limit_nodes=limit,
+    )
+    return {
+        "nodes": payload["nodes"],
+        "edges": payload["edges"],
+        "stats": {
+            "nodes": payload["stats"]["nodes"],
+            "edges": payload["stats"]["edges"],
+        },
+        "source": payload["source"],
+    }
+
+
+@app.get("/api/sessions/{session_id}/entities/{entity_id}/neighbors")
+def get_entity_neighbors(
+    session_id: str,
+    entity_id: str,
+    hops: int = Query(default=1, ge=1, le=2),
+    limit: int = Query(default=50, ge=1, le=500),
+):
+    """Return a real session-backed neighborhood for graph expansion."""
+    session = _session_or_404(session_id)
+    payload = graph_slice.build_graph_slice(
+        session,
+        mode="entity",
+        entity=entity_id,
+        depth=hops,
+        limit_edges=limit,
+        limit_nodes=limit,
+    )
+    return {
+        "entity_id": entity_id,
+        "hops": hops,
+        "nodes": payload["nodes"],
+        "edges": payload["edges"],
+        "stats": {
+            "nodes_added": len(payload["nodes"]),
+            "edges_added": len(payload["edges"]),
+        },
+        "source": payload["source"],
+    }
+
+
+@app.get("/api/sessions/{session_id}/candidates/detailed")
+def get_session_candidates_detailed(
+    session_id: str,
+    cluster_id: str | None = Query(default=None),
+    relation: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    """Backend-first candidate listing for the paper demo (real artifact rows)."""
+    session = _session_or_404(session_id)
+    pipeline.ensure_candidates(session)
+    rows = graph_slice.list_candidates(
+        session,
+        cluster_id=cluster_id,
+        relation=relation,
+        status=status,
+        limit=limit,
+    )
+    return {"candidates": rows, "source": "backend_session", "count": len(rows)}
+
+
+@app.get("/api/sessions/{session_id}/clusters/detailed")
+def get_session_clusters_detailed(session_id: str):
+    """Backend-first cluster listing with feedback-augmented stats."""
+    session = _session_or_404(session_id)
+    rows = graph_slice.list_clusters(session)
+    return {"clusters": rows, "source": "backend_session", "count": len(rows)}
+
+
+class SliceRequest(BaseModel):
+    mode: str
+    entity: str | None = None
+    relation: str | None = None
+    cluster_id: str | None = None
+    candidate_status: str | None = None
+    llm_verdict: str | None = None
+    feedback_bucket: str | None = None
+    depth: int | None = 1
+    limit_nodes: int | None = 80
+    limit_edges: int | None = 150
+
+
+@app.post("/api/sessions/{session_id}/demo/slice")
+def post_demo_slice(session_id: str, body: SliceRequest):
+    """Persist the selected slice on the session and return the bounded payload."""
+    session = _session_or_404(session_id)
+    payload = graph_slice.build_graph_slice(
+        session,
+        mode=body.mode,
+        entity=body.entity,
+        relation=body.relation,
+        cluster_id=body.cluster_id,
+        candidate_status=body.candidate_status,
+        feedback_bucket=body.feedback_bucket,
+        depth=body.depth or 1,
+        limit_nodes=body.limit_nodes or 80,
+        limit_edges=body.limit_edges or 150,
+    )
+    session.artifacts["selected_demo_slice"] = {
+        "mode": body.mode,
+        "entity": body.entity,
+        "relation": body.relation,
+        "cluster_id": body.cluster_id,
+        "candidate_status": body.candidate_status,
+        "feedback_bucket": body.feedback_bucket,
+        "slice_id": payload["slice_id"],
+    }
+    return payload
 
 
 @app.get("/api/sessions/{session_id}/clusters/{cluster_id}")
@@ -234,9 +445,22 @@ def get_cluster_focus(
 
 
 @app.get("/api/sessions/{session_id}/candidates")
-def get_candidates(session_id: str):
+def get_candidates(
+    session_id: str,
+    cluster_id: str | None = Query(default=None),
+    relation: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+):
     session = _session_or_404(session_id)
-    return pipeline.get_candidates_payload(session)
+    pipeline.ensure_candidates(session)
+    return graph_slice.list_candidates(
+        session,
+        cluster_id=cluster_id,
+        relation=relation,
+        status=status,
+        limit=limit,
+    )
 
 
 @app.post("/api/sessions/{session_id}/filter")
@@ -271,6 +495,7 @@ def get_llm_validation(
 ):
     session = _session_or_404(session_id)
     try:
+        effective_force_mock = bool(force_mock or DEMO_FAST_MODE)
         return pipeline.get_llm_payload(
             session,
             format_name=format_name,
@@ -278,7 +503,7 @@ def get_llm_validation(
             top_k=top_k,
             model_name=model_name,
             max_candidates=max_candidates,
-            force_mock=force_mock,
+            force_mock=effective_force_mock,
             use_filter_results=use_filter_results,
         )
     except Exception as exc:
@@ -297,13 +522,14 @@ def get_llm_comparison(
 ):
     session = _session_or_404(session_id)
     try:
+        effective_force_mock = bool(force_mock or DEMO_FAST_MODE)
         return pipeline.get_llm_comparison_payload(
             session,
             format_name=format_name,
             top_k=top_k,
             model_name=model_name,
             max_candidates=max_candidates,
-            force_mock=force_mock,
+            force_mock=effective_force_mock,
             use_filter_results=use_filter_results,
         )
     except Exception as exc:
@@ -352,6 +578,7 @@ def run_pipeline(
 ):
     session = _session_or_404(session_id)
     try:
+        effective_force_mock = bool(force_mock or DEMO_FAST_MODE)
         return pipeline.run_full_pipeline(
             session,
             format_name=format_name,
@@ -361,7 +588,7 @@ def run_pipeline(
             max_candidates=max_candidates,
             filtering_enabled=filtering_enabled,
             preferred_device=preferred_device,
-            force_mock=force_mock,
+            force_mock=effective_force_mock,
         )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

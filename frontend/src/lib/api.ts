@@ -1,5 +1,104 @@
 import type { SampleSummary, SessionSummary, ValidationComparisonPayload } from "../types";
 
+export interface BackendSessionMeta {
+  session_id: string;
+  dataset_name: string;
+  source_type: string;
+  /** Backend benchmark sample id, e.g. omnia_codex_m or omnia_wn18rr. */
+  sample_id?: string | null;
+  triple_count: number;
+  entity_count: number;
+  relation_count: number;
+  artifact_keys: string[];
+  selected_slice?: {
+    mode?: string;
+    entity?: string | null;
+    relation?: string | null;
+    cluster_id?: string | null;
+    candidate_status?: string | null;
+    feedback_bucket?: string | null;
+  } | null;
+}
+
+export interface BackendGraphSliceNode {
+  id: string;
+  label: string;
+  type?: string;
+  source?: string;
+}
+
+export interface BackendGraphSliceEdge {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+  status: string;
+  provenance?: string;
+  candidate_id?: string | null;
+  distance?: number | null;
+  threshold?: number | null;
+  llm_score?: number | null;
+}
+
+export interface BackendGraphSlice {
+  slice_id: string;
+  mode: string;
+  label: string;
+  nodes: BackendGraphSliceNode[];
+  edges: BackendGraphSliceEdge[];
+  stats: {
+    nodes: number;
+    edges: number;
+    triples: number;
+    candidates: number;
+    clusters: number;
+  };
+  source: string;
+  data_available?: boolean;
+  clusters?: BackendClusterRow[];
+  candidates?: BackendCandidateRow[];
+  warnings?: string[];
+}
+
+export interface BackendEntityNeighbors {
+  entity_id: string;
+  hops: number;
+  nodes: BackendGraphSliceNode[];
+  edges: BackendGraphSliceEdge[];
+  stats: {
+    nodes_added: number;
+    edges_added: number;
+  };
+  source?: string;
+}
+
+export interface BackendClusterRow {
+  cluster_id: string;
+  shared_relation: string;
+  shared_tail: string;
+  members: string[];
+  size: number;
+  candidate_count?: number;
+  accept_rate?: number;
+}
+
+export interface BackendCandidateRow {
+  candidate_id: string;
+  Head: string;
+  Relation: string;
+  Tail: string;
+  cluster_ids: string[];
+  distance: number | null;
+  threshold: number | null;
+  filter_status: string;
+  llm_decision: string;
+  llm_score: number | null;
+  llm_rationale: string;
+  retrieved_context: unknown[];
+  feedback_status: string;
+  status_bucket: string;
+}
+
 function resolveApiBase() {
   const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim();
   if (configuredBase) {
@@ -148,6 +247,139 @@ export const api = {
   createPaperSession: () =>
     request<{ session_id: string; sample_id: string; url: string }>("/api/demo/create-paper-session", {
       method: "POST",
+    }),
+  listSessionEntities: (sessionId: string, query = "", limit = 20) => {
+    const params = new URLSearchParams({ q: query, limit: String(limit) });
+    return request<{ entities: Array<{ id: string; label: string }> | string[]; source?: string }>(
+      `/api/sessions/${sessionId}/entities?${params.toString()}`,
+    );
+  },
+  listSessionRelations: (sessionId: string, query = "", limit = 50) => {
+    const params = new URLSearchParams({ q: query, limit: String(limit) });
+    return request<{ relations: Array<{ id: string; label: string; count: number }>; source?: string }>(
+      `/api/sessions/${sessionId}/relations?${params.toString()}`,
+    );
+  },
+  listSessionClusters: (sessionId: string) =>
+    request<BackendClusterRow[]>(
+      `/api/sessions/${sessionId}/clusters`,
+    ),
+  listSessionCandidates: (
+    sessionId: string,
+    params?: { clusterId?: string; relation?: string; status?: string; limit?: number },
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.clusterId) qs.set("cluster_id", params.clusterId);
+    if (params?.relation) qs.set("relation", params.relation);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<BackendCandidateRow[]>(`/api/sessions/${sessionId}/candidates${suffix}`);
+  },
+  listSessionClustersDetailed: (sessionId: string) =>
+    request<{ clusters: BackendClusterRow[]; source: string; count: number }>(
+      `/api/sessions/${sessionId}/clusters/detailed`,
+    ),
+  listSessionCandidatesDetailed: (
+    sessionId: string,
+    params?: { clusterId?: string; relation?: string; status?: string; limit?: number },
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.clusterId) qs.set("cluster_id", params.clusterId);
+    if (params?.relation) qs.set("relation", params.relation);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<{
+      candidates: BackendCandidateRow[];
+      source: string;
+      count: number;
+    }>(`/api/sessions/${sessionId}/candidates/detailed${suffix}`);
+  },
+  getGraphSlice: (
+    sessionId: string,
+    params: {
+      mode: string;
+      entity?: string | null;
+      relation?: string | null;
+      clusterId?: string | null;
+      candidateStatus?: string | null;
+      feedbackBucket?: string | null;
+      depth?: number;
+      limitNodes?: number;
+      limitEdges?: number;
+    },
+  ) => {
+    const qs = new URLSearchParams({ mode: params.mode });
+    if (params.entity) qs.set("entity", params.entity);
+    if (params.relation) qs.set("relation", params.relation);
+    if (params.clusterId) qs.set("cluster_id", params.clusterId);
+    if (params.candidateStatus) qs.set("candidate_status", params.candidateStatus);
+    if (params.feedbackBucket) qs.set("feedback_bucket", params.feedbackBucket);
+    if (params.depth) qs.set("depth", String(params.depth));
+    if (params.limitNodes) qs.set("limit_nodes", String(params.limitNodes));
+    if (params.limitEdges) qs.set("limit_edges", String(params.limitEdges));
+    return request<BackendGraphSlice>(
+      `/api/sessions/${sessionId}/graph/slice?${qs.toString()}`,
+    );
+  },
+  getSessionMeta: (sessionId: string) =>
+    request<BackendSessionMeta>(`/api/sessions/${sessionId}/overview/meta`),
+  getGraphNeighborhood: (
+    sessionId: string,
+    entity: string,
+    options?: { depth?: number; limit?: number },
+  ) => {
+    const params = new URLSearchParams({
+      entity,
+      depth: String(options?.depth ?? 1),
+      limit: String(options?.limit ?? 100),
+    });
+    return request<{
+      nodes: Array<{ id: string; label: string }>;
+      edges: Array<{ source: string; relation: string; target: string }>;
+      stats: { nodes: number; edges: number };
+    }>(`/api/sessions/${sessionId}/graph/neighborhood?${params.toString()}`);
+  },
+  getEntityNeighbors: (
+    sessionId: string,
+    entityId: string,
+    options?: { hops?: 1 | 2; limit?: number },
+  ) => {
+    const params = new URLSearchParams({
+      hops: String(options?.hops ?? 1),
+      limit: String(options?.limit ?? 50),
+    });
+    return request<BackendEntityNeighbors>(
+      `/api/sessions/${sessionId}/entities/${encodeURIComponent(entityId)}/neighbors?${params.toString()}`,
+    );
+  },
+  postDemoSlice: (
+    sessionId: string,
+    body: {
+      mode: string;
+      entity?: string | null;
+      relation?: string | null;
+      cluster_id?: string | null;
+      candidate_status?: string | null;
+      llm_verdict?: string | null;
+      feedback_bucket?: string | null;
+      limit?: number;
+    },
+  ) =>
+    request<{
+      slice_id: string;
+      mode: string;
+      label: string;
+      nodes: Array<{ id: string; label: string }>;
+      edges: Array<{ source: string; relation: string; target: string }>;
+      clusters: unknown[];
+      candidates: unknown[];
+      stats: { nodes: number; edges: number; clusters: number; candidates: number };
+    }>(`/api/sessions/${sessionId}/demo/slice`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     }),
 };
 

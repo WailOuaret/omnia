@@ -1,8 +1,11 @@
+import { KGGraph } from "../graph/KGGraph";
 import { BenchmarkMiniGraph } from "./BenchmarkMiniGraph";
 import { PaperCovidExampleGraph } from "./PaperCovidExampleGraph";
 import { getCandidateById } from "./paperDemoScenario";
 import type { PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
+import type { GraphPayload } from "../../types";
 import type { DemoCandidate, DemoDatasetConfig } from "../../demo-data/types";
+import { originalOnlyGraphPayload } from "../../lib/sessionSliceToGraphPayload";
 import type { UserFeedback } from "../../stores/feedbackStore";
 
 type Decision = "accept" | "reject" | "uncertain" | "correct";
@@ -12,6 +15,7 @@ interface GraphComparisonPanelProps {
   selectedCandidate?: DemoCandidate | null;
   feedbackDecisions: Record<string, Decision>;
   feedbackEvents: UserFeedback[];
+  interactiveGraphPayload?: GraphPayload | null;
 }
 
 const COVID_CANDIDATE_MAP: Record<string, string> = {
@@ -48,13 +52,13 @@ function buildDiffSummary(events: UserFeedback[]): {
   added: DiffRow[];
   corrected: DiffRow[];
   rejected: DiffRow[];
-  review: DiffRow[];
+  reviewQueue: DiffRow[];
 } {
   const latest = latestByCandidate(events);
   const added: DiffRow[] = [];
   const corrected: DiffRow[] = [];
   const rejected: DiffRow[] = [];
-  const review: DiffRow[] = [];
+  const reviewQueue: DiffRow[] = [];
   for (const event of Object.values(latest)) {
     if (event.userDecision === "accept") {
       added.push({
@@ -71,7 +75,7 @@ function buildDiffSummary(events: UserFeedback[]): {
         provenance: "human_rejected",
       });
     } else if (event.userDecision === "uncertain") {
-      review.push({
+      reviewQueue.push({
         head: event.head,
         relation: event.relation,
         tail: event.tail,
@@ -97,7 +101,7 @@ function buildDiffSummary(events: UserFeedback[]): {
       });
     }
   }
-  return { added, corrected, rejected, review };
+  return { added, corrected, rejected, reviewQueue };
 }
 
 function DiffRowList({
@@ -263,11 +267,56 @@ function BenchmarkComparison({
   );
 }
 
+function InteractiveGraphComparison({ graph, datasetLabel }: { graph: GraphPayload; datasetLabel: string }) {
+  const originalGraph = originalOnlyGraphPayload(graph);
+  const graphHeightStyle = { minHeight: "520px" };
+
+  return (
+    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white p-2">
+        <div className="mb-1 flex items-center justify-between text-[12px] font-semibold text-slate-900">
+          <span>Before completion — original KG</span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-600">
+            original
+          </span>
+        </div>
+        <div className="overflow-hidden rounded border border-slate-100 bg-slate-950" style={graphHeightStyle}>
+          <KGGraph
+            graph={originalGraph}
+            title={`${datasetLabel} original slice`}
+            description="Original backend slice before human feedback is applied."
+            fitViewKey={`original-${originalGraph.displayed_nodes}-${originalGraph.displayed_triples}`}
+            compactChrome
+          />
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white p-2">
+        <div className="mb-1 flex items-center justify-between text-[12px] font-semibold text-slate-900">
+          <span>After completion — completed KG</span>
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-emerald-800">
+            completed
+          </span>
+        </div>
+        <div className="overflow-hidden rounded border border-slate-100 bg-slate-950" style={graphHeightStyle}>
+          <KGGraph
+            graph={graph}
+            title={`${datasetLabel} completed slice`}
+            description="Backend slice with accepted, rejected, uncertain, and corrected feedback reflected in edge states."
+            fitViewKey={`completed-${graph.displayed_nodes}-${graph.displayed_triples}`}
+            compactChrome
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function GraphComparisonPanel({
   dataset,
   selectedCandidate,
   feedbackDecisions,
   feedbackEvents,
+  interactiveGraphPayload,
 }: GraphComparisonPanelProps) {
   const summary = buildDiffSummary(feedbackEvents);
 
@@ -282,7 +331,9 @@ export function GraphComparisonPanel({
         </p>
       </header>
 
-      {dataset.id === "covidFact" ? (
+      {interactiveGraphPayload ? (
+        <InteractiveGraphComparison graph={interactiveGraphPayload} datasetLabel={dataset.label} />
+      ) : dataset.id === "covidFact" ? (
         <CovidComparison dataset={dataset} selectedCandidate={selectedCandidate} feedbackEvents={feedbackEvents} />
       ) : (
         <BenchmarkComparison
@@ -317,7 +368,7 @@ export function GraphComparisonPanel({
         <DiffRowList
           title="Review queue"
           badge="uncertain"
-          rows={summary.review}
+          rows={summary.reviewQueue}
           badgeClass="bg-amber-100 text-amber-800"
           emptyMessage="Nothing waiting for expert review."
         />

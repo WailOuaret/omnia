@@ -8,7 +8,10 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test:e2e": "npm run build && playwright test",
-    "verify:responsive": "node scripts/verify-responsive.mjs"
+    "verify:responsive": "node scripts/verify-responsive.mjs",
+    "test:regression": "node scripts/regression-completed-count.mjs",
+    "test:live-mode": "node scripts/regression-live-mode.mjs",
+    "test:real-demo": "node scripts/diagnose_real_demo.mjs"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",

@@ -1,6 +1,6 @@
 # Responsive screenshot report
 
-Generated: 2026-05-22T02:49:19.782Z
+Generated: 2026-05-23T00:17:20.049Z
 Base URL: http://127.0.0.1:5173/paper-demo
 
 ## Results

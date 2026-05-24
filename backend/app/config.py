@@ -28,6 +28,13 @@ KNOWLEDGE_EMBEDDING_ROOT = _first_existing(
         REPO_ROOT / ".tmp" / "datasets_knowledge_embedding",
     ]
 )
+COVIDFACT_REPO_ROOT = _first_existing(
+    [
+        REPO_ROOT / "data" / "covidfact",
+        REPO_ROOT / "external_data" / "covidfact",
+        REPO_ROOT / ".tmp" / "covidfact",
+    ]
+)
 
 DEMO_CACHE_DIR = REPO_ROOT / ".omnia_demo_cache"
 DEMO_CACHE_DIR.mkdir(exist_ok=True)
@@ -40,3 +47,4 @@ DEFAULT_SAMPLE_PROPORTION = 0.8
 DEFAULT_TOP_K = 2
 DEFAULT_LLM_LIMIT = 24
 DEFAULT_MODEL_NAME = "mistral"
+DEMO_FAST_MODE = True

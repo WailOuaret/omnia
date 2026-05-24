@@ -30,6 +30,21 @@ pip install -r backend/requirements.txt
 python -m uvicorn backend.app.main:app --reload --port 8000
 ```
 
+### Real dataset setup (CoDEx / FB15K-237 / WN18RR / COVID-Fact)
+
+```shell
+python scripts/setup_real_datasets.py
+```
+
+Alternative manual commands:
+
+```shell
+mkdir data
+git clone https://github.com/tsafavi/codex.git data/codex
+git clone https://github.com/villmow/datasets_knowledge_embedding.git data/datasets_knowledge_embedding
+git clone https://github.com/asaakyan/covidfact.git data/covidfact
+```
+
 ## Backend sessions (prototype limitation)
 
 Backend sessions are **in-memory**. Restarting the backend clears all sessions. This is acceptable for the conference prototype — **create a fresh session before each live presentation**.
@@ -45,15 +60,48 @@ Returns `{ "session_id": "...", "url": "/paper-demo?sessionId=..." }`. Open the 
 ## Conference Demo Flow
 
 1. Open `http://localhost:5173/paper-demo`
-2. Select a dataset (COVID-Fact is recommended for demos)
+2. Select a dataset (COVID-Fact is recommended for demos, CoDEx-M for the benchmark story)
 3. Click **Start Demo**
 4. Step through the workflow:
    - Knowledge Graph → Clustering → Candidate Generation → Structural Filtering → Semantic Validation → User Feedback → Completed KG / Diff
-5. Export feedback JSON, completed KG TSV, and KG diff JSON
+5. In the feedback step, try at least one of each decision: Accept, Reject, Uncertain, Correct
+6. Export feedback JSON, completed KG TSV, and KG diff JSON
+
+For a printable demo-day checklist see [`DEMO_CHECKLIST.md`](DEMO_CHECKLIST.md).
 
 ## Human feedback scope
 
 OMNIA+ currently uses human feedback to update the completed KG, KG diff, review queue, feedback log, and next-iteration diagnostics. It does **not** retrain the embedding model or LLM online. Online active learning and persistent multi-user feedback are future work.
+
+## Live-mode hydration
+
+When `/paper-demo` is opened with `?sessionId=<id>`, the frontend now hydrates from the backend on page load:
+
+1. `GET /api/sessions/{id}` confirms the session exists.
+2. `GET /api/sessions/{id}/feedback` populates the in-memory feedback list (server is authoritative).
+3. `GET /api/sessions/{id}/completed` populates the completed-step counts and the threshold / agreement / prior diagnostics.
+
+Submitting feedback in live mode does an optimistic write to `localStorage`, then `POST /api/sessions/{id}/feedback`, then re-hydrates `feedback` and `completed`. The UI renders the merged view (server wins on conflict, keyed by `candidateId` + latest `timestamp`).
+
+If the session is not found, the page falls back to static mode and continues to work from `localStorage` so the demo never breaks.
+
+## Completed-step statistics
+
+The Completed KG / Diff step displays the **real** completed-KG count, not an arithmetic approximation:
+
+- **Static mode:** `getCompletedKG(datasetId).length` from `frontend/src/stores/feedbackStore.ts`.
+- **Live mode:** `summary.completed_triples` from `GET /api/sessions/{id}/completed`.
+
+The right-side stats panel and the bottom "Completed KG" card both show the source of truth and the source label so what you see matches what `Export completed KG` would download.
+
+Regression check:
+
+```shell
+cd frontend
+npm run test:regression
+```
+
+This exercises an Accept + Correct + Reject sequence and asserts that the displayed completed count matches `getCompletedKG(datasetId).length`.
 
 ## Dataset Sources
 

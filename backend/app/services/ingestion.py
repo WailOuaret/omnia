@@ -14,6 +14,7 @@ from experiment import preprocess
 from ..config import (
     BENCHMARK_SAMPLE_PREFIX,
     CODEX_REPO_ROOT,
+    COVIDFACT_REPO_ROOT,
     DEFAULT_BENCHMARK_SAMPLING_LIMIT,
     DEFAULT_SAMPLE_PROPORTION,
     KNOWLEDGE_EMBEDDING_ROOT,
@@ -28,6 +29,17 @@ COLUMN_ALIASES = {
     "Head": {"head", "subject", "source", "src", "entity1", "node1"},
     "Relation": {"relation", "predicate", "edge", "label", "rel", "property"},
     "Tail": {"tail", "object", "target", "dst", "entity2", "node2"},
+}
+
+REAL_DATASET_SETUP_HINT = "Run python scripts/setup_real_datasets.py"
+
+# Keep OMNIA paper metadata counts in the demo cards even when we load true triples
+# from local cloned repositories.
+OMNIA_PAPER_COUNTS: dict[str, dict[str, int]] = {
+    "omnia_covid_fact": {"entities": 1416, "relations": 28, "triples": 908},
+    "omnia_codex_m": {"entities": 16759, "relations": 49, "triples": 60000},
+    "omnia_fb15k-237": {"entities": 12993, "relations": 29, "triples": 59270},
+    "omnia_wn18rr": {"entities": 40943, "relations": 11, "triples": 93003},
 }
 
 
@@ -201,99 +213,106 @@ def _benchmark_split_sizes(dataset_dir: Path) -> dict[str, int]:
     return split_sizes
 
 
-def _benchmark_manifest() -> list[dict[str, Any]]:
-    """Discover CoDEx (tsafavi/codex) and FB/WN (villmow/datasets_knowledge_embedding) splits."""
-    entries: list[dict[str, Any]] = []
-    triples_root = CODEX_REPO_ROOT / "data" / "triples"
-    if triples_root.exists():
-        for child in sorted(triples_root.iterdir()):
-            if not child.is_dir() or not (child / "train.txt").exists():
-                continue
-            slug = _slugify(child.name)
-            entries.append(
-                {
-                    "slug": slug,
-                    "path": child,
-                    "family": "codex",
-                    "label": f"CoDEx {child.name}",
-                }
-            )
-
-    skip_dirs = {"other"}
-    if KNOWLEDGE_EMBEDDING_ROOT.exists():
-        for child in sorted(KNOWLEDGE_EMBEDDING_ROOT.iterdir()):
-            if not child.is_dir() or child.name.lower() in skip_dirs:
-                continue
-            # Preference order:
-            #   1. `text/train.txt`     — readable labels (WN18)
-            #   2. `original/train.txt` — tab-separated id triples (WN18RR)
-            #   3. `train.txt`          — root tab-separated triples (FB15K, FB15k-237)
-            # WN18/original is space-separated with a count header so we skip it.
-            if (child / "text" / "train.txt").exists():
-                data_dir = child / "text"
-            elif (child / "original" / "train.txt").exists() and child.name.lower() != "wn18":
-                data_dir = child / "original"
-            elif (child / "train.txt").exists():
-                data_dir = child
-            else:
-                continue
-            slug = _slugify(child.name)
-            entries.append(
-                {
-                    "slug": slug,
-                    "path": data_dir,
-                    "family": "knowledge_embedding",
-                    "label": child.name.replace("-", " "),
-                }
-            )
-    return entries
+def _resolve_first_existing(base: Path, choices: list[str]) -> Path | None:
+    for choice in choices:
+        candidate = base / choice
+        if candidate.exists():
+            return candidate
+    return None
 
 
-def _resolve_benchmark_entry(dataset_key: str) -> dict[str, Any]:
-    for entry in _benchmark_manifest():
-        if entry["slug"] == dataset_key:
+def _real_dataset_manifest() -> list[dict[str, Any]]:
+    codex_m_path = CODEX_REPO_ROOT / "data" / "triples" / "codex-m"
+    fb15k_path = _resolve_first_existing(
+        KNOWLEDGE_EMBEDDING_ROOT, ["FB15k-237", "FB15K-237", "fb15k-237"]
+    )
+    wn18rr_path = _resolve_first_existing(
+        KNOWLEDGE_EMBEDDING_ROOT, ["WN18RR", "wn18rr"]
+    )
+    covidfact_path = COVIDFACT_REPO_ROOT
+
+    return [
+        {
+            "id": "omnia_codex_m",
+            "aliases": {"omnia_codex_m", f"{BENCHMARK_SAMPLE_PREFIX}codex_m"},
+            "label": "CoDEx-M",
+            "repo": "codex",
+            "path": codex_m_path,
+            "description": "Real CoDEx-M triples from github.com/tsafavi/codex.",
+            "paper_counts": OMNIA_PAPER_COUNTS["omnia_codex_m"],
+        },
+        {
+            "id": "omnia_fb15k-237",
+            "aliases": {
+                "omnia_fb15k-237",
+                "omnia_fb15k_237",
+                f"{BENCHMARK_SAMPLE_PREFIX}fb15k_237",
+                f"{BENCHMARK_SAMPLE_PREFIX}fb15k-237",
+            },
+            "label": "FB15K-237",
+            "repo": "datasets_knowledge_embedding",
+            "path": fb15k_path or (KNOWLEDGE_EMBEDDING_ROOT / "FB15k-237"),
+            "description": "Real FB15K-237 triples from github.com/villmow/datasets_knowledge_embedding.",
+            "paper_counts": OMNIA_PAPER_COUNTS["omnia_fb15k-237"],
+        },
+        {
+            "id": "omnia_wn18rr",
+            "aliases": {"omnia_wn18rr", f"{BENCHMARK_SAMPLE_PREFIX}wn18rr"},
+            "label": "WN18RR",
+            "repo": "datasets_knowledge_embedding",
+            "path": wn18rr_path or (KNOWLEDGE_EMBEDDING_ROOT / "WN18RR"),
+            "description": "Real WN18RR triples from github.com/villmow/datasets_knowledge_embedding.",
+            "paper_counts": OMNIA_PAPER_COUNTS["omnia_wn18rr"],
+        },
+        {
+            "id": "omnia_covid_fact",
+            "aliases": {"omnia_covid_fact", "covid_fact"},
+            "label": "COVID-Fact",
+            "repo": "covidfact",
+            "path": covidfact_path,
+            "description": "COVID-Fact repository clone (format may vary; availability is best-effort).",
+            "paper_counts": OMNIA_PAPER_COUNTS["omnia_covid_fact"],
+        },
+    ]
+
+
+def _resolve_dataset_entry(sample_id: str) -> dict[str, Any]:
+    for entry in _real_dataset_manifest():
+        if sample_id == entry["id"] or sample_id in entry["aliases"]:
             return entry
-    available = ", ".join(sorted(item["slug"] for item in _benchmark_manifest())) or "none"
-    raise FileNotFoundError(f"Unknown benchmark dataset key '{dataset_key}'. Available: {available}")
+    available = ", ".join(item["id"] for item in _real_dataset_manifest())
+    raise FileNotFoundError(f"Unknown sample '{sample_id}'. Available: {available}")
 
 
-def _benchmark_samples() -> list[dict[str, Any]]:
-    samples: list[dict[str, Any]] = []
-    for entry in _benchmark_manifest():
-        split_sizes = _benchmark_split_sizes(entry["path"])
-        if not split_sizes:
-            continue
-        total_rows = sum(split_sizes.values())
-
-        recommended_sampling_limit = (
-            DEFAULT_BENCHMARK_SAMPLING_LIMIT
-            if total_rows > DEFAULT_BENCHMARK_SAMPLING_LIMIT
-            else None
+def _load_real_dataset_dataframe(entry: dict[str, Any]) -> tuple[pd.DataFrame, dict[str, int]]:
+    dataset_path = Path(entry["path"])
+    if entry["id"] == "omnia_covid_fact":
+        # COVID-Fact format is not guaranteed; treat this as best-effort and do
+        # not fail setup discovery when no loadable triples are found.
+        candidates = [
+            dataset_path / "triples.tsv",
+            dataset_path / "triples.txt",
+            dataset_path / "data" / "triples.tsv",
+            dataset_path / "data" / "train.tsv",
+        ]
+        for path in candidates:
+            if path.exists():
+                df = _read_tabular_bytes(path.read_bytes(), sep="\t")
+                canonical, _ = canonicalize_dataframe(df, mapping={"Head": "Head", "Relation": "Relation", "Tail": "Tail"})
+                return canonical, {"train": len(canonical), "dev": 0, "test": 0}
+        raise FileNotFoundError(
+            f"Could not find a directly loadable COVID-Fact triple file under {dataset_path}."
         )
 
-        description = (
-            "True CoDEx triple splits from github.com/tsafavi/codex (train/valid/test tab files)."
-            if entry["family"] == "codex"
-            else "True FB/WN triple splits from github.com/villmow/datasets_knowledge_embedding."
-        )
-        samples.append(
-            {
-                "id": f"{BENCHMARK_SAMPLE_PREFIX}{entry['slug']}",
-                "name": entry["label"],
-                "path": str(entry["path"]),
-                "source": entry["family"],
-                "description": description,
-                "recommended_sampling_limit": recommended_sampling_limit,
-                "stats": {
-                    "rows": int(total_rows),
-                    "columns": 3,
-                    "train_rows": split_sizes.get("train", 0),
-                    "dev_rows": split_sizes.get("dev", 0),
-                    "test_rows": split_sizes.get("test", 0),
-                },
-            }
-        )
-    return sorted(samples, key=lambda item: item["name"].lower())
+    # CoDEx / FB15K-237 / WN18RR: split-based KGE triples.
+    data_dir = dataset_path
+    if entry["id"] == "omnia_wn18rr":
+        if (dataset_path / "original" / "train.txt").exists():
+            data_dir = dataset_path / "original"
+        elif (dataset_path / "text" / "train.txt").exists():
+            data_dir = dataset_path / "text"
+    df, split_sizes = _read_split_triple_dataset(data_dir)
+    return df, split_sizes
 
 
 def canonicalize_dataframe(
@@ -332,8 +351,49 @@ def canonicalize_dataframe(
 
 
 def list_samples() -> list[dict[str, Any]]:
-    """Authoritative demos: CoDEx + villmow KGE repos only (`omnia_*` ids after clone)."""
-    return _benchmark_samples()
+    """Report real-dataset availability from local cloned repositories."""
+    samples: list[dict[str, Any]] = []
+    for entry in _real_dataset_manifest():
+        dataset_path = Path(entry["path"])
+        available = False
+        split_sizes: dict[str, int] = {}
+        load_error: str | None = None
+        if dataset_path.exists():
+            try:
+                if entry["id"] == "omnia_covid_fact":
+                    # Best-effort probe only.
+                    _load_real_dataset_dataframe(entry)
+                    available = True
+                else:
+                    _, split_sizes = _load_real_dataset_dataframe(entry)
+                    available = True
+            except Exception as exc:  # noqa: BLE001
+                load_error = str(exc)
+                available = False
+        sample = {
+            "id": entry["id"],
+            "name": entry["label"],
+            "label": entry["label"],
+            "source": "real_dataset",
+            "path": str(dataset_path),
+            "available": available,
+            "entities": int(entry["paper_counts"]["entities"]),
+            "relations": int(entry["paper_counts"]["relations"]),
+            "triples": int(entry["paper_counts"]["triples"]),
+            "description": entry["description"],
+            "setup_hint": None if available else REAL_DATASET_SETUP_HINT,
+            "load_error": load_error,
+            "recommended_sampling_limit": DEFAULT_BENCHMARK_SAMPLING_LIMIT if available else None,
+            "stats": {
+                "rows": int(sum(split_sizes.values()) if split_sizes else 0),
+                "columns": 3,
+                "train_rows": int(split_sizes.get("train", 0)),
+                "dev_rows": int(split_sizes.get("dev", 0)),
+                "test_rows": int(split_sizes.get("test", 0)),
+            },
+        }
+        samples.append(sample)
+    return samples
 
 
 def create_session_from_dataframe(
@@ -424,38 +484,38 @@ def create_session_from_sample(
     sample_proportion: float = DEFAULT_SAMPLE_PROPORTION,
     sampling_limit: int | None = None,
 ) -> DemoSession:
-    if sample_id.startswith(BENCHMARK_SAMPLE_PREFIX):
-        dataset_key = sample_id.removeprefix(BENCHMARK_SAMPLE_PREFIX)
-        entry = _resolve_benchmark_entry(dataset_key)
-        dataset_dir: Path = entry["path"]
-        df, split_sizes = _read_split_triple_dataset(dataset_dir)
-        entity_labels: dict[str, str] = {}
-        relation_labels: dict[str, str] = {}
-        resolved_sampling_limit = sampling_limit
-        if resolved_sampling_limit is None and len(df) > DEFAULT_BENCHMARK_SAMPLING_LIMIT:
-            resolved_sampling_limit = DEFAULT_BENCHMARK_SAMPLING_LIMIT
-
-        session = create_session_from_dataframe(
-            dataset_name=str(entry["label"]),
-            source_type="benchmark",
-            source_path=str(dataset_dir),
-            df=df,
-            mapping={column: column for column in CANONICAL_COLUMNS},
-            holdout_mode=holdout_mode,
-            sample_proportion=sample_proportion,
-            sampling_limit=resolved_sampling_limit,
-            entity_labels=entity_labels,
-            relation_labels=relation_labels,
+    entry = _resolve_dataset_entry(sample_id)
+    dataset_path: Path = Path(entry["path"])
+    if not dataset_path.exists():
+        raise FileNotFoundError(
+            f"Dataset path not found: {dataset_path}. {REAL_DATASET_SETUP_HINT}"
         )
-        session.diagnostics["benchmark_splits"] = split_sizes
-        session.diagnostics["benchmark_source"] = entry["family"]
-        if resolved_sampling_limit:
-            session.warnings.append(
-                f"Benchmark sample opened in focus-first mode: pipeline sampled to {resolved_sampling_limit} triples for UI responsiveness."
-            )
-        return session
 
-    raise FileNotFoundError(
-        f"Unknown sample '{sample_id}'. Use an id from GET /api/samples (prefix {BENCHMARK_SAMPLE_PREFIX!r}), "
-        "or upload CSV/JSON via POST /api/sessions/upload.",
+    df, split_sizes = _load_real_dataset_dataframe(entry)
+    resolved_sampling_limit = sampling_limit
+    if resolved_sampling_limit is None and len(df) > DEFAULT_BENCHMARK_SAMPLING_LIMIT:
+        resolved_sampling_limit = DEFAULT_BENCHMARK_SAMPLING_LIMIT
+
+    session = create_session_from_dataframe(
+        dataset_name=str(entry["label"]),
+        source_type="real_dataset",
+        source_path=str(dataset_path),
+        df=df,
+        mapping={column: column for column in CANONICAL_COLUMNS},
+        holdout_mode=holdout_mode,
+        sample_proportion=sample_proportion,
+        sampling_limit=resolved_sampling_limit,
+        entity_labels={},
+        relation_labels={},
     )
+    session.diagnostics["benchmark_splits"] = split_sizes
+    session.diagnostics["benchmark_source"] = entry["repo"]
+    session.diagnostics["sample_id"] = entry["id"]
+    session.diagnostics["dataset_repo_path"] = str(dataset_path)
+    session.artifacts["sample_id"] = entry["id"]
+    session.artifacts["paper_counts"] = entry["paper_counts"]
+    if resolved_sampling_limit:
+        session.warnings.append(
+            f"Real dataset opened in focus-first mode: pipeline sampled to {resolved_sampling_limit} triples."
+        )
+    return session

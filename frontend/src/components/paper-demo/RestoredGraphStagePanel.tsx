@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { BenchmarkMiniGraph } from "./BenchmarkMiniGraph";
+import { LiveGraphPanel, type GraphSelection } from "./LiveGraphPanel";
 import { PaperCovidExampleGraph } from "./PaperCovidExampleGraph";
 import { getCandidateById } from "./paperDemoScenario";
 import type { PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
+import type { GraphPayload } from "../../types";
 import type { DemoCandidate, DemoDatasetConfig } from "../../demo-data/types";
 
 type Decision = "accept" | "reject" | "uncertain" | "correct";
@@ -13,6 +15,16 @@ interface RestoredGraphStagePanelProps {
   selectedCandidate?: DemoCandidate | null;
   selectedDecision?: Decision | null;
   feedbackDecisions?: Record<string, Decision>;
+  graphPayload?: GraphPayload | null;
+  sessionId?: string | null;
+  selectedClusterId?: string | null;
+  onGraphSelectionChange?: (selection: GraphSelection) => void;
+  onCandidateSelect?: (candidateId: string) => void;
+  /**
+   * When true (the default), COVID-Fact uses the hand-drawn paper-style graph.
+   * Set false when a custom slice is active so the dynamic slice graph is rendered instead.
+   */
+  useStaticPaperGraph?: boolean;
 }
 
 const STEP_MAP: Record<string, PaperDemoStep> = {
@@ -73,6 +85,12 @@ interface InnerGraphProps {
   selectedCandidate?: DemoCandidate | null;
   selectedDecision?: Decision | null;
   feedbackDecisions: Record<string, Decision>;
+  useStaticPaperGraph: boolean;
+  graphPayload?: GraphPayload | null;
+  sessionId?: string | null;
+  selectedClusterId?: string | null;
+  onGraphSelectionChange?: (selection: GraphSelection) => void;
+  onCandidateSelect?: (candidateId: string) => void;
 }
 
 function InnerGraph({
@@ -81,11 +99,32 @@ function InnerGraph({
   selectedCandidate,
   selectedDecision,
   feedbackDecisions,
+  useStaticPaperGraph,
+  graphPayload,
+  sessionId,
+  selectedClusterId,
+  onGraphSelectionChange,
+  onCandidateSelect,
 }: InnerGraphProps) {
   const paperStep: PaperDemoStep = STEP_MAP[activeStep] ?? "before";
   const paperDecision: UserRefinementDecision = mapDecisionToPaper(selectedDecision);
 
-  if (dataset.id === "covidFact") {
+  if (graphPayload) {
+    return (
+      <LiveGraphPanel
+        graph={graphPayload}
+        activeStep={activeStep}
+        sessionId={sessionId}
+        selectedClusterId={selectedClusterId}
+        selectedCandidateId={selectedCandidate?.candidateId ?? null}
+        onSelectionChange={onGraphSelectionChange}
+        onCandidateSelect={onCandidateSelect}
+        title={`${dataset.label} backend slice`}
+      />
+    );
+  }
+
+  if (dataset.id === "covidFact" && useStaticPaperGraph) {
     const paperCandidateId = selectedCandidate
       ? COVID_CANDIDATE_MAP[selectedCandidate.candidateId] ?? "c1"
       : "c1";
@@ -100,6 +139,7 @@ function InnerGraph({
   }
   return (
     <BenchmarkMiniGraph
+      // Static fallback only — live mode must use LiveGraphPanel via graphPayload.
       dataset={dataset}
       activeStep={activeStep}
       selectedCandidate={selectedCandidate}
@@ -115,6 +155,12 @@ export function RestoredGraphStagePanel({
   selectedCandidate,
   selectedDecision,
   feedbackDecisions = {},
+  graphPayload = null,
+  sessionId = null,
+  selectedClusterId = null,
+  onGraphSelectionChange,
+  onCandidateSelect,
+  useStaticPaperGraph = true,
 }: RestoredGraphStagePanelProps) {
   const [isFocused, setIsFocused] = useState(false);
   const legend = legendForStep(activeStep);
@@ -169,7 +215,7 @@ export function RestoredGraphStagePanel({
 
       <div
         className="mt-2 w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-1"
-        style={{ height: "clamp(560px, 70vh, 820px)" }}
+        style={{ minHeight: "600px", height: "clamp(600px, 72vh, 860px)" }}
       >
         <InnerGraph
           dataset={dataset}
@@ -177,6 +223,12 @@ export function RestoredGraphStagePanel({
           selectedCandidate={selectedCandidate}
           selectedDecision={selectedDecision}
           feedbackDecisions={feedbackDecisions}
+          useStaticPaperGraph={useStaticPaperGraph}
+          graphPayload={graphPayload}
+          sessionId={sessionId}
+          selectedClusterId={selectedClusterId}
+          onGraphSelectionChange={onGraphSelectionChange}
+          onCandidateSelect={onCandidateSelect}
         />
       </div>
 
@@ -235,6 +287,12 @@ export function RestoredGraphStagePanel({
                 selectedCandidate={selectedCandidate}
                 selectedDecision={selectedDecision}
                 feedbackDecisions={feedbackDecisions}
+                useStaticPaperGraph={useStaticPaperGraph}
+                graphPayload={graphPayload}
+                sessionId={sessionId}
+                selectedClusterId={selectedClusterId}
+                onGraphSelectionChange={onGraphSelectionChange}
+                onCandidateSelect={onCandidateSelect}
               />
             </div>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-700">

@@ -1,4 +1,5 @@
 import type { DemoCandidate, DemoDatasetConfig } from "../../demo-data/types";
+import type { CompletedSummaryView } from "../../lib/adapters";
 
 interface StepStatsPanelProps {
   dataset: DemoDatasetConfig;
@@ -11,6 +12,19 @@ interface StepStatsPanelProps {
     corrected: number;
     total: number;
   };
+  /** Source-of-truth completed-step counts.
+   *  Static mode: derived from the in-memory completed KG.
+   *  Live mode: derived from `GET /api/sessions/{id}/completed`. */
+  completedSummary?: {
+    knownTriples: number;
+    completedTriples: number;
+    acceptedAdditions: number;
+    rejectedCandidates: number;
+    unresolvedCandidates: number;
+    mode: "static" | "live";
+  };
+  /** Optional backend diagnostics (live mode only). Surfaces threshold, agreement, priors. */
+  backendDiagnostics?: CompletedSummaryView | null;
 }
 
 function format(v: number) {
@@ -22,6 +36,8 @@ export function StepStatsPanel({
   step,
   selectedCandidate: selectedCandidateProp,
   feedbackSummary,
+  completedSummary,
+  backendDiagnostics,
 }: StepStatsPanelProps) {
   const selectedCandidate = selectedCandidateProp ?? dataset.candidates[0] ?? null;
   const summary = feedbackSummary ?? { accepted: 0, rejected: 0, uncertain: 0, corrected: 0, total: 0 };
@@ -149,7 +165,10 @@ export function StepStatsPanel({
               {dataset.recommendedMode === "sentence-rag" ? "Sentence-based RAG" : "Triple-based RAG"}
             </p>
             <p>
-              <span className="font-semibold">Top-k:</span> {dataset.llmStats.topK}
+              <span className="font-semibold">Top-k:</span> {dataset.llmStats.topK}{" "}
+              <span className="text-[11px] text-slate-500">
+                (simplified demo setting · OMNIA paper peaks at top-k = 3)
+              </span>
             </p>
             <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected candidate</p>
@@ -193,14 +212,68 @@ export function StepStatsPanel({
         {step === "completed" ? (
           <>
             <p>
-              <span className="font-semibold">Original triples:</span> {format(dataset.triples)}
+              <span className="font-semibold">Original triples:</span>{" "}
+              {format(completedSummary?.knownTriples ?? dataset.triples)}
             </p>
             <p>
-              <span className="font-semibold">Accepted triples added:</span> {summary.accepted + summary.corrected}
+              <span className="font-semibold">Accepted additions:</span>{" "}
+              {format(completedSummary?.acceptedAdditions ?? summary.accepted + summary.corrected)}
             </p>
             <p>
-              <span className="font-semibold">Final triple count:</span> {format(dataset.triples + summary.accepted + summary.corrected)}
+              <span className="font-semibold">Rejected candidates:</span>{" "}
+              {format(completedSummary?.rejectedCandidates ?? summary.rejected)}
             </p>
+            <p>
+              <span className="font-semibold">Review queue:</span>{" "}
+              {format(completedSummary?.unresolvedCandidates ?? summary.uncertain)}
+            </p>
+            <p>
+              <span className="font-semibold">Final triple count:</span>{" "}
+              {completedSummary
+                ? format(completedSummary.completedTriples)
+                : "—"}
+            </p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Source:{" "}
+              {completedSummary?.mode === "live"
+                ? "/api/sessions/{id}/completed → summary.completed_triples"
+                : "static feedback store (getCompletedKG().length)"}
+            </p>
+            {backendDiagnostics ? (
+              <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-2 text-xs">
+                <p className="font-semibold uppercase tracking-wide text-slate-500">
+                  Backend diagnostics
+                </p>
+                {backendDiagnostics.thresholdSuggestion?.threshold !== undefined ? (
+                  <p>
+                    <span className="font-semibold">Suggested τ:</span>{" "}
+                    {backendDiagnostics.thresholdSuggestion.threshold.toFixed(2)}
+                    {backendDiagnostics.thresholdSuggestion.f1 !== undefined
+                      ? ` (F1 ${backendDiagnostics.thresholdSuggestion.f1.toFixed(2)})`
+                      : ""}
+                  </p>
+                ) : null}
+                <p>
+                  <span className="font-semibold">User vs LLM agreement:</span>{" "}
+                  {(backendDiagnostics.agreementRate * 100).toFixed(0)}%
+                </p>
+                {backendDiagnostics.diagnostics?.evidence_insufficient !== undefined ? (
+                  <p>
+                    <span className="font-semibold">Evidence insufficient:</span>{" "}
+                    {backendDiagnostics.diagnostics.evidence_insufficient}
+                  </p>
+                ) : null}
+                {backendDiagnostics.priors?.dataset_prior !== undefined ? (
+                  <p>
+                    <span className="font-semibold">Dataset accept rate:</span>{" "}
+                    {(backendDiagnostics.priors.dataset_prior * 100).toFixed(0)}%
+                    {backendDiagnostics.priors.feedback_examples !== undefined
+                      ? ` (n=${backendDiagnostics.priors.feedback_examples})`
+                      : ""}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </>
         ) : null}
       </div>

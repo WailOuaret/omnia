@@ -1,3 +1,4 @@
+/** Static fallback only — used when no backend session slice is available. */
 import type {
   ClusterBox,
   DemoCandidate,

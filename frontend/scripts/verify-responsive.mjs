@@ -67,7 +67,7 @@ async function startDemo(page, datasetId) {
 }
 
 async function clickStep(page, label) {
-  await page.getByRole("button", { name: label, exact: true }).click();
+  await page.getByRole("button", { name: new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") }).click();
   await page.waitForTimeout(400);
 }
 

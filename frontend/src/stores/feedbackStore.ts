@@ -156,18 +156,22 @@ export function getCompletedKG(datasetId: string): Triple[] {
   return Array.from(map.values());
 }
 
-export function getKGDiff(datasetId: string): {
+export interface KGDiff {
   added: Triple[];
   rejected: Triple[];
   corrected: Triple[];
-  review: Triple[];
-} {
-  if (!DATASETS[datasetId as DemoDatasetId]) return { added: [], rejected: [], corrected: [], review: [] };
+  reviewQueue: Triple[];
+}
+
+export function getKGDiff(datasetId: string): KGDiff {
+  if (!DATASETS[datasetId as DemoDatasetId]) {
+    return { added: [], rejected: [], corrected: [], reviewQueue: [] };
+  }
   const latest = getLatestDecisionMap(datasetId);
   const added: Triple[] = [];
   const rejected: Triple[] = [];
   const corrected: Triple[] = [];
-  const review: Triple[] = [];
+  const reviewQueue: Triple[] = [];
   for (const event of Object.values(latest)) {
     if (event.userDecision === "accept") {
       added.push({ head: event.head, relation: event.relation, tail: event.tail });
@@ -176,7 +180,7 @@ export function getKGDiff(datasetId: string): {
       rejected.push({ head: event.head, relation: event.relation, tail: event.tail });
     }
     if (event.userDecision === "uncertain") {
-      review.push({ head: event.head, relation: event.relation, tail: event.tail });
+      reviewQueue.push({ head: event.head, relation: event.relation, tail: event.tail });
     }
     if (event.userDecision === "correct" && event.correctedTriple) {
       rejected.push({ head: event.head, relation: event.relation, tail: event.tail });
@@ -187,7 +191,15 @@ export function getKGDiff(datasetId: string): {
       });
     }
   }
-  return { added, rejected, corrected, review };
+  return { added, rejected, corrected, reviewQueue };
+}
+
+/**
+ * Compute the completed KG length directly from feedback + dataset baseline.
+ * This is the source-of-truth value for static-mode completed-step statistics.
+ */
+export function getCompletedKGLength(datasetId: string): number {
+  return getCompletedKG(datasetId).length;
 }
 
 export function exportFeedbackJSON(datasetId: string): string {

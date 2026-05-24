@@ -79,6 +79,9 @@ export interface GraphEdge {
   label: string;
   status?: GraphEdgeStatus;
   highlighted: boolean;
+  candidate_id?: string | null;
+  raw_status?: string | null;
+  provenance_label?: string | null;
   distance?: number | null;
   threshold?: number | null;
   llm_decision?: string | null;

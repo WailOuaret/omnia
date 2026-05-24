@@ -157,9 +157,10 @@ class BackendApiIntegrationTests(unittest.TestCase):
         clusters = requests.get(f"{BASE_URL}/api/sessions/{session_id}/clusters", timeout=30)
         self.assert_ok(clusters)
         clusters_payload = clusters.json()
-        self.assertGreaterEqual(len(clusters_payload["clusters"]), 1)
+        self.assertTrue(isinstance(clusters_payload, list))
+        self.assertGreaterEqual(len(clusters_payload), 1)
 
-        cluster_id = clusters_payload["clusters"][0]["cluster_id"]
+        cluster_id = clusters_payload[0]["cluster_id"]
         cluster_focus = requests.get(
             f"{BASE_URL}/api/sessions/{session_id}/clusters/{cluster_id}",
             params={"scope": "cluster"},
@@ -174,10 +175,11 @@ class BackendApiIntegrationTests(unittest.TestCase):
         candidates = requests.get(f"{BASE_URL}/api/sessions/{session_id}/candidates", timeout=30)
         self.assert_ok(candidates)
         candidates_payload = candidates.json()
-        self.assertGreaterEqual(candidates_payload["summary"]["generated_count"], 1)
-        first_candidate = candidates_payload["candidates"][0]
+        self.assertTrue(isinstance(candidates_payload, list))
+        self.assertGreaterEqual(len(candidates_payload), 1)
+        first_candidate = candidates_payload[0]
         self.assertIn("provenance", first_candidate)
-        self.assertIn("rationale", first_candidate)
+        self.assertIn("llm_rationale", first_candidate)
 
     def test_filter_llm_completed_comparisons_and_exports(self):
         session_id = self.create_demo_session(holdout_mode=True)
