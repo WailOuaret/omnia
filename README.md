@@ -213,4 +213,6 @@ This repo is configured for a **frontend-only** Vercel deployment:
 
 The hosted demo runs in **prepared/static scenario mode** when no backend is reachable. CoDEx-M, FB15K-237, and WN18RR require a local or deployed FastAPI backend (`python -m uvicorn backend.app.main:app --port 8000`) plus `VITE_API_BASE_URL` at build time for live sessions.
 
-COVID-Fact and Socio-Economic always use static guided scenarios on Vercel. See [`outputs/reports/FINAL_DEMO_READINESS_REPORT.md`](outputs/reports/FINAL_DEMO_READINESS_REPORT.md) for teacher review notes.
+COVID-Fact and Socio-Economic always use static guided scenarios on Vercel. See [`outputs/reports/final_demo_readiness_report.md`](outputs/reports/final_demo_readiness_report.md) for teacher review notes.
+
+**Teacher link (hosted):** open your Vercel project URL → `/paper-demo` (defaults to **COVID-Fact** guided demo). For live CoDEx-M locally: start backend + frontend, then open `http://127.0.0.1:5173/paper-demo`.
