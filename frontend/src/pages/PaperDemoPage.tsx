@@ -18,6 +18,7 @@ import { usePaperDemoScenario } from "../hooks/usePaperDemoScenario";
 import { isBackendLoadable, usePaperDemoSession } from "../hooks/usePaperDemoSession";
 import { api, exportCompletedTsvUrl, exportFeedbackJsonUrl } from "../lib/api";
 import { getDemoMode } from "../lib/demoMode";
+import { SCENARIO_FILES } from "../types/scenario";
 import {
   GUIDED_SLICE,
   withSlicedGraph,
@@ -167,10 +168,16 @@ export function PaperDemoPage() {
     feedbackDecisions,
   ]);
 
+  const hasScenarioFile = Boolean(selectedDatasetId && SCENARIO_FILES[selectedDatasetId]);
+
   const scenarioViewModel = useMemo(() => {
     if (!enableScenario || liveViewModel) return null;
     if (deploymentMode === "auto" && liveSession.loading) return null;
-    if (deploymentMode === "auto" && liveSession.mode === "live" && liveSession.bindStatus === "ready") {
+    if (
+      deploymentMode === "auto" &&
+      liveSession.mode === "live" &&
+      liveSession.bindStatus === "ready"
+    ) {
       return null;
     }
     return scenarioSession.viewModel;
@@ -229,9 +236,21 @@ export function PaperDemoPage() {
       };
       return { dataset: activeViewModel.metadata, result };
     }
+    if (enableScenario && hasScenarioFile) {
+      return null;
+    }
     if (!staticDataset) return null;
     return withSlicedGraph(staticDataset, activeSlice, allFeedbackEvents);
-  }, [activeViewModel, liveViewModel, liveSession.graphSlice, staticDataset, activeSlice, allFeedbackEvents]);
+  }, [
+    activeViewModel,
+    liveViewModel,
+    liveSession.graphSlice,
+    staticDataset,
+    activeSlice,
+    allFeedbackEvents,
+    enableScenario,
+    hasScenarioFile,
+  ]);
 
   const selectedDataset = sliced?.dataset ?? null;
   const sliceResult = sliced?.result ?? null;
@@ -592,9 +611,12 @@ export function PaperDemoPage() {
       liveSession.loading);
 
   const awaitingStaticScenario =
-    deploymentMode === "static" &&
-    selectedDatasetId &&
-    (scenarioSession.status === "idle" || scenarioSession.status === "loading");
+    enableScenario &&
+    hasScenarioFile &&
+    !activeViewModel &&
+    (scenarioSession.status === "idle" ||
+      scenarioSession.status === "loading" ||
+      (deploymentMode === "auto" && liveSession.loading));
 
   if (awaitingAutoLive) {
     return (
@@ -612,12 +634,17 @@ export function PaperDemoPage() {
     );
   }
 
-  if (scenarioSession.status === "error" && deploymentMode === "static") {
+  if (scenarioSession.status === "error" && enableScenario && hasScenarioFile && !activeViewModel) {
     return (
       <div className="paper-demo min-h-screen bg-slate-50 p-6 text-slate-700" data-testid="paper-demo-root">
-        <p className="text-sm text-rose-700">
-          Could not load static scenario: {scenarioSession.error ?? "unknown error"}
-        </p>
+        <div className="mx-auto max-w-xl rounded-xl border border-rose-200 bg-white p-4 text-sm text-rose-900">
+          <p className="font-semibold">Static scenario could not be loaded</p>
+          <p className="mt-2">{scenarioSession.error ?? "unknown error"}</p>
+          <p className="mt-2 text-xs text-slate-600">
+            Redeploy the frontend so <code className="font-mono">frontend/public/demo-scenarios/</code> is
+            included in the build output.
+          </p>
+        </div>
       </div>
     );
   }
@@ -775,6 +802,7 @@ export function PaperDemoPage() {
           step={activeStep}
           mode={feedbackBridge.mode}
           status={feedbackBridge.status}
+          isScenarioMode={isScenarioModeActive}
           onPrev={goPrev}
           onNext={goNext}
           onResetToLanding={resetToLanding}

@@ -37,6 +37,7 @@ interface PaperDemoHeaderProps {
   step: PaperDemoStepId;
   mode: FeedbackMode;
   status: FeedbackStatus;
+  isScenarioMode?: boolean;
   onPrev?: () => void;
   onNext?: () => void;
   onResetToLanding?: () => void;
@@ -47,6 +48,7 @@ export function PaperDemoHeader({
   step,
   mode,
   status,
+  isScenarioMode = false,
   onPrev,
   onNext,
   onResetToLanding,
@@ -63,7 +65,9 @@ export function PaperDemoHeader({
       : status === "syncing"
         ? { text: "Live · syncing…", color: "bg-emerald-100 text-emerald-800 border-emerald-200" }
         : { text: "Live backend", color: "bg-emerald-100 text-emerald-800 border-emerald-200" }
-    : { text: "Static demo", color: "bg-slate-100 text-slate-700 border-slate-200" };
+    : isScenarioMode
+      ? { text: "Static interactive scenario", color: "bg-sky-100 text-sky-900 border-sky-200" }
+      : { text: "Static demo", color: "bg-slate-100 text-slate-700 border-slate-200" };
 
   return (
     <header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -82,9 +86,14 @@ export function PaperDemoHeader({
             Dataset: <span className="font-semibold text-slate-800">{datasetLabel}</span>
           </p>
           <p className="mt-1 text-sm text-slate-700">{PAPER_DEMO_STEP_GOAL[step]}</p>
-          {mode === "static" ? (
+          {isScenarioMode ? (
+            <p className="mt-1 text-[11px] leading-snug text-sky-900">
+              This online demo uses a prepared interactive scenario generated from the OMNIA workflow.
+              Full backend live mode is available locally.
+            </p>
+          ) : mode === "static" ? (
             <p className="mt-1 text-[11px] leading-snug text-amber-800">
-              Backend session unavailable — showing the prepared static scenario for this dataset.
+              Backend session unavailable — showing the bundled illustration dataset for this tab.
             </p>
           ) : null}
         </div>

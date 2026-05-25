@@ -54,7 +54,21 @@ export function usePaperDemoScenario(
     void fetch(path)
       .then(async (response) => {
         if (!response.ok) throw new Error(`Failed to load ${path} (${response.status})`);
-        return (await response.json()) as PaperDemoScenario;
+        const contentType = response.headers.get("content-type") ?? "";
+        const text = await response.text();
+        if (
+          text.trimStart().startsWith("<!") ||
+          (!contentType.includes("json") && text.includes("<html"))
+        ) {
+          throw new Error(
+            `Scenario asset missing at ${path}. The deployed build does not include demo-scenarios JSON files yet.`,
+          );
+        }
+        const payload = JSON.parse(text) as PaperDemoScenario;
+        if (!payload?.datasetId || !payload?.overviewSlice) {
+          throw new Error(`Invalid scenario JSON at ${path}.`);
+        }
+        return payload;
       })
       .then((payload) => {
         if (cancelled) return;

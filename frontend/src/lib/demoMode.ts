@@ -1,9 +1,10 @@
 export type DemoMode = "static" | "live" | "auto";
 
 export function getDemoMode(): DemoMode {
-  const raw = (import.meta.env.VITE_DEMO_MODE ?? "auto").trim().toLowerCase();
+  const fallback = import.meta.env.PROD ? "static" : "auto";
+  const raw = (import.meta.env.VITE_DEMO_MODE ?? fallback).trim().toLowerCase();
   if (raw === "static" || raw === "live" || raw === "auto") return raw;
-  return "auto";
+  return fallback;
 }
 
 export function isStaticDemoMode(): boolean {
