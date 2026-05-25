@@ -282,11 +282,13 @@ def get_graph_slice_endpoint(
     entity: str | None = Query(default=None),
     relation: str | None = Query(default=None),
     cluster_id: str | None = Query(default=None),
+    candidate_id: str | None = Query(default=None),
     candidate_status: str | None = Query(default=None),
     feedback_bucket: str | None = Query(default=None),
     depth: int = Query(default=1, ge=1, le=2),
-    limit_nodes: int = Query(default=80, ge=1, le=500),
+    limit_nodes: int = Query(default=100, ge=1, le=500),
     limit_edges: int = Query(default=150, ge=1, le=800),
+    expand_context: bool = Query(default=False),
 ):
     session = _session_or_404(session_id)
     return graph_slice.build_graph_slice(
@@ -295,11 +297,13 @@ def get_graph_slice_endpoint(
         entity=entity,
         relation=relation,
         cluster_id=cluster_id,
+        candidate_id=candidate_id,
         candidate_status=candidate_status,
         feedback_bucket=feedback_bucket,
         depth=depth,
         limit_nodes=limit_nodes,
         limit_edges=limit_edges,
+        expand_context=expand_context,
     )
 
 
@@ -399,7 +403,7 @@ class SliceRequest(BaseModel):
     llm_verdict: str | None = None
     feedback_bucket: str | None = None
     depth: int | None = 1
-    limit_nodes: int | None = 80
+    limit_nodes: int | None = 100
     limit_edges: int | None = 150
 
 
@@ -416,7 +420,7 @@ def post_demo_slice(session_id: str, body: SliceRequest):
         candidate_status=body.candidate_status,
         feedback_bucket=body.feedback_bucket,
         depth=body.depth or 1,
-        limit_nodes=body.limit_nodes or 80,
+        limit_nodes=body.limit_nodes or 100,
         limit_edges=body.limit_edges or 150,
     )
     session.artifacts["selected_demo_slice"] = {

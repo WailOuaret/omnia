@@ -29,10 +29,10 @@ const checks = [
     test: (src) => src.toLowerCase().includes("static fallback"),
   },
   {
-    name: "PaperDemoPage builds interactiveGraphPayload from backend slice",
+    name: "PaperDemoPage builds liveViewModel from backend slice",
     file: "pages/PaperDemoPage.tsx",
     test: (src) =>
-      src.includes("sessionSliceToGraphPayload") && src.includes("interactiveGraphPayload"),
+      src.includes("buildLiveOmniaViewModel") && src.includes("interactiveGraphPayload = liveViewModel?.graph"),
   },
   {
     name: "Dataset chooser dropdown preserved in DatasetSelectorPanel",

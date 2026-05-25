@@ -70,6 +70,9 @@ export interface GraphNode {
   sample_relations?: string[];
   warning?: string | null;
   description?: string | null;
+  role?: string | null;
+  position?: { x: number; y: number } | null;
+  boundary_height?: number | null;
 }
 
 export interface GraphEdge {
@@ -105,6 +108,25 @@ export interface GraphPayload {
   displayed_triples: number;
   total_triples: number;
   warnings: string[];
+  layoutMode?: "omnia" | "dagre";
+  stepCaption?: string;
+  selectedCluster?: {
+    cluster_id: string;
+    shared_relation: string;
+    shared_tail: string;
+    members?: string[];
+    size?: number;
+    cluster_key?: string;
+  } | null;
+  selectedCandidateId?: string | null;
+  explanation?: {
+    cluster_key?: string;
+    generation_rule?: string;
+    filtering_available?: boolean;
+    llm_available?: boolean;
+    shared_relation?: string;
+    shared_tail?: string;
+  };
 }
 
 export interface ComponentSummary {

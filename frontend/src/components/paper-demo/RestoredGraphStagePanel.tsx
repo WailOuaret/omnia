@@ -20,6 +20,8 @@ interface RestoredGraphStagePanelProps {
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
   onCandidateSelect?: (candidateId: string) => void;
+  onExpandContext?: () => void;
+  expandContextPending?: boolean;
   /**
    * When true (the default), COVID-Fact uses the hand-drawn paper-style graph.
    * Set false when a custom slice is active so the dynamic slice graph is rendered instead.
@@ -58,13 +60,15 @@ interface LegendItem {
 }
 
 const FULL_LEGEND: LegendItem[] = [
-  { label: "Original KG relation", color: "#15803d", thick: true },
-  { label: "Generated candidate", color: "#ea580c", dashed: true },
-  { label: "Filtered out", color: "#dc2626", dashed: true },
-  { label: "LLM validated", color: "#2563eb", dashed: true },
+  { label: "Original KG edge", color: "#15803d", thick: true },
+  { label: "Generated candidate", color: "#2563eb", dashed: true },
+  { label: "Kept after TransE", color: "#16a34a" },
+  { label: "Removed after TransE", color: "#dc2626", dashed: true },
+  { label: "LLM valid", color: "#16a34a", thick: true },
+  { label: "LLM invalid", color: "#dc2626", dashed: true },
+  { label: "Uncertain", color: "#d97706", dashed: true },
   { label: "Accepted", color: "#16a34a", thick: true },
   { label: "Rejected", color: "#dc2626", dashed: true },
-  { label: "Uncertain / review", color: "#6b7280", dashed: true },
   { label: "Corrected", color: "#7c3aed", dashed: true },
 ];
 
@@ -72,10 +76,10 @@ function legendForStep(step: string): LegendItem[] {
   const base: LegendItem[] = [FULL_LEGEND[0]];
   if (step === "kg") return base;
   if (step === "clustering" || step === "candidates") return [...base, FULL_LEGEND[1]];
-  if (step === "filtering") return [...base, FULL_LEGEND[1], FULL_LEGEND[2]];
-  if (step === "llm") return [...base, FULL_LEGEND[1], FULL_LEGEND[3]];
+  if (step === "filtering") return [...base, FULL_LEGEND[1], FULL_LEGEND[2], FULL_LEGEND[3]];
+  if (step === "llm") return [...base, FULL_LEGEND[1], FULL_LEGEND[4], FULL_LEGEND[5], FULL_LEGEND[6]];
   if (step === "feedback" || step === "completed")
-    return [...base, FULL_LEGEND[4], FULL_LEGEND[5], FULL_LEGEND[6], FULL_LEGEND[7]];
+    return [...base, FULL_LEGEND[7], FULL_LEGEND[8], FULL_LEGEND[6], FULL_LEGEND[9]];
   return FULL_LEGEND;
 }
 
@@ -91,6 +95,8 @@ interface InnerGraphProps {
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
   onCandidateSelect?: (candidateId: string) => void;
+  onExpandContext?: () => void;
+  expandContextPending?: boolean;
 }
 
 function InnerGraph({
@@ -105,6 +111,8 @@ function InnerGraph({
   selectedClusterId,
   onGraphSelectionChange,
   onCandidateSelect,
+  onExpandContext,
+  expandContextPending,
 }: InnerGraphProps) {
   const paperStep: PaperDemoStep = STEP_MAP[activeStep] ?? "before";
   const paperDecision: UserRefinementDecision = mapDecisionToPaper(selectedDecision);
@@ -119,6 +127,8 @@ function InnerGraph({
         selectedCandidateId={selectedCandidate?.candidateId ?? null}
         onSelectionChange={onGraphSelectionChange}
         onCandidateSelect={onCandidateSelect}
+        onExpandContext={onExpandContext}
+        expandContextPending={expandContextPending}
         title={`${dataset.label} backend slice`}
       />
     );
@@ -160,6 +170,8 @@ export function RestoredGraphStagePanel({
   selectedClusterId = null,
   onGraphSelectionChange,
   onCandidateSelect,
+  onExpandContext,
+  expandContextPending = false,
   useStaticPaperGraph = true,
 }: RestoredGraphStagePanelProps) {
   const [isFocused, setIsFocused] = useState(false);
@@ -229,6 +241,8 @@ export function RestoredGraphStagePanel({
           selectedClusterId={selectedClusterId}
           onGraphSelectionChange={onGraphSelectionChange}
           onCandidateSelect={onCandidateSelect}
+          onExpandContext={onExpandContext}
+          expandContextPending={expandContextPending}
         />
       </div>
 
@@ -293,6 +307,8 @@ export function RestoredGraphStagePanel({
                 selectedClusterId={selectedClusterId}
                 onGraphSelectionChange={onGraphSelectionChange}
                 onCandidateSelect={onCandidateSelect}
+                onExpandContext={onExpandContext}
+                expandContextPending={expandContextPending}
               />
             </div>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-700">

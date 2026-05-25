@@ -12,7 +12,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    host: "127.0.0.1",
+    host: true,
     strictPort: true,
     proxy: apiProxy,
   },

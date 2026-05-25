@@ -22,6 +22,16 @@ export const PAPER_DEMO_STEP_LABEL: Record<PaperDemoStepId, string> = {
   completed: "Completed KG / Diff",
 };
 
+export const PAPER_DEMO_STEP_GOAL: Record<PaperDemoStepId, string> = {
+  kg: "Find plausible missing triples using only the internal structure of the graph.",
+  clustering: "Group head entities that share the same relation-tail pattern — similar contexts may share more relations.",
+  candidates: "Propose missing triples by propagating relation-tail pairs within each cluster.",
+  filtering: "Drop structurally implausible candidates using TransE distance before calling the LLM.",
+  llm: "Validate each surviving candidate with the LLM as a semantic judge, supported by retrieved RAG context.",
+  feedback: "Let the human curator accept, reject, mark uncertain, or correct each remaining candidate.",
+  completed: "Show the completed KG vs the original, including the diff and provenance of every change.",
+};
+
 interface PaperDemoHeaderProps {
   datasetLabel: string;
   step: PaperDemoStepId;
@@ -71,6 +81,13 @@ export function PaperDemoHeader({
           <p className="mt-0.5 truncate text-xs text-slate-600">
             Dataset: <span className="font-semibold text-slate-800">{datasetLabel}</span>
           </p>
+          <p className="mt-1 text-sm text-slate-700">{PAPER_DEMO_STEP_GOAL[step]}</p>
+          {mode === "static" ? (
+            <p className="mt-1 text-[11px] leading-snug text-amber-800">
+              Online demo uses prepared/static scenarios. Full backend live mode is available locally or when{" "}
+              <code className="rounded bg-amber-50 px-1">VITE_API_BASE_URL</code> points to a deployed FastAPI backend.
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span

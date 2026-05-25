@@ -237,7 +237,14 @@ class BackendUnitTests(unittest.TestCase):
         codex = next(sample for sample in samples if sample["id"] == "omnia_codex_m")
         self.assertIn("available", codex)
         if not codex["available"]:
-            self.assertIn("setup_real_datasets.py", codex.get("setup_hint", ""))
+            hint = codex.get("setup_hint") or ""
+            self.assertTrue("setup_omnia_datasets.py" in hint or "setup_real_datasets.py" in hint, hint)
+        covid = next(sample for sample in samples if sample["id"] == "omnia_covid_fact")
+        self.assertIn("source_available", covid)
+        self.assertIn("kg_loader_available", covid)
+        if covid.get("source_available"):
+            self.assertFalse(covid.get("kg_loader_available"))
+            self.assertFalse(covid.get("available"))
 
     def test_create_session_from_real_codex_m_if_available(self):
         samples = ingestion.list_samples()
@@ -658,6 +665,110 @@ class GraphSliceEndpointTests(unittest.TestCase):
                 and row.get("Tail") == candidate["Tail"]
                 for row in additions
             )
+        )
+
+
+class OmniaDemoSliceTests(unittest.TestCase):
+    def _session_with_candidates(self):
+        session = ingestion.create_session_from_dataframe(
+            dataset_name="OMNIA demo",
+            source_type="upload",
+            source_path=None,
+            df=demo_df(),
+            mapping={"Head": "Head", "Relation": "Relation", "Tail": "Tail"},
+            holdout_mode=False,
+        )
+        pipeline.ensure_candidates(session)
+        return session
+
+    def test_build_omnia_demo_slice_prefers_relation_tail_cluster(self) -> None:
+        from backend.app.services.omnia_demo_slice import build_omnia_demo_slice
+
+        session = self._session_with_candidates()
+        payload = build_omnia_demo_slice(
+            session,
+            "demo",
+            limit_nodes=100,
+            limit_edges=150,
+            mode="guided",
+        )
+        self.assertTrue(payload.get("data_available"))
+        selected = payload.get("selected_cluster") or {}
+        self.assertGreaterEqual(int(selected.get("size") or 0), 2)
+        self.assertIn("shared_relation", selected)
+        self.assertIn("shared_tail", selected)
+        self.assertGreater(len(payload.get("candidates") or []), 0)
+        explanation = payload.get("explanation") or {}
+        self.assertIn("filtering_available", explanation)
+        self.assertIn("llm_available", explanation)
+        members = set(selected.get("members") or [])
+        known_heads = {
+            edge["source"]
+            for edge in payload.get("edges") or []
+            if edge.get("status") == "known" and edge.get("target") == selected.get("shared_tail")
+        }
+        self.assertTrue(members.intersection(known_heads))
+
+    def test_omnia_demo_slice_selected_candidate_belongs_to_cluster(self) -> None:
+        from backend.app.services.omnia_demo_slice import build_omnia_demo_slice
+
+        session = self._session_with_candidates()
+        payload = build_omnia_demo_slice(session, "demo", mode="omnia_demo")
+        cluster = payload.get("selected_cluster") or {}
+        candidate = payload.get("selected_candidate")
+        if candidate:
+            cluster_id = str(cluster.get("cluster_id"))
+            cluster_ids = candidate.get("cluster_ids") or []
+            source_cluster = candidate.get("source_cluster")
+            self.assertTrue(cluster_id in cluster_ids or source_cluster == cluster_id)
+
+    def test_omnia_demo_slice_prefers_cluster_with_candidates(self) -> None:
+        from backend.app.services.omnia_demo_slice import build_omnia_demo_slice
+
+        session = self._session_with_candidates()
+        payload = build_omnia_demo_slice(session, "demo", mode="omnia_demo")
+        cluster = payload.get("selected_cluster") or {}
+        self.assertGreater(int(cluster.get("candidate_count") or 0), 0)
+
+    def test_omnia_demo_slice_returns_null_candidate_if_no_candidates(self) -> None:
+        from backend.app.services.omnia_demo_slice import build_omnia_demo_slice
+
+        session = ingestion.create_session_from_dataframe(
+            dataset_name="OMNIA demo",
+            source_type="upload",
+            source_path=None,
+            df=pd.DataFrame([{"Head": "A", "Relation": "r", "Tail": "T"}]),
+            mapping={"Head": "Head", "Relation": "Relation", "Tail": "Tail"},
+            holdout_mode=False,
+        )
+        payload = build_omnia_demo_slice(session, "demo", mode="omnia_demo")
+        self.assertIsNone(payload.get("selected_candidate"))
+
+    def test_omnia_demo_slice_enforces_limits(self) -> None:
+        from backend.app.services.omnia_demo_slice import build_omnia_demo_slice
+
+        session = self._session_with_candidates()
+        payload = build_omnia_demo_slice(session, "demo", limit_nodes=100, limit_edges=150, mode="omnia_demo")
+        self.assertLessEqual(len(payload.get("nodes") or []), 100)
+        self.assertLessEqual(len(payload.get("edges") or []), 150)
+
+    def test_omnia_demo_slice_expand_context_returns_more_nodes(self) -> None:
+        from backend.app.services.omnia_demo_slice import build_omnia_demo_slice
+
+        session = ingestion.create_session_from_dataframe(
+            dataset_name="OMNIA demo",
+            source_type="upload",
+            source_path=None,
+            df=large_demo_df(),
+            mapping={"Head": "Head", "Relation": "Relation", "Tail": "Tail"},
+            holdout_mode=False,
+        )
+        pipeline.ensure_candidates(session)
+        compact = build_omnia_demo_slice(session, "demo", limit_nodes=100, expand_context=False)
+        expanded = build_omnia_demo_slice(session, "demo", limit_nodes=100, expand_context=True)
+        self.assertGreaterEqual(
+            len(expanded.get("nodes") or []),
+            len(compact.get("nodes") or []),
         )
 
 

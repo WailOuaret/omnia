@@ -93,6 +93,7 @@ export function useGraphLayout(
   edges: Edge<CanvasEdgeData>[],
   aggregated: boolean,
   allEntities: boolean,
+  precomputed = false,
 ) {
   const cacheRef = useRef<{ sig: string; result: Node<CanvasNodeData>[] }>({
     sig: "",
@@ -100,6 +101,10 @@ export function useGraphLayout(
   });
 
   return useMemo(() => {
+    if (precomputed) {
+      return nodes;
+    }
+
     const sig = graphSignature(nodes, edges, aggregated);
 
     // Cache hit — return same reference
@@ -119,10 +124,10 @@ export function useGraphLayout(
     if (aggregated || edges.length === 0 || nodes.length > 300) {
       result = buildGridLayout(nodes);
     } else {
-      result = buildDagreLayout(nodes, edges, allEntities ? "LR" : "TB");
+      result = buildDagreLayout(nodes, edges, "LR");
     }
 
     cacheRef.current = { sig, result };
     return result;
-  }, [nodes, edges, aggregated, allEntities]);
+  }, [nodes, edges, aggregated, allEntities, precomputed]);
 }

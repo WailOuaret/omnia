@@ -22,9 +22,11 @@ import { STATUS_TOKENS } from "../../graph/styles/graphStatusTokens";
 import type { CanvasEdgeData, CanvasNodeData } from "../../graph/hooks/useGraphElements";
 import { api, type BackendGraphSliceEdge, type BackendGraphSliceNode } from "../../lib/api";
 import { formatKgInline, isRawKgId } from "../../lib/kgLabels";
+import { stepLayoutFor } from "../../lib/stepLayoutConfig";
 import { CandidateEdge } from "../graph/edges/CandidateEdge";
 import { RelationEdge } from "../graph/edges/RelationEdge";
-import { EntityNode } from "../graph/nodes/EntityNode";
+import { PaperDemoEntityNode } from "./PaperDemoEntityNode";
+import { PaperDemoClusterBoundaryNode } from "./PaperDemoClusterBoundaryNode";
 
 export type GraphSelection =
   | { type: "node"; id: string }
@@ -39,15 +41,18 @@ interface LiveGraphPanelProps {
   selectedCandidateId?: string | null;
   onSelectionChange?: (selection: GraphSelection) => void;
   onCandidateSelect?: (candidateId: string) => void;
+  onExpandContext?: () => void;
+  expandContextPending?: boolean;
   className?: string;
   title?: string;
 }
 
-const NODE_WIDTH = 128;
-const NODE_HEIGHT = 128;
+const NODE_WIDTH = 168;
+const NODE_HEIGHT = 72;
 
 const nodeTypes = {
-  entity: EntityNode,
+  entity: PaperDemoEntityNode,
+  clusterBoundary: PaperDemoClusterBoundaryNode,
 } satisfies NodeTypes;
 
 const edgeTypes = {
@@ -62,7 +67,7 @@ function mapBackendStatus(status?: string | null): GraphEdgeStatus {
     original: "original",
     candidate: "generated",
     missing: "generated",
-    kept: "generated",
+    kept: "filtered_passed",
     generated: "generated",
     removed: "filtered_rejected",
     filtered_removed: "filtered_rejected",
@@ -152,7 +157,7 @@ function buildNodeMap(graph: GraphPayload) {
     nodes.set(node.id, {
       ...node,
       label: node.label?.trim() ? node.label : node.id,
-      kind: "entity",
+      kind: node.kind ?? "entity",
       stage: node.stage ?? "original",
       degree: nodeDegree,
       component_id: node.component_id ?? null,
@@ -160,7 +165,10 @@ function buildNodeMap(graph: GraphPayload) {
       candidate_id: node.candidate_id ?? null,
       is_isolated: nodeDegree === 0,
       highlighted: Boolean(node.highlighted),
+      role: node.role ?? null,
+      position: node.position ?? null,
       node_count: node.node_count ?? 1,
+      boundary_height: node.boundary_height ?? null,
       edge_count: node.edge_count ?? 0,
       relation_count: node.relation_count ?? null,
       cluster_count: node.cluster_count ?? null,
@@ -272,12 +280,15 @@ function LiveGraphPanelInner({
   selectedCandidateId,
   onSelectionChange,
   onCandidateSelect,
+  onExpandContext,
+  expandContextPending = false,
   className,
   title = "Interactive backend graph",
 }: LiveGraphPanelProps) {
   const reactFlow = useReactFlow();
   const [expandedGraph, setExpandedGraph] = useState<GraphPayload>(graph);
   const [hoverText, setHoverText] = useState<string | null>(null);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [expanding, setExpanding] = useState<string | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<CanvasNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<CanvasEdgeData>>([]);
@@ -304,19 +315,21 @@ function LiveGraphPanelInner({
         ...node,
         highlighted,
       };
+      const isClusterBoundary = node.kind === "cluster" && node.role === "cluster_boundary";
 
       return {
         id: node.id,
-        type: "entity",
+        type: isClusterBoundary ? "clusterBoundary" : "entity",
         data: {
           node: graphNode,
           detailLevel: "medium",
           showLabels: true,
           evidenceActive: highlighted,
         } satisfies CanvasNodeData,
-        position: { x: 0, y: 0 },
-        draggable: true,
-        selectable: true,
+        position: graphNode.position ?? { x: 0, y: 0 },
+        draggable: !isClusterBoundary,
+        selectable: !isClusterBoundary,
+        zIndex: isClusterBoundary ? 0 : 2,
       } satisfies Node<CanvasNodeData>;
     });
   }, [expandedGraph, selectedCandidateId]);
@@ -333,6 +346,12 @@ function LiveGraphPanelInner({
           selectedCandidateId && backendEdge.candidate_id === selectedCandidateId,
         );
         const selectedOrHighlighted = selectedCandidate || Boolean(backendEdge.highlighted);
+        const dimOriginal =
+          expandedGraph.layoutMode === "omnia" &&
+          stepLayoutFor(activeStep).dimOriginalEdges &&
+          statusKey === "original" &&
+          !selectedOrHighlighted;
+        const showEdgeLabel = selectedOrHighlighted || hoveredEdgeId === backendEdge.id;
         const edge: GraphEdge = {
           ...backendEdge,
           label: backendEdge.label?.trim() ? backendEdge.label : backendEdge.id,
@@ -349,15 +368,19 @@ function LiveGraphPanelInner({
           data: {
             edge,
             status: statusKey,
-            showLabel: true,
-            muted: false,
+            showLabel: showEdgeLabel,
+            muted: dimOriginal,
             rejected: statusKey === "filtered_rejected" || statusKey === "llm_rejected",
           } satisfies CanvasEdgeData,
           style: {
             stroke: token.color,
             strokeWidth: selectedOrHighlighted ? token.strokeWidthSelected : token.strokeWidth,
             strokeDasharray: token.dash,
-            opacity: selectedOrHighlighted ? Math.max(token.opacity, 0.92) : token.opacity,
+            opacity: dimOriginal
+              ? Math.min(token.opacity, 0.22)
+              : selectedOrHighlighted
+                ? Math.max(token.opacity, 0.92)
+                : token.opacity,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -369,10 +392,13 @@ function LiveGraphPanelInner({
           zIndex: selectedOrHighlighted ? 5 : 1,
         } satisfies Edge<CanvasEdgeData>;
       });
-  }, [expandedGraph.edges, rfNodes, selectedCandidateId]);
+  }, [expandedGraph.edges, expandedGraph.layoutMode, rfNodes, selectedCandidateId, hoveredEdgeId, activeStep]);
 
   useEffect(() => {
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(rfNodes, rfEdges, "LR");
+    const useOmniaLayout = expandedGraph.layoutMode === "omnia";
+    const { nodes: layoutedNodes, edges: layoutedEdges } = useOmniaLayout
+      ? { nodes: rfNodes, edges: rfEdges }
+      : getLayoutedElements(rfNodes, rfEdges, "LR");
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
 
@@ -381,7 +407,7 @@ function LiveGraphPanelInner({
     }, 60);
 
     return () => window.clearTimeout(id);
-  }, [activeStep, rfNodes, rfEdges, reactFlow, setNodes, setEdges]);
+  }, [activeStep, expandedGraph.layoutMode, rfNodes, rfEdges, reactFlow, setNodes, setEdges]);
 
   const expandNode = useCallback(async (nodeId: string, hops: 1 | 2) => {
     if (!sessionId) return;
@@ -399,6 +425,8 @@ function LiveGraphPanelInner({
     : selectedCandidateId
       ? `Candidate ${selectedCandidateId} highlighted`
       : "Click nodes or edges to inspect";
+  const selectedCluster = expandedGraph.selectedCluster;
+  const explanation = expandedGraph.explanation;
 
   return (
     <section
@@ -408,12 +436,27 @@ function LiveGraphPanelInner({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold text-slate-950">{title}</h3>
-          <p className="text-[11px] text-slate-600">{selectionHint}</p>
+          {expandedGraph.stepCaption ? (
+            <p className="mt-0.5 text-[11px] leading-snug text-slate-600">{expandedGraph.stepCaption}</p>
+          ) : (
+            <p className="text-[11px] text-slate-600">{selectionHint}</p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
             backend session slice
           </span>
+          {onExpandContext ? (
+            <button
+              type="button"
+              onClick={onExpandContext}
+              disabled={expandContextPending}
+              className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700 disabled:opacity-60"
+              data-testid="expand-context-button"
+            >
+              {expandContextPending ? "Expanding…" : "Expand context to 100 nodes"}
+            </button>
+          ) : null}
           <span
             className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200"
             title="Raw IDs come from the benchmark dataset. Labels are shown when available."
@@ -425,7 +468,7 @@ function LiveGraphPanelInner({
       </div>
 
       <div
-        style={{ height: 600, minHeight: 600, width: "100%" }}
+        style={{ height: 640, minHeight: 640, width: "100%" }}
         className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
         data-testid="live-graph-canvas"
       >
@@ -436,6 +479,25 @@ function LiveGraphPanelInner({
         {hoverText ? (
           <div className="pointer-events-none absolute left-3 top-3 z-20 max-w-sm rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-xs text-slate-800 shadow-xl">
             {hoverText}
+          </div>
+        ) : null}
+
+        {selectedCluster ? (
+          <div className="pointer-events-none absolute left-3 top-3 z-20 max-w-md rounded-lg border border-indigo-200 bg-white/95 px-3 py-2 text-[11px] text-slate-700 shadow-sm">
+            <p className="font-semibold text-indigo-900">
+              Cluster key = ({selectedCluster.shared_relation}, {selectedCluster.shared_tail})
+            </p>
+            <p className="mt-0.5">
+              {activeStep === "clustering"
+                ? "Heads on the left share this relation-tail pattern."
+                : activeStep === "candidates"
+                  ? "Blue dashed edges are generated by propagating relation-tail pairs inside the cluster."
+                  : activeStep === "filtering"
+                    ? "Candidates are grouped by real TransE output when available."
+                    : activeStep === "llm"
+                      ? "Semantic validation reuses the same selected candidate."
+                      : "This slice carries the same cluster and candidate through the OMNIA loop."}
+            </p>
           </div>
         ) : null}
 
@@ -469,13 +531,17 @@ function LiveGraphPanelInner({
           }}
           onNodeMouseLeave={() => setHoverText(null)}
           onEdgeMouseEnter={(_, edge) => {
+            setHoveredEdgeId(edge.id);
             const graphEdge = edge.data?.edge;
             if (!graphEdge) return;
             setHoverText(
               `${formatKgInline(graphEdge.source)} -> ${formatKgInline(graphEdge.target)} | ${formatKgInline(graphEdge.label, graphEdge.label, "relation")} | ${statusLabel(graphEdge)}`,
             );
           }}
-          onEdgeMouseLeave={() => setHoverText(null)}
+          onEdgeMouseLeave={() => {
+            setHoveredEdgeId(null);
+            setHoverText(null);
+          }}
         >
           <Background gap={18} size={1} color="#CBD5E1" />
           <Controls showInteractive={false} />
@@ -501,7 +567,13 @@ function LiveGraphPanelInner({
         ) : null}
 
         <div className="absolute bottom-3 left-3 z-20 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-[11px] text-slate-600 shadow-sm">
-          Pan, zoom, drag nodes, click to inspect. Use the controls to fit the live slice.
+          <div className="flex flex-wrap gap-2">
+            <span>Cluster members</span>
+            <span>|</span>
+            <span>relation-tail patterns</span>
+            <span>|</span>
+            <span>generated candidates</span>
+          </div>
         </div>
 
         {expanding ? (
@@ -513,7 +585,9 @@ function LiveGraphPanelInner({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-3 py-2 text-[11px] text-slate-600">
         <span>Graph source: backend session slice</span>
-        <span>Candidate edges are dashed purple; original edges are solid gray; accepted/rejected edges use status colors.</span>
+        <span>
+          Rule: {explanation?.generation_rule ?? "Hk x Pk"}; candidate edges are dashed, original edges are solid.
+        </span>
       </div>
 
       <GraphExpansionBridge onExpand={expandNode} />

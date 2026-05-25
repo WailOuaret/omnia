@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DATASET_LIST, DATASETS } from "../../demo-data/datasets";
+import { DATASETS } from "../../demo-data/datasets";
 import type { DemoDatasetConfig, DemoDatasetId } from "../../demo-data/types";
 import { demoDatasetIdToSampleId } from "../../lib/sessionToDemoDataset";
 
@@ -12,6 +12,19 @@ interface DatasetSelectorPanelProps {
   liveDataset?: DemoDatasetConfig | null;
   sessionId?: string | null;
   onCreateSession?: (datasetId: DemoDatasetId) => Promise<void>;
+}
+
+function isBackendLoadable(datasetId: DemoDatasetId): boolean {
+  return Boolean(demoDatasetIdToSampleId(datasetId));
+}
+
+const LIVE_BACKEND_DATASET_IDS: DemoDatasetId[] = ["codexM", "fb15k237", "wn18rr"];
+const STATIC_ONLY_DATASET_IDS: DemoDatasetId[] = ["covidFact", "socioEconomic"];
+
+function datasetOptionLabel(dataset: DemoDatasetConfig): string {
+  if (dataset.id === "covidFact") return `${dataset.label} (KG loading pending)`;
+  if (dataset.id === "socioEconomic") return `${dataset.label} (private)`;
+  return dataset.label;
 }
 
 function formatNumber(value: number) {
@@ -57,7 +70,7 @@ export function DatasetSelectorPanel({
     isLiveMode && !sessionMismatch && liveDataset ? liveDataset : DATASETS[selectedDatasetId];
   if (!selectedDataset) return null;
 
-  const canCreateSession = Boolean(demoDatasetIdToSampleId(selectedDatasetId));
+  const canCreateSession = isBackendLoadable(selectedDatasetId);
 
   const handleCreateSession = async () => {
     if (!onCreateSession) return;
@@ -81,12 +94,45 @@ export function DatasetSelectorPanel({
         onChange={(event) => onSelect(event.target.value as DemoDatasetId)}
         data-testid="dataset-selector-dropdown"
       >
-        {DATASET_LIST.map((dataset) => (
-          <option key={dataset.id} value={dataset.id}>
-            {dataset.label}
-          </option>
-        ))}
+        <optgroup label="Live backend datasets">
+          {LIVE_BACKEND_DATASET_IDS.map((id) => {
+            const dataset = DATASETS[id];
+            if (!dataset) return null;
+            return (
+              <option key={dataset.id} value={dataset.id}>
+                {dataset.label}
+              </option>
+            );
+          })}
+        </optgroup>
+        <optgroup label="Static guided demo only">
+          {STATIC_ONLY_DATASET_IDS.map((id) => {
+            const dataset = DATASETS[id];
+            if (!dataset) return null;
+            return (
+              <option key={dataset.id} value={dataset.id}>
+                {datasetOptionLabel(dataset)}
+              </option>
+            );
+          })}
+        </optgroup>
       </select>
+
+      {!isBackendLoadable(selectedDatasetId) ? (
+        <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p className="font-semibold">Static guided demo only</p>
+          {selectedDatasetId === "covidFact" ? (
+            <p className="mt-1">
+              COVID-Fact source data are downloaded and verified; KG loading is pending. This tab shows a static illustration only.
+            </p>
+          ) : null}
+          {selectedDatasetId === "socioEconomic" ? (
+            <p className="mt-1">
+              Socio-Economic dataset is private and cannot be loaded from the backend. This tab shows a static illustration only.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {isLiveMode && sessionId ? (
         <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">

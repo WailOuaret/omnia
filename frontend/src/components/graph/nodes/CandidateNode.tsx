@@ -2,6 +2,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import clsx from "clsx";
 import { Sparkles } from "lucide-react";
 import type { GraphNode } from "../../../types";
+import { formatKgLabelParts } from "../../../lib/kgLabels";
 
 interface CandidateNodeData extends Record<string, unknown> {
   node: GraphNode;
@@ -19,6 +20,7 @@ export function CandidateNode(props: NodeProps) {
   const node = data.node;
   const selected = props.selected || node.highlighted;
   const validated = node.stage === "validated" || node.stage === "completed";
+  const parts = formatKgLabelParts(node.id, node.label, "entity");
 
   return (
     <div
@@ -47,7 +49,9 @@ export function CandidateNode(props: NodeProps) {
       <div className={clsx("mt-3 text-[10px] font-semibold uppercase tracking-[0.2em]", validated ? "text-green" : "text-violet")}>
         Generated candidate
       </div>
-      <div className="mt-1 text-sm font-semibold leading-5 text-ink">{node.label}</div>
+      <div className="mt-1 text-sm font-semibold leading-5 text-ink" title={parts.isRawId ? node.id : undefined}>
+        {parts.primary}
+      </div>
       <div className="mt-3 flex items-center justify-between text-xs text-muted">
         <span>{node.cluster_id ?? "cluster pending"}</span>
         <span className="font-semibold text-ink">{confidenceLabel(node.confidence)}</span>

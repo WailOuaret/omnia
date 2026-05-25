@@ -187,4 +187,9 @@ wandb/
 # Root-level papers / screenshots / exports (optional local files)
 /*.pdf
 /*.docx
+paper_2603_11820v1.txt
 Capture*.png
+
+# Local bundle / duplicate screenshot exports (keep docs/screenshots/final-demo/)
+outputs/_bundle_staging/
+outputs/screenshots/

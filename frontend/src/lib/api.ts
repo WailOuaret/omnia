@@ -25,6 +25,8 @@ export interface BackendGraphSliceNode {
   label: string;
   type?: string;
   source?: string;
+  role?: string;
+  cluster_id?: string | null;
 }
 
 export interface BackendGraphSliceEdge {
@@ -38,6 +40,7 @@ export interface BackendGraphSliceEdge {
   distance?: number | null;
   threshold?: number | null;
   llm_score?: number | null;
+  cluster_id?: string | null;
 }
 
 export interface BackendGraphSlice {
@@ -57,6 +60,16 @@ export interface BackendGraphSlice {
   data_available?: boolean;
   clusters?: BackendClusterRow[];
   candidates?: BackendCandidateRow[];
+  selected_cluster?: BackendClusterRow & { cluster_key?: string; selected?: boolean };
+  selected_candidate?: BackendCandidateRow;
+  explanation?: {
+    cluster_key?: string;
+    generation_rule?: string;
+    filtering_available?: boolean;
+    llm_available?: boolean;
+    shared_relation?: string;
+    shared_tail?: string;
+  };
   warnings?: string[];
 }
 
@@ -88,6 +101,8 @@ export interface BackendCandidateRow {
   Relation: string;
   Tail: string;
   cluster_ids: string[];
+  source_cluster?: string;
+  why_generated?: string;
   distance: number | null;
   threshold: number | null;
   filter_status: string;
@@ -308,17 +323,21 @@ export const api = {
       depth?: number;
       limitNodes?: number;
       limitEdges?: number;
+      expandContext?: boolean;
+      candidateId?: string | null;
     },
   ) => {
     const qs = new URLSearchParams({ mode: params.mode });
     if (params.entity) qs.set("entity", params.entity);
     if (params.relation) qs.set("relation", params.relation);
     if (params.clusterId) qs.set("cluster_id", params.clusterId);
+    if (params.candidateId) qs.set("candidate_id", params.candidateId);
     if (params.candidateStatus) qs.set("candidate_status", params.candidateStatus);
     if (params.feedbackBucket) qs.set("feedback_bucket", params.feedbackBucket);
     if (params.depth) qs.set("depth", String(params.depth));
     if (params.limitNodes) qs.set("limit_nodes", String(params.limitNodes));
     if (params.limitEdges) qs.set("limit_edges", String(params.limitEdges));
+    if (params.expandContext) qs.set("expand_context", "true");
     return request<BackendGraphSlice>(
       `/api/sessions/${sessionId}/graph/slice?${qs.toString()}`,
     );

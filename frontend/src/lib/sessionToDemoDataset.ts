@@ -1,9 +1,6 @@
 /**
- * Build a `DemoDatasetConfig`-shaped object from the real backend session so
- * the existing paper-demo step views render live data without any further
- * changes. This is the bridge between the backend-first `usePaperDemoSession`
- * hook and the existing rendering surface (`PaperDemoStepView`,
- * `BenchmarkMiniGraph`, `StepStatsPanel`).
+ * Static demo dataset helpers and backend ID mapping.
+ * Live graph rendering uses buildLiveOmniaViewModel — not sessionToDemoDataset.
  */
 
 import type {
@@ -180,9 +177,8 @@ export function demoDatasetIdToSampleId(datasetId: DemoDatasetId): string | null
 }
 
 /**
- * Build a `DemoDatasetConfig` from live backend artifacts for tables, stats, and
- * step panels. Live graph rendering uses `sessionSliceToGraphPayload` directly —
- * the `graph` field here is metadata-only and must not drive the interactive view.
+ * @deprecated Live mode uses buildLiveOmniaViewModel. Static demos use DATASETS directly.
+ * Kept for legacy imports/tests only.
  */
 export function sessionToDemoDataset({
   meta,
@@ -198,12 +194,15 @@ export function sessionToDemoDataset({
   const demoClusters = clustersFromBackend(clusters);
   const demoCandidates = candidatesFromBackend(candidates);
 
-  const thresholdSample = candidates.find((c) => c.threshold != null);
+  const thresholdSample = candidates.find((c) => c.threshold != null && c.threshold > 0);
+  const hasFilterData = candidates.some(
+    (c) => c.distance != null && c.threshold != null && c.threshold > 0,
+  );
   const fallbackThreshold = thresholdSample?.threshold ?? null;
   const kept = candidates.filter((c) => {
     if (["kept", "llm_valid", "accepted"].includes(c.status_bucket)) return true;
     const threshold = c.threshold ?? fallbackThreshold;
-    return c.distance != null && threshold != null && c.distance <= threshold;
+    return c.distance != null && threshold != null && threshold > 0 && c.distance <= threshold;
   }).length;
 
   return {
@@ -226,9 +225,9 @@ export function sessionToDemoDataset({
     candidates: demoCandidates,
     filteringStats: {
       model: "TransE (real session)",
-      threshold: thresholdSample?.threshold ?? 0,
-      beforeFiltering: candidates.length,
-      afterFiltering: kept,
+      threshold: hasFilterData ? (thresholdSample?.threshold ?? Number.NaN) : Number.NaN,
+      beforeFiltering: hasFilterData ? candidates.length : 0,
+      afterFiltering: hasFilterData ? kept : 0,
     },
     llmStats: {
       strategy: "Backend RAG (real session)",

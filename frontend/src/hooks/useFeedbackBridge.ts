@@ -35,8 +35,12 @@ function readSessionIdFromUrl(): string | null {
   return params.get("sessionId") || params.get("session_id") || null;
 }
 
-export function useFeedbackBridge(datasetId?: string | null): FeedbackBridge {
-  const sessionId = useMemo(readSessionIdFromUrl, []);
+export function useFeedbackBridge(
+  datasetId?: string | null,
+  sessionIdOverride?: string | null,
+): FeedbackBridge {
+  const urlSessionId = useMemo(readSessionIdFromUrl, []);
+  const sessionId = sessionIdOverride ?? urlSessionId;
   const [mode, setMode] = useState<FeedbackMode>(sessionId ? "live" : "static");
   const [status, setStatus] = useState<FeedbackStatus>("idle");
   const [lastMessage, setLastMessage] = useState<string | null>(

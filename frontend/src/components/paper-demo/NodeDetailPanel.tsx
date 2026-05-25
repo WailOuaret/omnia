@@ -13,13 +13,21 @@ interface NodeDetailPanelProps {
   clusters: DemoCluster[];
   sessionId?: string | null;
   onShowCandidatesForNode?: (nodeId: string) => void;
+  /** When true, omit outer card chrome (used inside tabbed inspector). */
+  embedded?: boolean;
+  filteringAvailable?: boolean;
+  llmAvailable?: boolean;
+}
+
+function ArtifactUnavailable({ message }: { message: string }) {
+  return <p className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs italic text-slate-500">{message}</p>;
 }
 
 function DetailField({ label, value }: { label: string; value: string | number | null | undefined }) {
   return (
     <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-0.5 break-words text-xs text-slate-900">{value ?? "n/a"}</p>
+      <p className="mt-0.5 break-words text-xs text-slate-900">{value ?? "—"}</p>
     </div>
   );
 }
@@ -65,13 +73,14 @@ export function NodeDetailPanel({
   clusters,
   sessionId,
   onShowCandidatesForNode,
+  embedded = false,
+  filteringAvailable = true,
+  llmAvailable = true,
 }: NodeDetailPanelProps) {
   const { node, edge } = findSelection(graph, selection);
-  const fallbackCluster = selectedCluster ?? clusters[0] ?? null;
-  const fallbackCandidate = selectedCandidate ?? candidates[0] ?? null;
 
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4" data-testid="node-detail-panel">
+  const body = (
+    <>
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Inspector</p>
@@ -151,46 +160,88 @@ export function NodeDetailPanel({
             <DetailField label="Status" value={edge.raw_status ?? edge.status} />
             <DetailField label="Provenance" value={edge.provenance_label} />
             <DetailField label="Candidate ID" value={edge.candidate_id} />
-            <DetailField label="Distance" value={typeof edge.distance === "number" ? edge.distance.toFixed(3) : null} />
-            <DetailField label="Threshold" value={typeof edge.threshold === "number" ? edge.threshold.toFixed(3) : null} />
-            <DetailField label="LLM" value={edge.llm_decision} />
           </div>
+          {filteringAvailable ? (
+            <div className="grid grid-cols-2 gap-2">
+              <DetailField label="Distance" value={typeof edge.distance === "number" ? edge.distance.toFixed(3) : null} />
+              <DetailField label="Threshold" value={typeof edge.threshold === "number" ? edge.threshold.toFixed(3) : null} />
+              {typeof edge.distance === "number" && typeof edge.threshold === "number" && edge.threshold > 0 ? (
+                <div className="col-span-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Filter result</p>
+                  <p className={`mt-0.5 text-xs font-semibold ${edge.distance <= edge.threshold ? "text-emerald-700" : "text-rose-600"}`}>
+                    {edge.distance <= edge.threshold ? "KEPT" : "REMOVED"}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <ArtifactUnavailable message="Filtering artifacts are not available for this session." />
+          )}
+          {llmAvailable ? (
+            <DetailField label="LLM verdict" value={edge.llm_decision} />
+          ) : (
+            <ArtifactUnavailable message="LLM/RAG validation artifacts are not available for this session." />
+          )}
         </div>
       ) : null}
 
-      {!edge && !node && fallbackCluster ? (
+      {!edge && !node && selectedCluster ? (
         <div className="mt-3 space-y-3">
-          <DetailField label="Cluster ID" value={fallbackCluster.id} />
-          <LabelBlock id={fallbackCluster.sharedRelation} label={fallbackCluster.sharedRelation} kind="relation" />
-          <LabelBlock id={fallbackCluster.sharedTail} label={fallbackCluster.sharedTail} kind="entity" />
-          <DetailField label="Members" value={fallbackCluster.size} />
+          <DetailField label="Cluster ID" value={selectedCluster.id} />
+          <LabelBlock id={selectedCluster.sharedRelation} label={selectedCluster.sharedRelation} kind="relation" />
+          <LabelBlock id={selectedCluster.sharedTail} label={selectedCluster.sharedTail} kind="entity" />
+          <DetailField label="Members" value={selectedCluster.size} />
           <DetailField
             label="Generated candidates"
-            value={candidates.filter((candidate) => candidate.clusterIds?.includes(fallbackCluster.id)).length}
+            value={candidates.filter((candidate) => candidate.clusterIds?.includes(selectedCluster.id)).length}
           />
         </div>
       ) : null}
 
-      {!edge && !node && fallbackCandidate ? (
+      {!edge && !node && selectedCandidate ? (
         <div className="mt-3 space-y-3">
-          <DetailField label="Candidate ID" value={fallbackCandidate.candidateId} />
-          <LabelBlock id={fallbackCandidate.head} kind="entity" />
-          <LabelBlock id={fallbackCandidate.relation} label={fallbackCandidate.relation} kind="relation" />
-          <LabelBlock id={fallbackCandidate.tail} kind="entity" />
+          <DetailField label="Candidate ID" value={selectedCandidate.candidateId} />
+          <LabelBlock id={selectedCandidate.head} kind="entity" />
+          <LabelBlock id={selectedCandidate.relation} label={selectedCandidate.relation} kind="relation" />
+          <LabelBlock id={selectedCandidate.tail} kind="entity" />
           <div className="grid grid-cols-2 gap-2">
-            <DetailField label="Source cluster" value={fallbackCandidate.clusterIds?.join(", ")} />
-            <DetailField label="Status" value={fallbackCandidate.status} />
-            <DetailField label="Distance" value={fallbackCandidate.distance?.toFixed(3)} />
-            <DetailField label="Threshold" value={fallbackCandidate.threshold?.toFixed(3)} />
-            <DetailField label="LLM verdict" value={fallbackCandidate.llmVerdict} />
+            <DetailField label="Source cluster" value={selectedCandidate.clusterIds?.join(", ")} />
+            <DetailField label="Status" value={selectedCandidate.status} />
           </div>
-          {fallbackCandidate.llmRationale ? (
+          {filteringAvailable ? (
+            <div className="grid grid-cols-2 gap-2">
+              <DetailField label="Distance" value={selectedCandidate.distance?.toFixed(3)} />
+              <DetailField label="Threshold" value={selectedCandidate.threshold?.toFixed(3)} />
+            </div>
+          ) : (
+            <ArtifactUnavailable message="Filtering artifacts are not available for this session." />
+          )}
+          {llmAvailable ? (
+            <DetailField label="LLM verdict" value={selectedCandidate.llmVerdict} />
+          ) : (
+            <ArtifactUnavailable message="LLM/RAG validation artifacts are not available for this session." />
+          )}
+          {selectedCandidate.llmRationale ? (
             <p className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
-              {fallbackCandidate.llmRationale}
+              {selectedCandidate.llmRationale}
             </p>
           ) : null}
         </div>
       ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div data-testid="node-detail-panel">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4" data-testid="node-detail-panel">
+      {body}
     </section>
   );
 }

@@ -25,6 +25,10 @@ interface StepStatsPanelProps {
   };
   /** Optional backend diagnostics (live mode only). Surfaces threshold, agreement, priors. */
   backendDiagnostics?: CompletedSummaryView | null;
+  /** Omit outer card chrome when embedded in tabbed inspector. */
+  compact?: boolean;
+  filteringAvailable?: boolean;
+  llmAvailable?: boolean;
 }
 
 function format(v: number) {
@@ -38,14 +42,17 @@ export function StepStatsPanel({
   feedbackSummary,
   completedSummary,
   backendDiagnostics,
+  compact = false,
+  filteringAvailable = true,
+  llmAvailable = true,
 }: StepStatsPanelProps) {
   const selectedCandidate = selectedCandidateProp ?? dataset.candidates[0] ?? null;
   const summary = feedbackSummary ?? { accepted: 0, rejected: 0, uncertain: 0, corrected: 0, total: 0 };
 
-  return (
-    <section className="h-full rounded-xl border border-slate-200 bg-white p-4">
-      <h3 className="text-sm font-semibold text-slate-900">Current-Step Stats</h3>
-      <div className="mt-3 space-y-2 text-sm text-slate-700">
+  const content = (
+    <>
+      {!compact ? <h3 className="text-sm font-semibold text-slate-900">Current-Step Stats</h3> : null}
+      <div className={`space-y-2 text-sm text-slate-700 ${compact ? "" : "mt-3"}`}>
         {step === "kg" ? (
           <>
             <p>
@@ -124,68 +131,87 @@ export function StepStatsPanel({
           </>
         ) : null}
 
-        {step === "filtering" && selectedCandidate ? (
+        {step === "filtering" ? (
           <>
-            <p>
-              <span className="font-semibold">Model:</span> {dataset.filteringStats.model}
-            </p>
-            <p>
-              <span className="font-semibold">Threshold τ:</span> {dataset.filteringStats.threshold.toFixed(2)}
-            </p>
-            <p>
-              <span className="font-semibold">Before filtering:</span> {format(dataset.filteringStats.beforeFiltering)}
-            </p>
-            <p>
-              <span className="font-semibold">After filtering:</span> {format(dataset.filteringStats.afterFiltering)}
-            </p>
-            <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected candidate</p>
-              <p className="font-mono text-xs">
-                ({selectedCandidate.head}, {selectedCandidate.relation}, {selectedCandidate.tail})
+            {filteringAvailable &&
+            selectedCandidate?.distance != null &&
+            selectedCandidate?.threshold != null &&
+            selectedCandidate.threshold > 0 ? (
+              <>
+                <p>
+                  <span className="font-semibold">Model:</span> {dataset.filteringStats.model}
+                </p>
+                <p>
+                  <span className="font-semibold">Threshold τ:</span> {selectedCandidate.threshold.toFixed(2)}
+                </p>
+                <p>
+                  <span className="font-semibold">Before filtering:</span>{" "}
+                  {format(dataset.filteringStats.beforeFiltering)}
+                </p>
+                <p>
+                  <span className="font-semibold">After filtering:</span>{" "}
+                  {format(dataset.filteringStats.afterFiltering)}
+                </p>
+                <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected candidate</p>
+                  <p className="font-mono text-xs">
+                    ({selectedCandidate.head}, {selectedCandidate.relation}, {selectedCandidate.tail})
+                  </p>
+                  <p>
+                    <span className="font-semibold">Distance:</span> {selectedCandidate.distance.toFixed(2)}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Result:</span>{" "}
+                    {selectedCandidate.distance <= selectedCandidate.threshold ? "KEPT" : "REMOVED"}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs italic text-slate-500">
+                {filteringAvailable
+                  ? "Select a candidate with TransE filtering scores to inspect distance and threshold."
+                  : "Filtering artifacts are not available for this session."}
               </p>
-              <p>
-                <span className="font-semibold">Distance:</span> {selectedCandidate.distance?.toFixed(2) ?? "—"}
-              </p>
-              <p>
-                <span className="font-semibold">Result:</span>{" "}
-                {selectedCandidate.distance !== undefined && selectedCandidate.threshold !== undefined
-                  ? selectedCandidate.distance <= selectedCandidate.threshold
-                    ? "PASSED"
-                    : "FILTERED OUT"
-                  : "—"}
-              </p>
-            </div>
+            )}
           </>
         ) : null}
 
         {step === "llm" && selectedCandidate ? (
           <>
-            <p>
-              <span className="font-semibold">Prompt mode:</span>{" "}
-              {dataset.recommendedMode === "sentence-rag" ? "Sentence-based RAG" : "Triple-based RAG"}
-            </p>
-            <p>
-              <span className="font-semibold">Top-k:</span> {dataset.llmStats.topK}{" "}
-              <span className="text-[11px] text-slate-500">
-                (simplified demo setting · OMNIA paper peaks at top-k = 3)
-              </span>
-            </p>
-            <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected candidate</p>
-              <p className="font-mono text-xs">
-                ({selectedCandidate.head}, {selectedCandidate.relation}, {selectedCandidate.tail})
+            {llmAvailable ? (
+              <>
+                <p>
+                  <span className="font-semibold">Prompt mode:</span>{" "}
+                  {dataset.recommendedMode === "sentence-rag" ? "Sentence-based RAG" : "Triple-based RAG"}
+                </p>
+                <p>
+                  <span className="font-semibold">Top-k:</span> {dataset.llmStats.topK}{" "}
+                  <span className="text-[11px] text-slate-500">
+                    (simplified demo setting · OMNIA paper peaks at top-k = 3)
+                  </span>
+                </p>
+                <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected candidate</p>
+                  <p className="font-mono text-xs">
+                    ({selectedCandidate.head}, {selectedCandidate.relation}, {selectedCandidate.tail})
+                  </p>
+                  <p>
+                    <span className="font-semibold">Verdict:</span> {selectedCandidate.llmVerdict ?? dataset.llmStats.verdict}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Confidence:</span>{" "}
+                    {(selectedCandidate.llmConfidence ?? dataset.llmStats.confidence).toFixed(2)}
+                  </p>
+                  {selectedCandidate.llmRationale ? (
+                    <p className="mt-1 text-xs text-slate-600">{selectedCandidate.llmRationale}</p>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <p className="text-xs italic text-slate-500">
+                LLM/RAG validation artifacts are not available for this session.
               </p>
-              <p>
-                <span className="font-semibold">Verdict:</span> {selectedCandidate.llmVerdict ?? dataset.llmStats.verdict}
-              </p>
-              <p>
-                <span className="font-semibold">Confidence:</span>{" "}
-                {(selectedCandidate.llmConfidence ?? dataset.llmStats.confidence).toFixed(2)}
-              </p>
-              {selectedCandidate.llmRationale ? (
-                <p className="mt-1 text-xs text-slate-600">{selectedCandidate.llmRationale}</p>
-              ) : null}
-            </div>
+            )}
           </>
         ) : null}
 
@@ -277,6 +303,16 @@ export function StepStatsPanel({
           </>
         ) : null}
       </div>
+    </>
+  );
+
+  if (compact) {
+    return <div data-testid="step-stats-panel">{content}</div>;
+  }
+
+  return (
+    <section className="h-full rounded-xl border border-slate-200 bg-white p-4" data-testid="step-stats-panel">
+      {content}
     </section>
   );
 }

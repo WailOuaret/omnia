@@ -1,4 +1,22 @@
-const RAW_ID_PATTERNS = [/^Q\d+$/i, /^P\d+$/i];
+const RAW_ID_PATTERNS = [/^Q\d+$/i, /^P\d+$/i, /^\/[a-z]\/[a-z0-9_]+$/i];
+
+function lastPathSegment(value: string): string {
+  const parts = value.split("/").filter(Boolean);
+  const last = parts[parts.length - 1] ?? value;
+  return last.replace(/_/g, " ");
+}
+
+function isSynsetId(value: string): boolean {
+  return /^[a-z_]+\.[a-z]\.\d+$/i.test(value);
+}
+
+function isFreebaseEntityId(value: string): boolean {
+  return /^\/[a-z]\/[a-z0-9_]+$/i.test(value);
+}
+
+function isRelationPath(value: string): boolean {
+  return value.startsWith("/") && value.includes("/");
+}
 
 const RELATION_LABELS: Record<string, string> = {
   P17: "country",
@@ -51,13 +69,24 @@ export function formatKgLabelParts(
   const raw = (id ?? "").trim() || "unknown";
   const trimmedLabel = (label ?? "").trim();
   const fallbackRelation = kind === "relation" ? RELATION_LABELS[raw] : undefined;
-  const readable = trimmedLabel && trimmedLabel !== raw ? trimmedLabel : fallbackRelation;
-  const rawId = isRawKgId(raw);
+
+  let readable = trimmedLabel && trimmedLabel !== raw ? trimmedLabel : fallbackRelation;
+  if (!readable || readable === raw) {
+    if (isFreebaseEntityId(raw)) {
+      readable = raw.slice(3);
+    } else if (isRelationPath(raw)) {
+      readable = lastPathSegment(raw);
+    } else if (isSynsetId(raw)) {
+      readable = raw;
+    }
+  }
+
+  const rawId = isRawKgId(raw) || isFreebaseEntityId(raw) || (isRelationPath(raw) && kind === "relation");
 
   return {
     primary: readable ?? raw,
-    secondary: readable ? raw : rawId ? "Label unavailable" : raw,
-    isRawId: rawId && !readable,
+    secondary: readable && readable !== raw ? raw : rawId ? "Label unavailable" : raw,
+    isRawId: rawId && (!trimmedLabel || trimmedLabel === raw),
     kind,
   };
 }
@@ -67,4 +96,16 @@ export function formatKgInline(id: string | null | undefined, label?: string | n
   return parts.secondary && parts.secondary !== parts.primary
     ? `${parts.primary} (${parts.secondary})`
     : parts.primary;
+}
+
+/** Short relation label for edge rendering; full path stays in tooltip. */
+export function truncateRelationLabel(label: string, maxLen = 22): string {
+  const trimmed = label.trim();
+  if (trimmed.length <= maxLen) return trimmed;
+  if (trimmed.startsWith("/") && trimmed.includes("/")) {
+    const parts = trimmed.split("/").filter(Boolean);
+    const last = parts[parts.length - 1]?.replace(/_/g, " ") ?? trimmed;
+    return last.length <= maxLen ? last : `${last.slice(0, maxLen - 1)}…`;
+  }
+  return `${trimmed.slice(0, maxLen - 1)}…`;
 }

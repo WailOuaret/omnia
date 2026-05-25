@@ -287,6 +287,7 @@ function InteractiveGraphComparison({ graph, datasetLabel }: { graph: GraphPaylo
             description="Original backend slice before human feedback is applied."
             fitViewKey={`original-${originalGraph.displayed_nodes}-${originalGraph.displayed_triples}`}
             compactChrome
+            canvasHeight="h-[clamp(28rem,65vh,52rem)]"
           />
         </div>
       </div>
@@ -304,6 +305,7 @@ function InteractiveGraphComparison({ graph, datasetLabel }: { graph: GraphPaylo
             description="Backend slice with accepted, rejected, uncertain, and corrected feedback reflected in edge states."
             fitViewKey={`completed-${graph.displayed_nodes}-${graph.displayed_triples}`}
             compactChrome
+            canvasHeight="h-[clamp(28rem,65vh,52rem)]"
           />
         </div>
       </div>

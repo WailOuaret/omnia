@@ -10,6 +10,7 @@ import type { UserFeedback } from "../stores/feedbackStore";
 
 export type SliceMode =
   | "guided"
+  | "overview"
   | "entity"
   | "relation"
   | "cluster"

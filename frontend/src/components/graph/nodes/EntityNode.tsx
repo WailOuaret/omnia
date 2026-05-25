@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import clsx from "clsx";
 import type { GraphNode } from "../../../types";
+import { formatKgLabelParts } from "../../../lib/kgLabels";
 
 type DetailLevel = "far" | "medium" | "close";
 
@@ -16,6 +17,7 @@ export function EntityNode(props: NodeProps) {
   const node = data.node;
   const selected = props.selected || node.highlighted;
   const sparse = node.is_isolated || Boolean(node.warning);
+  const parts = formatKgLabelParts(node.id, node.label, "entity");
 
   return (
     <div
@@ -36,9 +38,14 @@ export function EntityNode(props: NodeProps) {
         <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
           {sparse ? "Sparse" : "Entity"}
         </div>
-        <div className="mt-1 line-clamp-2 text-sm font-bold leading-tight text-ink">
-          {node.label}
+        <div className="mt-1 line-clamp-2 text-sm font-bold leading-tight text-ink" title={parts.isRawId ? node.id : undefined}>
+          {parts.primary}
         </div>
+        {parts.isRawId ? (
+          <div className="mt-0.5 truncate font-mono text-[9px] opacity-60 text-muted" title={node.id}>
+            {parts.secondary}
+          </div>
+        ) : null}
         <div className="mx-auto mt-2 w-fit rounded-full border border-border bg-bg px-2.5 py-1 text-[10px] font-semibold text-muted">
           deg {node.degree}
         </div>

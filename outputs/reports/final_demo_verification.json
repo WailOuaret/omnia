@@ -1,0 +1,149 @@
+{
+  "captured_at": "2026-05-24T22:38:19.764Z",
+  "codex_session_id": "77fadbdf85cf",
+  "sessions": {
+    "omnia_codex_m": {
+      "session_id": "77fadbdf85cf",
+      "url": "http://127.0.0.1:5173/paper-demo?sessionId=77fadbdf85cf"
+    },
+    "omnia_fb15k-237": {
+      "session_id": "13fe9e578537",
+      "url": "http://127.0.0.1:5173/paper-demo?sessionId=13fe9e578537"
+    },
+    "omnia_wn18rr": {
+      "session_id": "5a58d98684bc",
+      "url": "http://127.0.0.1:5173/paper-demo?sessionId=5a58d98684bc"
+    }
+  },
+  "samples": [
+    {
+      "id": "omnia_codex_m",
+      "available": true,
+      "source_available": true,
+      "kg_loader_available": true
+    },
+    {
+      "id": "omnia_fb15k-237",
+      "available": true,
+      "source_available": true,
+      "kg_loader_available": true
+    },
+    {
+      "id": "omnia_wn18rr",
+      "available": true,
+      "source_available": true,
+      "kg_loader_available": true
+    },
+    {
+      "id": "omnia_covid_fact",
+      "available": false,
+      "source_available": true,
+      "kg_loader_available": false
+    }
+  ],
+  "filter_artifacts_on_codex_session": false,
+  "llm_artifacts_on_codex_session": true,
+  "checks": [
+    {
+      "name": "Auto-load updates URL with sessionId",
+      "pass": true,
+      "detail": "http://127.0.0.1:5173/paper-demo?dataset=codexM&sessionId=5f9108eaf447"
+    },
+    {
+      "name": "Graph source says backend session slice",
+      "pass": true,
+      "detail": "graph source: backend session slice\n\ncodex-m · session 5f9108ea…\n\nrecreate backend session"
+    },
+    {
+      "name": "Dataset chooser visible in live demo",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Right column is one tabbed inspector",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Left column has slice summary + navigator",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Graph visible without excessive scroll",
+      "pass": true,
+      "detail": "y=182"
+    },
+    {
+      "name": "No silent static fallback (no toy Paris labels)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Clustering step shows graph + panel",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "name": "Candidate generation step reachable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Filtering shows clean empty banner",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Semantic validation shows evidence cards",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Feedback form has Accept/Reject/Uncertain/Correct",
+      "pass": 1,
+      "detail": ""
+    },
+    {
+      "name": "Submitting Accept updates backend feedback",
+      "pass": false,
+      "detail": "events=0"
+    },
+    {
+      "name": "Completed step shows export buttons",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Completed step shows diff buckets",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Export feedback JSON endpoint",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "Export completed KG TSV endpoint",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "Export KG diff JSON endpoint",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "Static COVID-Fact guided demo loads",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Socio-Economic labelled private/static",
+      "pass": false,
+      "detail": ""
+    }
+  ],
+  "screenshots_dir": "C:\\Users\\wailo\\Desktop\\omnia-correct\\docs\\screenshots\\final-demo"
+}

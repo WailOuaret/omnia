@@ -7,6 +7,7 @@ import type {
 } from "../types";
 import type { DemoCandidate } from "../demo-data/types";
 import type { BackendGraphSlice } from "./api";
+import { stepLayoutFor } from "./stepLayoutConfig";
 
 type Decision = "accept" | "reject" | "uncertain" | "correct";
 
@@ -81,6 +82,151 @@ function normalizeNodeKind(type?: string): GraphNode["kind"] {
   return "entity";
 }
 
+function spreadY(index: number, count: number, center = 300, gap = 96) {
+  return center + (index - (count - 1) / 2) * gap;
+}
+
+function fallbackGridPosition(index: number, startX = 520, startY = 520) {
+  const col = index % 4;
+  const row = Math.floor(index / 4);
+  return { x: startX + col * 150, y: startY + row * 110 };
+}
+
+function assignOmniaPositions({
+  nodes,
+  edges,
+  slice,
+  activeStep,
+  selectedClusterId,
+}: {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  slice: BackendGraphSlice;
+  activeStep: string;
+  selectedClusterId?: string | null;
+}): GraphNode[] {
+  const selectedCluster =
+    slice.selected_cluster ??
+    slice.clusters?.find((cluster) => cluster.cluster_id === selectedClusterId) ??
+    slice.clusters?.[0] ??
+    null;
+  if (!selectedCluster) return nodes;
+
+  const members = selectedCluster.members ?? [];
+  const memberSet = new Set(members);
+  const sharedTail = selectedCluster.shared_tail;
+  const layout = stepLayoutFor(activeStep);
+  const { members: memberX, shared: tailX, candidates: candidateX, context: contextX } = layout.columnX;
+
+  const selectedClusterCandidateIds = new Set(
+    edges
+      .filter((edge) => edge.provenance?.cluster_id === selectedCluster.cluster_id || edge.candidate_id)
+      .map((edge) => edge.candidate_id)
+      .filter(Boolean) as string[],
+  );
+  const candidateTails = new Set(
+    edges
+      .filter((edge) => edge.candidate_id && selectedClusterCandidateIds.has(edge.candidate_id))
+      .map((edge) => edge.target),
+  );
+
+  const candidateColumnX =
+    activeStep === "candidates" ||
+    activeStep === "filtering" ||
+    activeStep === "llm" ||
+    activeStep === "feedback"
+      ? candidateX
+      : tailX;
+
+  const contextNodes = nodes.filter(
+    (node) => !memberSet.has(node.id) && node.id !== sharedTail && !candidateTails.has(node.id),
+  );
+  let candidateTailList = Array.from(candidateTails).filter((id) => id !== sharedTail);
+
+  if (activeStep === "filtering") {
+    const keptTails = new Set(
+      edges
+        .filter(
+          (edge) =>
+            edge.distance != null &&
+            edge.threshold != null &&
+            edge.threshold > 0 &&
+            edge.distance <= edge.threshold,
+        )
+        .map((edge) => edge.target),
+    );
+    candidateTailList.sort((a, b) => {
+      const aKept = keptTails.has(a) ? 0 : 1;
+      const bKept = keptTails.has(b) ? 0 : 1;
+      return aKept - bKept;
+    });
+  } else if (activeStep === "llm") {
+    candidateTailList.sort((a, b) => {
+      const edgeA = edges.find((edge) => edge.target === a && edge.candidate_id);
+      const edgeB = edges.find((edge) => edge.target === b && edge.candidate_id);
+      const rank = (status?: string) => {
+        if (status === "llm_accepted") return 0;
+        if (status === "unresolved") return 1;
+        if (status === "llm_rejected") return 2;
+        return 3;
+      };
+      return rank(edgeA?.status) - rank(edgeB?.status);
+    });
+  }
+
+  const positionedNodes = nodes.map((node, index) => {
+    if (memberSet.has(node.id)) {
+      const memberIndex = members.indexOf(node.id);
+      return { ...node, position: { x: memberX, y: spreadY(memberIndex, members.length) } };
+    }
+    if (node.id === sharedTail) {
+      return { ...node, position: { x: tailX, y: 300 } };
+    }
+    if (candidateTails.has(node.id)) {
+      const tailIndex = candidateTailList.indexOf(node.id);
+      return {
+        ...node,
+        position: {
+          x: candidateColumnX,
+          y: spreadY(Math.max(0, tailIndex), Math.max(1, candidateTailList.length), 300, 86),
+        },
+      };
+    }
+    const contextIndex = contextNodes.findIndex((item) => item.id === node.id);
+    if (contextIndex >= 0) {
+      return { ...node, position: { x: contextX, y: spreadY(contextIndex, Math.max(1, contextNodes.length), 300, 86) } };
+    }
+    return { ...node, position: fallbackGridPosition(index) };
+  });
+
+  const clusterNodeId = `cluster-box-${selectedCluster.cluster_id}`;
+  if (layout.showClusterBox && !positionedNodes.some((node) => node.id === clusterNodeId)) {
+    const memberYs = members.map((_, idx) => spreadY(idx, members.length));
+    const topY = Math.min(...memberYs) - 48;
+    const bottomY = Math.max(...memberYs) + 48;
+    positionedNodes.push({
+      id: clusterNodeId,
+      label: `(${selectedCluster.shared_relation}, ${selectedCluster.shared_tail})`,
+      kind: "cluster",
+      stage: STEP_TO_NODE_STAGE[activeStep] ?? "original",
+      degree: members.length,
+      is_isolated: false,
+      highlighted: true,
+      role: "cluster_boundary",
+      cluster_id: selectedCluster.cluster_id,
+      description: `${members.length} heads share this relation-tail pattern`,
+      node_count: members.length,
+      position: {
+        x: memberX - 28,
+        y: topY,
+      },
+      boundary_height: bottomY - topY,
+    });
+  }
+
+  return positionedNodes;
+}
+
 export function sessionSliceToGraphPayload({
   slice,
   activeStep,
@@ -122,6 +268,8 @@ export function sessionSliceToGraphPayload({
       degree,
       is_isolated: degree === 0,
       highlighted: highlightedNodeIds.has(node.id),
+      role: node.role ?? null,
+      cluster_id: node.cluster_id ?? selectedClusterId ?? null,
       description: node.source ? `Source: ${node.source}` : null,
     };
   });
@@ -151,7 +299,7 @@ export function sessionSliceToGraphPayload({
       threshold: edge.threshold ?? null,
       llm_decision: edge.status ?? null,
       provenance: {
-        cluster_id: candidate?.clusterIds?.[0],
+        cluster_id: edge.cluster_id ?? candidate?.clusterIds?.[0],
         generated_candidate: edge.candidate_id
           ? {
               Head: edge.source,
@@ -166,19 +314,33 @@ export function sessionSliceToGraphPayload({
     };
   });
 
+  const positionedNodes = assignOmniaPositions({
+      nodes,
+      edges,
+      slice,
+      activeStep,
+      selectedClusterId,
+    });
+
   return {
-    nodes,
+    nodes: positionedNodes,
     edges,
     view: viewFromMode(slice.mode),
     aggregated: false,
     truncated:
       Boolean(slice.stats?.nodes && slice.stats.nodes > nodes.length) ||
       Boolean(slice.stats?.edges && slice.stats.edges > edges.length),
-    displayed_nodes: nodes.length,
-    total_nodes: Math.max(slice.stats?.nodes ?? 0, nodes.length),
+    displayed_nodes: positionedNodes.length,
+    total_nodes: Math.max(slice.stats?.nodes ?? 0, positionedNodes.length),
     displayed_triples: edges.length,
     total_triples: Math.max(slice.stats?.triples ?? 0, edges.length),
     warnings: slice.warnings ?? [],
+    layoutMode:
+      stepLayoutFor(activeStep).useDagreLayout || slice.mode === "overview" ? "dagre" : "omnia",
+    stepCaption: stepLayoutFor(activeStep).caption,
+    selectedCluster: slice.selected_cluster ?? null,
+    selectedCandidateId: selectedCandidateId,
+    explanation: slice.explanation,
   };
 }
 

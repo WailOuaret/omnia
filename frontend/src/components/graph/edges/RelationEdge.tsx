@@ -7,6 +7,7 @@ import {
 import type { CSSProperties } from "react";
 import type { GraphEdge } from "../../../types";
 import { STATUS_TOKENS } from "../../../graph/styles/graphStatusTokens";
+import { truncateRelationLabel } from "../../../lib/kgLabels";
 
 interface EdgeData extends Record<string, unknown> {
   edge: GraphEdge;
@@ -22,9 +23,8 @@ interface EdgeTone {
   glow?: string;
 }
 
-function compactLabel(label: string, max = 42) {
-  if (label.length <= max) return label;
-  return `${label.slice(0, max - 1)}…`;
+function compactLabel(label: string, max = 22) {
+  return truncateRelationLabel(label, max);
 }
 
 export function renderGraphEdge(props: EdgeProps, tone: EdgeTone) {
@@ -52,7 +52,7 @@ export function renderGraphEdge(props: EdgeProps, tone: EdgeTone) {
       {data?.showLabel ? (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan max-w-[18rem] truncate rounded-full border border-cyan/40 bg-surface/95 px-2.5 py-1 text-[10px] font-semibold text-ink shadow-sm"
+            className="nodrag nopan max-w-[14rem] truncate rounded-md border border-slate-600/80 bg-[#1e2433]/90 px-2 py-0.5 text-[10px] font-semibold text-slate-100 shadow-sm"
             style={{
               position: "absolute",
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,

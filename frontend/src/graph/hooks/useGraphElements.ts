@@ -53,6 +53,10 @@ function markerColor(status: GraphEdgeStatus) {
 }
 
 export function getNodeDimensions(node: GraphNodeModel) {
+  if (node.kind === "cluster" && node.role === "cluster_boundary") {
+    const count = node.node_count ?? node.degree ?? 4;
+    return { width: 180, height: Math.max(160, count * 96 + 80) };
+  }
   if (node.kind === "component") return { width: SUMMARY_WIDTH, height: SUMMARY_HEIGHT };
   if (node.kind === "cluster") return { width: SUMMARY_WIDTH, height: 164 };
   if (node.kind === "candidate") return { width: CANDIDATE_WIDTH, height: CANDIDATE_HEIGHT };
@@ -183,12 +187,13 @@ export function useGraphElements({
           evidenceActive: evidenceNodeIds.has(node.id),
         } satisfies CanvasNodeData,
         selected: selectedNodeId === node.id,
-        position: { x: 0, y: 0 },
+        position: node.position ?? { x: 0, y: 0 },
         style: { width: dims.width, minHeight: dims.height },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
-        draggable: false,
-        selectable: true,
+        draggable: node.role !== "cluster_boundary",
+        selectable: node.role !== "cluster_boundary",
+        zIndex: node.role === "cluster_boundary" ? 0 : 2,
       } satisfies Node<CanvasNodeData>;
     });
   }, [graph.nodes, detailLevel, showLabels, evidenceNodeIds, selectedNodeId]);

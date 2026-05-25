@@ -30,19 +30,70 @@ pip install -r backend/requirements.txt
 python -m uvicorn backend.app.main:app --reload --port 8000
 ```
 
-### Real dataset setup (CoDEx / FB15K-237 / WN18RR / COVID-Fact)
+### Real OMNIA dataset setup
+
+One-command audit, clone, pull, and verification:
+
+```shell
+python scripts/setup_omnia_datasets.py
+```
+
+Audit only (no git changes):
+
+```shell
+python scripts/audit_omnia_datasets.py
+```
+
+Reports: `outputs/audits/dataset_audit_report.md`, `outputs/audits/dataset_setup_report.md`.
+
+Full reference: [`docs/datasets.md`](docs/datasets.md).
+
+**Expected layout after setup:**
+
+```
+data/
+  codex/data/triples/codex-m/          # CoDEx-M train/valid/test
+  datasets_knowledge_embedding/
+    FB15k-237/
+    WN18RR/
+  covidfact/COVIDFACT_dataset.jsonl      # source JSONL (not KG triples)
+```
+
+**Official sources:**
+
+| Dataset | Clone |
+| --- | --- |
+| CoDEx | `git clone https://github.com/tsafavi/codex.git data/codex` |
+| FB15K-237 / WN18RR | `git clone https://github.com/villmow/datasets_knowledge_embedding.git data/datasets_knowledge_embedding` |
+| COVID-Fact | `git clone https://github.com/asaakyan/covidfact.git data/covidfact` |
+
+Verify backend discovery:
+
+```shell
+curl http://127.0.0.1:8000/api/samples
+```
+
+Create real benchmark sessions:
+
+```shell
+curl -X POST "http://127.0.0.1:8000/api/sessions/sample/omnia_codex_m?holdout_mode=true&sample_proportion=0.8"
+curl -X POST "http://127.0.0.1:8000/api/sessions/sample/omnia_fb15k-237?holdout_mode=true&sample_proportion=0.8"
+curl -X POST "http://127.0.0.1:8000/api/sessions/sample/omnia_wn18rr?holdout_mode=true&sample_proportion=0.8"
+```
+
+Open `http://localhost:5173/paper-demo?sessionId=<id>` — badge must read **Graph source: backend session slice**.
+
+**Dataset limitations:**
+
+- **Socio-Economic** — private LLM-generated KG; static/demo-only (no download).
+- **COVID-Fact** — `COVIDFACT_dataset.jsonl` is claim/evidence JSONL (**4,086 rows verified**); backend reports `source_available: true`, `kg_loader_available: false`, `available: false`, `status_message: "Source JSONL available; KG converter pending."` Use the static COVID guided demo in `/paper-demo`.
+- **UI counts** — the demo displays OMNIA paper statistics (e.g. CoDEx-M = 60,000 triples), not necessarily full public repository totals.
+- **Bounded slices** — the UI never renders entire 60k+ triple graphs.
+
+Legacy helper (pull only):
 
 ```shell
 python scripts/setup_real_datasets.py
-```
-
-Alternative manual commands:
-
-```shell
-mkdir data
-git clone https://github.com/tsafavi/codex.git data/codex
-git clone https://github.com/villmow/datasets_knowledge_embedding.git data/datasets_knowledge_embedding
-git clone https://github.com/asaakyan/covidfact.git data/covidfact
 ```
 
 ## Backend sessions (prototype limitation)
@@ -151,3 +202,15 @@ Captures screenshots at 1366×768 and 1920×1080 into `docs/screenshots/` and wr
 ## CIKM Demo Video
 
 [Video placeholder — will be added after recording]
+
+## Vercel deployment (frontend-only)
+
+This repo is configured for a **frontend-only** Vercel deployment:
+
+- **Build command:** `cd frontend && npm run build` (see root `vercel.json`)
+- **Output directory:** `frontend/dist`
+- **Entry route:** `/` redirects to `/paper-demo`
+
+The hosted demo runs in **prepared/static scenario mode** when no backend is reachable. CoDEx-M, FB15K-237, and WN18RR require a local or deployed FastAPI backend (`python -m uvicorn backend.app.main:app --port 8000`) plus `VITE_API_BASE_URL` at build time for live sessions.
+
+COVID-Fact and Socio-Economic always use static guided scenarios on Vercel. See [`outputs/reports/FINAL_DEMO_READINESS_REPORT.md`](outputs/reports/FINAL_DEMO_READINESS_REPORT.md) for teacher review notes.

@@ -2,6 +2,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import clsx from "clsx";
 import { Network } from "lucide-react";
 import type { GraphNode } from "../../../types";
+import { formatKgLabelParts } from "../../../lib/kgLabels";
 
 type DetailLevel = "far" | "medium" | "close";
 
@@ -15,6 +16,32 @@ export function ClusterNode(props: NodeProps) {
   const data = props.data as ClusterNodeData;
   const node = data.node;
   const selected = props.selected || node.highlighted;
+  const isBoundary = node.role === "cluster_boundary";
+  const parts = formatKgLabelParts(node.label, node.label, "relation");
+
+  if (isBoundary) {
+    const memberCount = node.node_count ?? node.degree ?? 1;
+    const height = Math.max(160, memberCount * 96 + 80);
+    return (
+      <div
+        className={clsx(
+          "pointer-events-none rounded-2xl border-2 border-dashed border-violet/50 bg-violet/5",
+          selected && "border-violet bg-violet/10",
+        )}
+        style={{ width: 180, minHeight: height }}
+      >
+        <div className="border-b border-violet/20 px-3 py-2">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet">Cluster boundary</div>
+          <div className="mt-1 line-clamp-2 text-sm font-semibold text-ink" title={node.label}>
+            {parts.primary}
+          </div>
+        </div>
+        {node.description ? (
+          <p className="px-3 py-2 text-xs leading-5 text-muted">{node.description}</p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -33,7 +60,9 @@ export function ClusterNode(props: NodeProps) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">Relation-tail cluster</div>
-          <div className="mt-1 truncate text-base font-semibold text-ink">{node.label}</div>
+          <div className="mt-1 truncate text-base font-semibold text-ink" title={node.label}>
+            {parts.primary}
+          </div>
           {node.description && data.detailLevel !== "far" ? (
             <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted">{node.description}</p>
           ) : null}

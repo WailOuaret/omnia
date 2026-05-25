@@ -23,7 +23,7 @@ import pandas as pd
 from ..models import DemoSession
 
 
-DEFAULT_NODE_LIMIT = 80
+DEFAULT_NODE_LIMIT = 100
 DEFAULT_EDGE_LIMIT = 150
 
 
@@ -268,7 +268,7 @@ def list_candidates(
         elif llm_decision_raw == "unresolved":
             llm_decision = "uncertain"
         else:
-            llm_decision = "unknown"
+            llm_decision = ""
         feedback_status_raw = feedback_by_cid.get(str(row.get("candidate_id") or ""))
         feedback_status = feedback_status_raw or "none"
 
@@ -287,7 +287,7 @@ def list_candidates(
                     if fallback_threshold is not None
                     else None
                 ),
-                "filter_status": filter_status or "unknown",
+                "filter_status": filter_status,
                 "llm_decision": llm_decision,
                 "llm_score": float(row["parsed_score"]) if "parsed_score" in row and pd.notna(row.get("parsed_score")) else None,
                 "llm_rationale": str(row.get("rationale") or row.get("llm_reason") or ""),
@@ -320,13 +320,41 @@ def build_graph_slice(
     entity: str | None = None,
     relation: str | None = None,
     cluster_id: str | None = None,
+    candidate_id: str | None = None,
     candidate_status: str | None = None,
     feedback_bucket: str | None = None,
     depth: int = 1,
     limit_nodes: int = DEFAULT_NODE_LIMIT,
     limit_edges: int = DEFAULT_EDGE_LIMIT,
+    expand_context: bool = False,
 ) -> dict[str, Any]:
     """Construct a bounded slice from real backend session artifacts."""
+
+    if mode == "overview":
+        from .omnia_demo_slice import build_overview_slice
+
+        return build_overview_slice(
+            session,
+            str(session.artifacts.get("sample_id") or session.diagnostics.get("sample_id") or session.dataset_name),
+            limit_nodes=limit_nodes,
+            limit_edges=limit_edges,
+        )
+
+    if mode in {"guided", "omnia_demo", "cluster", "candidate", "feedback"}:
+        from .omnia_demo_slice import build_omnia_demo_slice
+
+        return build_omnia_demo_slice(
+            session,
+            str(session.artifacts.get("sample_id") or session.diagnostics.get("sample_id") or session.dataset_name),
+            limit_nodes=limit_nodes,
+            limit_edges=limit_edges,
+            mode=mode,
+            cluster_id=cluster_id,
+            candidate_id=candidate_id,
+            candidate_status=candidate_status,
+            feedback_bucket=feedback_bucket,
+            expand_context=expand_context,
+        )
 
     if session.known_df is None or session.known_df.empty:
         return {

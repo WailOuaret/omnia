@@ -71,6 +71,7 @@ interface KGGraphProps {
   description?: string;
   fitViewKey?: string | number;
   compactChrome?: boolean;
+  canvasHeight?: string;
 }
 
 function KGGraphImpl({
@@ -79,6 +80,7 @@ function KGGraphImpl({
   description = "The canvas stays structural: details move into side panels while focus and disclosure depend on zoom and selection.",
   fitViewKey,
   compactChrome = false,
+  canvasHeight,
 }: KGGraphProps) {
   /* ── Local UI state ─── */
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -111,7 +113,17 @@ function KGGraphImpl({
   const hasOnlyEntities = graph.nodes.every(
     (n) => n.kind === "entity" || n.kind === "candidate",
   );
-  const layoutNodes = useGraphLayout(rfNodes, rfEdges, graph.aggregated, hasOnlyEntities);
+  const hasOmniaPositions =
+    graph.layoutMode === "omnia" &&
+    graph.nodes.length > 0 &&
+    graph.nodes.every((n) => n.position != null);
+  const layoutNodes = useGraphLayout(
+    rfNodes,
+    rfEdges,
+    graph.aggregated,
+    hasOnlyEntities,
+    hasOmniaPositions,
+  );
 
   /* ── Fullscreen handlers ─── */
   const toggleFullscreen = useCallback(() => {
@@ -204,7 +216,7 @@ function KGGraphImpl({
           isFullscreen
             ? "h-[calc(100vh-4rem)]"
             : compactChrome
-              ? "h-[clamp(17rem,48vh,32rem)]"
+              ? canvasHeight ?? "h-[clamp(22rem,58vh,44rem)]"
               : "h-[clamp(26rem,62vh,46rem)]"
         } ${isLargeGraph ? "omnia-large-graph" : ""}`}
       >

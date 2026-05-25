@@ -63,6 +63,7 @@ export interface DemoCandidate {
   llmRationale?: string;
   retrievedContext?: string[];
   clusterIds?: string[];
+  whyGenerated?: string;
 }
 
 export interface DemoFilteringStats {

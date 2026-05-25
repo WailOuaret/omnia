@@ -31,7 +31,7 @@ COLUMN_ALIASES = {
     "Tail": {"tail", "object", "target", "dst", "entity2", "node2"},
 }
 
-REAL_DATASET_SETUP_HINT = "Run python scripts/setup_real_datasets.py"
+REAL_DATASET_SETUP_HINT = "Run python scripts/setup_omnia_datasets.py"
 
 # Keep OMNIA paper metadata counts in the demo cards even when we load true triples
 # from local cloned repositories.
@@ -270,10 +270,35 @@ def _real_dataset_manifest() -> list[dict[str, Any]]:
             "label": "COVID-Fact",
             "repo": "covidfact",
             "path": covidfact_path,
-            "description": "COVID-Fact repository clone (format may vary; availability is best-effort).",
+            "description": (
+                "COVID-Fact claim/evidence JSONL from github.com/asaakyan/covidfact. "
+                "Source file COVIDFACT_dataset.jsonl; KG session requires a converter."
+            ),
             "paper_counts": OMNIA_PAPER_COUNTS["omnia_covid_fact"],
         },
     ]
+
+
+def _covidfact_jsonl_path() -> Path:
+    return COVIDFACT_REPO_ROOT / "COVIDFACT_dataset.jsonl"
+
+
+def _covidfact_source_available() -> bool:
+    path = _covidfact_jsonl_path()
+    if not path.exists():
+        return False
+    try:
+        return path.stat().st_size > 0
+    except OSError:
+        return False
+
+
+def _covidfact_jsonl_row_count() -> int:
+    path = _covidfact_jsonl_path()
+    if not path.exists():
+        return 0
+    with path.open("rb") as handle:
+        return sum(1 for _ in handle)
 
 
 def _resolve_dataset_entry(sample_id: str) -> dict[str, Any]:
@@ -287,8 +312,12 @@ def _resolve_dataset_entry(sample_id: str) -> dict[str, Any]:
 def _load_real_dataset_dataframe(entry: dict[str, Any]) -> tuple[pd.DataFrame, dict[str, int]]:
     dataset_path = Path(entry["path"])
     if entry["id"] == "omnia_covid_fact":
-        # COVID-Fact format is not guaranteed; treat this as best-effort and do
-        # not fail setup discovery when no loadable triples are found.
+        jsonl = _covidfact_jsonl_path()
+        if jsonl.exists():
+            raise FileNotFoundError(
+                f"COVID-Fact source file found at {jsonl} ({_covidfact_jsonl_row_count():,} claim rows), "
+                "but no KG triple converter is implemented yet. Use static COVID-Fact demo or implement converter."
+            )
         candidates = [
             dataset_path / "triples.tsv",
             dataset_path / "triples.txt",
@@ -301,7 +330,7 @@ def _load_real_dataset_dataframe(entry: dict[str, Any]) -> tuple[pd.DataFrame, d
                 canonical, _ = canonicalize_dataframe(df, mapping={"Head": "Head", "Relation": "Relation", "Tail": "Tail"})
                 return canonical, {"train": len(canonical), "dev": 0, "test": 0}
         raise FileNotFoundError(
-            f"Could not find a directly loadable COVID-Fact triple file under {dataset_path}."
+            f"Could not find COVIDFACT_dataset.jsonl or a loadable triple file under {dataset_path}."
         )
 
     # CoDEx / FB15K-237 / WN18RR: split-based KGE triples.
@@ -358,15 +387,39 @@ def list_samples() -> list[dict[str, Any]]:
         available = False
         split_sizes: dict[str, int] = {}
         load_error: str | None = None
+        source_available = False
+        kg_loader_available = False
+        status_message: str | None = None
         if dataset_path.exists():
             try:
                 if entry["id"] == "omnia_covid_fact":
-                    # Best-effort probe only.
-                    _load_real_dataset_dataframe(entry)
-                    available = True
+                    source_available = _covidfact_source_available()
+                    kg_loader_available = False
+                    if source_available:
+                        split_sizes = {"jsonl_claims": _covidfact_jsonl_row_count()}
+                    # Session creation still unavailable until KG converter exists.
+                    available = False
+                    status_message = (
+                        "Source JSONL available; KG converter pending."
+                        if source_available
+                        else "COVIDFACT_dataset.jsonl not found; run setup_omnia_datasets.py."
+                    )
+                    if not source_available:
+                        load_error = (
+                            f"COVIDFACT_dataset.jsonl not found under {COVIDFACT_REPO_ROOT}. "
+                            f"Run: python scripts/setup_omnia_datasets.py"
+                        )
+                    else:
+                        load_error = (
+                            "COVID-Fact JSONL source is present but KG loader/converter is not implemented. "
+                            "Use static /paper-demo COVID-Fact guided demo."
+                        )
                 else:
+                    status_message = None
                     _, split_sizes = _load_real_dataset_dataframe(entry)
                     available = True
+                    source_available = True
+                    kg_loader_available = True
             except Exception as exc:  # noqa: BLE001
                 load_error = str(exc)
                 available = False
@@ -375,21 +428,25 @@ def list_samples() -> list[dict[str, Any]]:
             "name": entry["label"],
             "label": entry["label"],
             "source": "real_dataset",
-            "path": str(dataset_path),
+            "path": str(dataset_path if entry["id"] != "omnia_covid_fact" else _covidfact_jsonl_path()),
             "available": available,
+            "source_available": source_available,
+            "kg_loader_available": kg_loader_available,
             "entities": int(entry["paper_counts"]["entities"]),
             "relations": int(entry["paper_counts"]["relations"]),
             "triples": int(entry["paper_counts"]["triples"]),
             "description": entry["description"],
-            "setup_hint": None if available else REAL_DATASET_SETUP_HINT,
+            "setup_hint": None if available or source_available else REAL_DATASET_SETUP_HINT,
             "load_error": load_error,
+            "status_message": status_message,
             "recommended_sampling_limit": DEFAULT_BENCHMARK_SAMPLING_LIMIT if available else None,
             "stats": {
                 "rows": int(sum(split_sizes.values()) if split_sizes else 0),
-                "columns": 3,
+                "columns": 3 if entry["id"] != "omnia_covid_fact" else 1,
                 "train_rows": int(split_sizes.get("train", 0)),
                 "dev_rows": int(split_sizes.get("dev", 0)),
                 "test_rows": int(split_sizes.get("test", 0)),
+                "jsonl_claim_rows": int(split_sizes.get("jsonl_claims", 0)),
             },
         }
         samples.append(sample)

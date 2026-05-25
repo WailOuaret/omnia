@@ -2,20 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DatasetNavigatorPanel } from "../components/paper-demo/DatasetNavigatorPanel";
 import { DatasetSelectorPanel } from "../components/paper-demo/DatasetSelectorPanel";
 import { GraphSliceSummaryCard } from "../components/paper-demo/GraphSliceSummaryCard";
-import { NodeDetailPanel } from "../components/paper-demo/NodeDetailPanel";
 import {
   PAPER_DEMO_STEP_ORDER,
   PaperDemoHeader,
   type PaperDemoStepId,
 } from "../components/paper-demo/PaperDemoHeader";
 import type { GraphSelection } from "../components/paper-demo/LiveGraphPanel";
-import { PaperDemoStepView } from "../components/paper-demo/PaperDemoStepView";
-import { StepStatsPanel } from "../components/paper-demo/StepStatsPanel";
+import { PaperDemoInspectorPanel } from "../components/paper-demo/PaperDemoInspectorPanel";
+import { PaperDemoStepView, PaperDemoStepExplanation } from "../components/paper-demo/PaperDemoStepView";
 import { WorkflowStepMenu } from "../components/paper-demo/WorkflowStepMenu";
 import { DATASET_LIST, DATASETS } from "../demo-data/datasets";
-import type { DemoCandidate, DemoDatasetId } from "../demo-data/types";
+import type { DemoCandidate, DemoCluster, DemoDatasetId } from "../demo-data/types";
 import { useFeedbackBridge } from "../hooks/useFeedbackBridge";
-import { usePaperDemoSession } from "../hooks/usePaperDemoSession";
+import { isBackendLoadable, usePaperDemoSession } from "../hooks/usePaperDemoSession";
 import { api, exportCompletedTsvUrl, exportFeedbackJsonUrl } from "../lib/api";
 import {
   GUIDED_SLICE,
@@ -23,8 +22,8 @@ import {
   type DatasetSlice,
   type SliceResult,
 } from "../lib/datasetSlice";
-import { sampleIdToDemoDatasetId, demoDatasetIdToSampleId, sessionToDemoDataset } from "../lib/sessionToDemoDataset";
-import { sessionSliceToGraphPayload } from "../lib/sessionSliceToGraphPayload";
+import { buildLiveOmniaViewModel } from "../lib/buildLiveOmniaViewModel";
+import { sampleIdToDemoDatasetId } from "../lib/sessionToDemoDataset";
 import {
   exportCompletedKGTSV,
   exportFeedbackJSON,
@@ -46,24 +45,24 @@ function downloadFile(content: string, fileName: string, contentType: string) {
   URL.revokeObjectURL(url);
 }
 
-function explanationForStep(step: PaperDemoStepId): string {
-  if (step === "kg")
-    return "OMNIA starts from an incomplete knowledge graph. The goal is to find plausible missing triples using only the internal structure of the graph.";
-  if (step === "clustering")
-    return "OMNIA groups head entities that share the same relation-tail pattern. Entities in similar relational contexts may share additional relations.";
-  if (step === "candidates")
-    return "Candidate generation proposes possible missing triples by combining head entities from the same cluster with relation-tail pairs observed in that cluster. Some candidates will be valid; others will be filtered out.";
-  if (step === "filtering")
-    return "TransE embedding filtering reduces the candidate set before calling the LLM. Candidates with a structural distance above the threshold are discarded, improving efficiency.";
-  if (step === "llm")
-    return "The LLM acts as a semantic judge, not a generator. It validates only the candidates that passed structural filtering. RAG provides retrieved context triples to improve accuracy.";
-  if (step === "feedback")
-    return "The user reviews candidates that passed both filtering and LLM validation. Accept, reject, correct, or mark as uncertain. All decisions are stored and immediately reflected in the completed KG.";
-  return "The completed KG shows the original triples plus all accepted and corrected additions. Rejected triples are excluded. Uncertain triples go to a review queue.";
+function readInitialDatasetId(): DemoDatasetId {
+  if (typeof window === "undefined") return "codexM";
+  const params = new URLSearchParams(window.location.search);
+  const dataset = params.get("dataset");
+  if (
+    dataset === "codexM" ||
+    dataset === "fb15k237" ||
+    dataset === "wn18rr" ||
+    dataset === "covidFact" ||
+    dataset === "socioEconomic"
+  ) {
+    return dataset;
+  }
+  return "codexM";
 }
 
 export function PaperDemoPage() {
-  const [selectedDatasetId, setSelectedDatasetId] = useState<DemoDatasetId | null>(null);
+  const [selectedDatasetId, setSelectedDatasetId] = useState<DemoDatasetId | null>(readInitialDatasetId);
   const [activeStep, setActiveStep] = useState<PaperDemoStepId>("kg");
   const [demoStarted, setDemoStarted] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
@@ -71,9 +70,9 @@ export function PaperDemoPage() {
   const [graphSelection, setGraphSelection] = useState<GraphSelection>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [activeSlice, setActiveSlice] = useState<DatasetSlice>(GUIDED_SLICE);
-  const [useStaticFallbackInLive, setUseStaticFallbackInLive] = useState(false);
-  const feedbackBridge = useFeedbackBridge(selectedDatasetId);
-  const liveSession = usePaperDemoSession();
+  const [expandContextPending, setExpandContextPending] = useState(false);
+  const liveSession = usePaperDemoSession(selectedDatasetId);
+  const feedbackBridge = useFeedbackBridge(selectedDatasetId, liveSession.sessionId);
   const syncedLiveSliceRef = useRef(false);
 
   // In live mode, bind the feedback/localStorage key to the backend session's sample.
@@ -89,7 +88,7 @@ export function PaperDemoPage() {
   useEffect(() => {
     if (liveSession.mode !== "live" || syncedLiveSliceRef.current) return;
     const backendSlice = liveSession.selectedSlice;
-    if (!backendSlice || backendSlice.mode === "guided") return;
+    if (!backendSlice || backendSlice.mode === "guided" || backendSlice.mode === "overview") return;
     syncedLiveSliceRef.current = true;
     setActiveSlice({
       mode: backendSlice.mode,
@@ -101,44 +100,13 @@ export function PaperDemoPage() {
     });
   }, [liveSession.mode, liveSession.selectedSlice]);
 
-  // ── Auto-start the demo when a backend session is bound via URL ───────────
+  // ── Auto-start when backend session is ready (CoDEx-M default live path) ───
   useEffect(() => {
-    if (liveSession.mode !== "live") return;
+    if (liveSession.mode !== "live" || liveSession.bindStatus !== "ready") return;
     if (!demoStarted) setDemoStarted(true);
-  }, [liveSession.mode, demoStarted]);
+    if (!selectedDatasetId) setSelectedDatasetId("codexM");
+  }, [liveSession.mode, liveSession.bindStatus, demoStarted, selectedDatasetId]);
 
-  // In LIVE mode (sessionId in URL) the dataset is built from real backend
-  // artifacts. In STATIC mode we keep the existing hand-curated demo configs.
-  const liveDataset = useMemo(() => {
-    if (liveSession.mode !== "live") return null;
-    return sessionToDemoDataset({
-      meta: liveSession.meta,
-      slice: liveSession.graphSlice,
-      clusters: liveSession.clusters,
-      candidates: liveSession.candidates,
-    });
-  }, [liveSession.mode, liveSession.meta, liveSession.graphSlice, liveSession.clusters, liveSession.candidates]);
-
-  const staticDataset = selectedDatasetId ? DATASETS[selectedDatasetId] : null;
-  const liveDataAvailable = Boolean(liveSession.graphSlice?.data_available);
-  const shouldUseLiveDataset =
-    liveSession.mode === "live" && liveDataAvailable && !useStaticFallbackInLive;
-  const baseDataset = shouldUseLiveDataset ? liveDataset : staticDataset;
-  const isLiveMode = liveSession.mode === "live";
-  const liveSessionId = liveSession.sessionId;
-  const sessionDatasetId = useMemo(
-    () => sampleIdToDemoDatasetId(liveSession.meta?.sample_id),
-    [liveSession.meta?.sample_id],
-  );
-  const isStaticFallbackInLive = isLiveMode && !shouldUseLiveDataset;
-
-  useEffect(() => {
-    if (isLiveMode && isStaticFallbackInLive) {
-      console.warn("Live mode is using static fallback data");
-    }
-  }, [isLiveMode, isStaticFallbackInLive]);
-
-  // Plain unsliced feedback list, used for slice-bucket computation below.
   const allFeedbackEvents = useMemo<UserFeedback[]>(() => {
     if (!selectedDatasetId) return [];
     if (feedbackBridge.mode === "live" && feedbackBridge.hydratedFeedback) {
@@ -147,59 +115,81 @@ export function PaperDemoPage() {
     return getFeedbackForDataset(selectedDatasetId);
   }, [selectedDatasetId, refreshToken, feedbackBridge.mode, feedbackBridge.hydratedFeedback]);
 
-  // Derived sliced dataset. In live mode the backend already returns the bounded
-  // slice — do not re-apply client-side slicing on top of it.
+  const feedbackDecisions = useMemo<Record<string, "accept" | "reject" | "uncertain" | "correct">>(() => {
+    const map: Record<string, "accept" | "reject" | "uncertain" | "correct"> = {};
+    const sorted = [...allFeedbackEvents].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    for (const event of sorted) {
+      map[event.candidateId] = event.userDecision;
+    }
+    return map;
+  }, [allFeedbackEvents]);
+
+  const liveViewModel = useMemo(() => {
+    if (liveSession.mode !== "live" || !liveSession.graphSlice?.data_available || !liveSession.sessionId) {
+      return null;
+    }
+    return buildLiveOmniaViewModel({
+      sessionId: liveSession.sessionId,
+      meta: liveSession.meta,
+      graphSlice: liveSession.graphSlice,
+      clusters: liveSession.clusters,
+      candidates: liveSession.candidates,
+      activeStep,
+      selectedClusterId: selectedClusterId || null,
+      selectedCandidateId: selectedCandidateId || null,
+      feedbackDecisions,
+    });
+  }, [
+    liveSession.mode,
+    liveSession.sessionId,
+    liveSession.meta,
+    liveSession.graphSlice,
+    liveSession.clusters,
+    liveSession.candidates,
+    activeStep,
+    selectedClusterId,
+    selectedCandidateId,
+    feedbackDecisions,
+  ]);
+
+  const staticDataset = selectedDatasetId ? DATASETS[selectedDatasetId] : null;
+  const isLiveMode = liveSession.mode === "live";
+  const isLiveModeActive = Boolean(liveViewModel);
+  const liveSessionId = liveSession.sessionId;
+  const sessionDatasetId = useMemo(
+    () => sampleIdToDemoDatasetId(liveSession.meta?.sample_id),
+    [liveSession.meta?.sample_id],
+  );
+
   const sliced = useMemo(() => {
-    if (!baseDataset) return null;
-    if (shouldUseLiveDataset && liveSession.graphSlice) {
-      const gs = liveSession.graphSlice;
+    if (liveViewModel) {
+      const gs = liveSession.graphSlice!;
       const result: SliceResult = {
         mode: activeSlice.mode,
         label: gs.label || "Backend session slice",
         isGuided: activeSlice.mode === "guided",
-        nodes: baseDataset.graph.nodes,
-        edges: baseDataset.graph.edges,
-        clusters: baseDataset.clusters,
-        clusterBoxes: baseDataset.graph.clusterBoxes ?? [],
-        candidates: baseDataset.candidates,
+        nodes: [],
+        edges: [],
+        clusters: liveViewModel.clusters,
+        clusterBoxes: [],
+        candidates: liveViewModel.candidates,
         stats: {
-          nodes: gs.stats?.nodes ?? baseDataset.graph.nodes.length,
-          edges: gs.stats?.edges ?? baseDataset.graph.edges.length,
-          clusters: gs.stats?.clusters ?? baseDataset.clusters.length,
-          candidates: gs.stats?.candidates ?? baseDataset.candidates.length,
+          nodes: gs.stats?.nodes ?? liveViewModel.graph.displayed_nodes,
+          edges: gs.stats?.edges ?? liveViewModel.graph.displayed_triples,
+          clusters: gs.stats?.clusters ?? liveViewModel.clusters.length,
+          candidates: gs.stats?.candidates ?? liveViewModel.candidates.length,
         },
       };
-      return { dataset: baseDataset, result };
+      return { dataset: liveViewModel.metadata, result };
     }
-    return withSlicedGraph(baseDataset, activeSlice, allFeedbackEvents);
-  }, [
-    baseDataset,
-    activeSlice,
-    allFeedbackEvents,
-    shouldUseLiveDataset,
-    liveSession.graphSlice,
-  ]);
+    if (!staticDataset) return null;
+    return withSlicedGraph(staticDataset, activeSlice, allFeedbackEvents);
+  }, [liveViewModel, staticDataset, activeSlice, allFeedbackEvents, liveSession.graphSlice]);
+
   const selectedDataset = sliced?.dataset ?? null;
   const sliceResult = sliced?.result ?? null;
 
-  useEffect(() => {
-    if (!selectedDataset) {
-      setSelectedClusterId("");
-      setGraphSelection(null);
-      return;
-    }
-    if (!selectedClusterId || !selectedDataset.clusters.some((cluster) => cluster.id === selectedClusterId)) {
-      setSelectedClusterId(selectedDataset.clusters[0]?.id ?? "");
-    }
-  }, [selectedDataset, selectedClusterId]);
-
-  const feedbackEvents = useMemo<UserFeedback[]>(() => {
-    if (!selectedDatasetId) return [];
-    if (feedbackBridge.mode === "live" && feedbackBridge.hydratedFeedback) {
-      return feedbackBridge.hydratedFeedback;
-    }
-    return getFeedbackForDataset(selectedDatasetId);
-  }, [selectedDatasetId, refreshToken, feedbackBridge.mode, feedbackBridge.hydratedFeedback]);
+  const feedbackEvents = allFeedbackEvents;
 
   const feedbackSummary = useMemo(() => {
     const summary = { accepted: 0, rejected: 0, uncertain: 0, corrected: 0, total: 0 };
@@ -268,37 +258,29 @@ export function PaperDemoPage() {
     kgDiff,
   ]);
 
-  const feedbackDecisions = useMemo<Record<string, "accept" | "reject" | "uncertain" | "correct">>(() => {
-    const map: Record<string, "accept" | "reject" | "uncertain" | "correct"> = {};
-    const sorted = [...feedbackEvents].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-    for (const event of sorted) {
-      map[event.candidateId] = event.userDecision;
-    }
-    return map;
-  }, [feedbackEvents]);
-
   const feedbackCandidates = useMemo<DemoCandidate[]>(
     () =>
-      selectedDataset
-        ? selectedDataset.candidates.filter(
+      liveViewModel
+        ? liveViewModel.candidates.filter(
             (candidate) => candidate.status !== "removed" && candidate.llmVerdict !== undefined,
           )
-        : [],
-    [selectedDataset],
+        : selectedDataset
+          ? selectedDataset.candidates.filter(
+              (candidate) => candidate.status !== "removed" && candidate.llmVerdict !== undefined,
+            )
+          : [],
+    [liveViewModel, selectedDataset],
   );
 
-  const allCandidates = selectedDataset?.candidates ?? [];
+  const allCandidates = liveViewModel?.candidates ?? selectedDataset?.candidates ?? [];
 
-  const selectedCandidate: DemoCandidate | null =
-    allCandidates.find((candidate) => candidate.candidateId === selectedCandidateId) ??
-    feedbackCandidates[0] ??
-    allCandidates[0] ??
-    null;
+  const selectedCandidate: DemoCandidate | null = liveViewModel
+    ? liveViewModel.selectedCandidate
+    : allCandidates.find((candidate) => candidate.candidateId === selectedCandidateId) ?? null;
 
-  const selectedCluster =
-    selectedDataset?.clusters.find((cluster) => cluster.id === selectedClusterId) ??
-    selectedDataset?.clusters[0] ??
-    null;
+  const selectedCluster: DemoCluster | null = liveViewModel
+    ? liveViewModel.selectedCluster
+    : selectedDataset?.clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
 
   const latestDecisionForSelected = selectedCandidate
     ? feedbackEvents
@@ -306,25 +288,24 @@ export function PaperDemoPage() {
         .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]?.userDecision ?? null
     : null;
 
-  const interactiveGraphPayload = useMemo(() => {
-    if (!shouldUseLiveDataset || !liveSession.graphSlice) return null;
-    return sessionSliceToGraphPayload({
-      slice: liveSession.graphSlice,
-      activeStep,
-      candidates: allCandidates,
-      selectedCandidate,
-      selectedClusterId,
-      feedbackDecisions,
-    });
-  }, [
-    shouldUseLiveDataset,
-    liveSession.graphSlice,
-    activeStep,
-    allCandidates,
-    selectedCandidate,
-    selectedClusterId,
-    feedbackDecisions,
-  ]);
+  const interactiveGraphPayload = liveViewModel?.graph ?? null;
+
+  const expandContext = useCallback(async () => {
+    if (!liveSession.sessionId || liveSession.mode !== "live") return;
+    setExpandContextPending(true);
+    try {
+      await liveSession.setSelectedSlice({
+        mode: "guided",
+        clusterId: selectedClusterId || liveSession.graphSlice?.selected_cluster?.cluster_id || null,
+        candidateId: selectedCandidateId || liveSession.graphSlice?.selected_candidate?.candidate_id || null,
+        limitNodes: 100,
+        limitEdges: 150,
+        expandContext: true,
+      });
+    } finally {
+      setExpandContextPending(false);
+    }
+  }, [liveSession, selectedClusterId, selectedCandidateId]);
 
   const startDemo = () => {
     if (!selectedDataset) return;
@@ -340,7 +321,12 @@ export function PaperDemoPage() {
 
   const onDatasetChange = (datasetId: DemoDatasetId) => {
     setSelectedDatasetId(datasetId);
-    if (isLiveMode) return;
+    setSelectedClusterId("");
+    setSelectedCandidateId("");
+    if (isBackendLoadable(datasetId)) {
+      setDemoStarted(true);
+      return;
+    }
     setActiveSlice(GUIDED_SLICE);
     setSelectedClusterId(DATASETS[datasetId].clusters[0]?.id ?? "");
     setGraphSelection(null);
@@ -353,13 +339,12 @@ export function PaperDemoPage() {
   };
 
   const createSessionForDataset = useCallback(async (datasetId: DemoDatasetId) => {
-    const sampleId = demoDatasetIdToSampleId(datasetId);
-    if (!sampleId) {
-      throw new Error("This dataset cannot be loaded from the backend.");
+    if (datasetId === selectedDatasetId && liveSession.mode === "live") {
+      await liveSession.recreateSession();
+      return;
     }
-    const response = await api.createSampleSession(sampleId, true, 0.8);
-    window.location.assign(`/paper-demo?sessionId=${response.session_id}`);
-  }, []);
+    setSelectedDatasetId(datasetId);
+  }, [liveSession, selectedDatasetId]);
 
   const applySlice = useCallback(
     (slice: DatasetSlice) => {
@@ -372,19 +357,23 @@ export function PaperDemoPage() {
           mode: slice.mode,
           entity: slice.entityQuery ?? null,
           relation: slice.relationQuery ?? null,
-          clusterId: slice.clusterId ?? null,
+          clusterId: slice.clusterId ?? (selectedClusterId || null),
+          candidateId: selectedCandidateId || null,
           candidateStatus: slice.candidateStatus ?? null,
           feedbackBucket: slice.feedbackBucket ?? null,
           depth: slice.entityDepth ?? 1,
+          limitNodes: 100,
+          limitEdges: 150,
         });
       }
     },
-    [liveSession],
+    [liveSession, selectedClusterId, selectedCandidateId],
   );
   const resetSlice = useCallback(() => {
     setActiveSlice(GUIDED_SLICE);
     setGraphSelection(null);
-    setUseStaticFallbackInLive(false);
+    setSelectedClusterId("");
+    setSelectedCandidateId("");
     if (liveSession.mode === "live") {
       void liveSession.setSelectedSlice({ mode: "guided" });
     }
@@ -414,6 +403,107 @@ export function PaperDemoPage() {
     }
   };
 
+  useEffect(() => {
+    if (!isLiveModeActive || !liveViewModel || !liveSession.graphSlice) return;
+
+    const backendClusterId =
+      liveSession.graphSlice.selected_cluster?.cluster_id ??
+      liveViewModel.diagnostics.selectedClusterId ??
+      "";
+
+    const backendCandidateId =
+      liveSession.graphSlice.selected_candidate?.candidate_id ??
+      liveViewModel.diagnostics.selectedCandidateId ??
+      "";
+
+    const userPinnedCluster = activeSlice.mode === "cluster" && Boolean(activeSlice.clusterId);
+    const userPinnedCandidate = activeSlice.mode === "candidate" && Boolean(selectedCandidateId);
+
+    if (!userPinnedCluster && backendClusterId && selectedClusterId !== backendClusterId) {
+      setSelectedClusterId(backendClusterId);
+    }
+    if (!userPinnedCandidate && backendCandidateId && selectedCandidateId !== backendCandidateId) {
+      setSelectedCandidateId(backendCandidateId);
+    }
+  }, [
+    isLiveModeActive,
+    liveViewModel,
+    liveSession.graphSlice?.slice_id,
+    activeSlice.mode,
+    activeSlice.clusterId,
+    selectedClusterId,
+    selectedCandidateId,
+  ]);
+
+  // One stable backend slice for the whole walkthrough — step changes only alter presentation.
+  useEffect(() => {
+    if (liveSession.mode !== "live" || !liveSession.sessionId || !demoStarted) return;
+    if (activeStep === "completed" || activeStep === "feedback") return;
+    if (liveSession.graphSlice?.data_available && liveSession.activeSlice.expandContext) return;
+
+    void liveSession.applySlice({
+      mode: "guided",
+      clusterId: selectedClusterId || liveSession.graphSlice?.selected_cluster?.cluster_id || null,
+      candidateId: selectedCandidateId || liveSession.graphSlice?.selected_candidate?.candidate_id || null,
+      limitNodes: 100,
+      limitEdges: 200,
+      expandContext: true,
+    });
+  }, [
+    liveSession.sessionId,
+    liveSession.mode,
+    demoStarted,
+    liveSession.graphSlice?.data_available,
+    liveSession.activeSlice.expandContext,
+  ]);
+
+  const stepExplanation = useMemo(
+    () =>
+      selectedDataset ? (
+        <PaperDemoStepExplanation
+          step={activeStep}
+          dataset={selectedDataset}
+          datasetId={selectedDataset.id}
+          candidates={allCandidates}
+          feedbackCandidates={feedbackCandidates}
+          selectedCandidate={selectedCandidate}
+          selectedCandidateId={selectedCandidate?.candidateId ?? selectedCandidateId}
+          onSelectCandidate={setSelectedCandidateId}
+          selectedClusterId={selectedCluster?.id ?? selectedClusterId}
+          onSelectCluster={onSelectCluster}
+          latestDecisionForSelected={latestDecisionForSelected}
+          feedbackDecisions={feedbackDecisions}
+          feedbackEvents={feedbackEvents}
+          bridgeStatus={feedbackBridge.status}
+          onFeedbackSubmit={onFeedbackSubmit}
+          interactiveGraphPayload={interactiveGraphPayload}
+          sessionId={liveSessionId}
+          filteringAvailable={liveViewModel?.filtering.available ?? !isLiveModeActive}
+          llmAvailable={liveViewModel?.llm.available ?? !isLiveModeActive}
+        />
+      ) : null,
+    [
+      selectedDataset,
+      activeStep,
+      allCandidates,
+      feedbackCandidates,
+      selectedCandidate,
+      selectedCandidateId,
+      selectedCluster,
+      selectedClusterId,
+      latestDecisionForSelected,
+      feedbackDecisions,
+      feedbackEvents,
+      feedbackBridge.status,
+      interactiveGraphPayload,
+      liveSessionId,
+      isLiveModeActive,
+      liveViewModel,
+      onSelectCluster,
+      onFeedbackSubmit,
+    ],
+  );
+
   const goPrev = useCallback(() => {
     const idx = PAPER_DEMO_STEP_ORDER.indexOf(activeStep);
     if (idx > 0) setActiveStep(PAPER_DEMO_STEP_ORDER[idx - 1]);
@@ -426,8 +516,23 @@ export function PaperDemoPage() {
   }, [activeStep]);
 
   // ──────────────────────────────────────────────────────────────────────
-  // Landing screen (no graph rendered before Start Demo)
+  // Landing screen — skipped when auto-loading a backend benchmark dataset
   // ──────────────────────────────────────────────────────────────────────
+  const awaitingAutoLive =
+    selectedDatasetId &&
+    isBackendLoadable(selectedDatasetId) &&
+    (liveSession.bindStatus === "checking" ||
+      liveSession.bindStatus === "creating" ||
+      liveSession.loading);
+
+  if (awaitingAutoLive) {
+    return (
+      <div className="paper-demo min-h-screen bg-slate-50 p-6 text-slate-700" data-testid="paper-demo-root">
+        <p className="text-sm">Loading CoDEx-M backend session…</p>
+      </div>
+    );
+  }
+
   if (!demoStarted) {
     return (
       <div className="paper-demo min-h-screen bg-slate-50 px-4 py-6 text-slate-900" data-testid="paper-demo-root">
@@ -571,7 +676,7 @@ export function PaperDemoPage() {
   const isCompleted = activeStep === "completed";
   const layoutGridClass = isCompleted
     ? "demo-layout grid items-start gap-4 grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)]"
-    : "demo-layout grid items-start gap-4 grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_340px]";
+    : "demo-layout grid items-start gap-4 grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_380px]";
 
   return (
     <div className="paper-demo min-h-screen bg-slate-50 p-4 text-slate-900" data-testid="paper-demo-root">
@@ -593,13 +698,86 @@ export function PaperDemoPage() {
               onSelect={onDatasetChange}
               isLiveMode={isLiveMode}
               sessionDatasetId={sessionDatasetId}
-              liveDataset={shouldUseLiveDataset ? baseDataset : null}
+              liveDataset={isLiveModeActive ? liveViewModel?.metadata ?? null : null}
               sessionId={liveSessionId}
               onCreateSession={createSessionForDataset}
             />
-            {baseDataset ? (
+            <section
+              className={`rounded-lg border px-3 py-2 text-xs ${
+                isLiveModeActive
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                  : isLiveMode
+                    ? "border-amber-300 bg-amber-50 text-amber-900"
+                    : "border-slate-300 bg-slate-50 text-slate-800"
+              }`}
+              data-testid="graph-source-badge"
+            >
+              <p className="font-semibold">
+                {isLiveModeActive
+                  ? "Graph source: backend session slice"
+                  : isLiveMode
+                    ? "Live session loading — no static fallback"
+                    : "Graph source: static demo"}
+              </p>
+              {isLiveMode && liveSession.meta ? (
+                <p className="mt-0.5 truncate text-[11px] opacity-90">
+                  {liveSession.meta.dataset_name}
+                  {liveSessionId ? ` · session ${liveSessionId.slice(0, 8)}…` : ""}
+                </p>
+              ) : null}
+              {isLiveMode && liveSessionId ? (
+                <button
+                  type="button"
+                  onClick={() => void liveSession.recreateSession()}
+                  className="mt-1 rounded border border-emerald-500 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-900"
+                  data-testid="recreate-backend-session"
+                >
+                  Recreate backend session
+                </button>
+              ) : null}
+              {isLiveMode && liveSession.error ? (
+                <p className="mt-1 text-[10px] text-amber-900">Warning: {liveSession.error}</p>
+              ) : null}
+              {isLiveMode && liveSession.loading ? (
+                <p className="mt-1 text-[10px]">Loading backend slice…</p>
+              ) : null}
+            </section>
+            {liveViewModel?.diagnostics ? (
+              <section
+                className={`rounded-lg border px-3 py-2 text-[10px] ${
+                  liveViewModel.diagnostics.mismatch
+                    ? "border-rose-300 bg-rose-50 text-rose-900"
+                    : "border-slate-200 bg-slate-50 text-slate-700"
+                }`}
+                data-testid="live-diagnostics-panel"
+              >
+                <p className="font-semibold">Selection diagnostics</p>
+                <p>Selected cluster: {liveViewModel.diagnostics.selectedClusterId ?? "none"}</p>
+                <p>Selected candidate: {liveViewModel.diagnostics.selectedCandidateId ?? "none"}</p>
+                <p>Candidate source cluster: {liveViewModel.diagnostics.candidateSourceCluster ?? "none"}</p>
+                <p>Mismatch: {liveViewModel.diagnostics.mismatch ? "true" : "false"}</p>
+                {liveViewModel.diagnostics.mismatch ? (
+                  <p className="mt-1 font-semibold text-rose-800">
+                    Selected candidate does not belong to selected cluster.
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+            {selectedDataset && sliceResult ? (
+              <GraphSliceSummaryCard
+                result={sliceResult}
+                totals={{
+                  nodes: liveViewModel?.graph.displayed_nodes ?? selectedDataset.graph.nodes.length,
+                  edges: liveViewModel?.graph.displayed_triples ?? selectedDataset.graph.edges.length,
+                  clusters: liveViewModel?.clusters.length ?? selectedDataset.clusters.length,
+                  candidates: liveViewModel?.candidates.length ?? selectedDataset.candidates.length,
+                }}
+                onReset={resetSlice}
+              />
+            ) : null}
+            {selectedDataset ? (
               <DatasetNavigatorPanel
-                dataset={baseDataset}
+                dataset={selectedDataset}
                 activeSlice={activeSlice}
                 onApply={applySlice}
                 onReset={resetSlice}
@@ -645,86 +823,6 @@ export function PaperDemoPage() {
           </aside>
 
           <main className="center-panel min-w-0 space-y-3 overflow-hidden">
-            <section
-              className={`rounded-xl border p-3 text-sm ${
-                shouldUseLiveDataset
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                  : isStaticFallbackInLive
-                    ? "border-rose-300 bg-rose-50 text-rose-900"
-                    : "border-slate-300 bg-slate-50 text-slate-800"
-              }`}
-              data-testid="graph-source-badge"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-block h-2 w-2 rounded-full ${
-                      shouldUseLiveDataset ? "bg-emerald-500" : isStaticFallbackInLive ? "bg-rose-500" : "bg-slate-500"
-                    }`}
-                  />
-                  <p className="font-semibold">
-                    {shouldUseLiveDataset
-                      ? `Graph source: backend session slice (sessionId ${liveSessionId})`
-                      : isStaticFallbackInLive
-                        ? "WARNING: live mode using static fallback data"
-                      : "Graph source: static demo fallback"}
-                  </p>
-                </div>
-                {isLiveMode && liveSession.meta ? (
-                  <p className="text-[11px] text-emerald-900/80">
-                    {liveSession.meta.dataset_name} · {liveSession.meta.triple_count.toLocaleString()} triples ·
-                    {" "}{liveSession.meta.entity_count.toLocaleString()} entities ·
-                    {" "}{liveSession.meta.relation_count.toLocaleString()} relations
-                  </p>
-                ) : null}
-              </div>
-              {isLiveMode && liveSession.error ? (
-                <p className="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
-                  Warning: {liveSession.error}
-                </p>
-              ) : null}
-              {isLiveMode && !liveDataAvailable && !useStaticFallbackInLive ? (
-                <div className="mt-1 flex flex-wrap items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
-                  <span>Backend session has no slice data available yet.</span>
-                  <button
-                    type="button"
-                    onClick={() => setUseStaticFallbackInLive(true)}
-                    className="rounded border border-amber-400 bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-900"
-                  >
-                    Use static fallback
-                  </button>
-                </div>
-              ) : null}
-              {isStaticFallbackInLive ? (
-                <div className="mt-1 flex flex-wrap items-center gap-2 rounded border border-rose-300 bg-rose-50 px-2 py-1 text-[11px] text-rose-900">
-                  <span>Live mode currently rendering static fallback data.</span>
-                  <button
-                    type="button"
-                    onClick={() => setUseStaticFallbackInLive(false)}
-                    className="rounded border border-rose-400 bg-white px-2 py-0.5 text-[10px] font-semibold text-rose-900"
-                  >
-                    Retry backend slice
-                  </button>
-                </div>
-              ) : null}
-              {isLiveMode && !liveSession.graphSlice && !liveSession.loading ? (
-                <p className="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
-                  Backend slice unavailable. Run candidate generation / filtering first or create a paper session.
-                </p>
-              ) : null}
-            </section>
-            {baseDataset && sliceResult ? (
-              <GraphSliceSummaryCard
-                result={sliceResult}
-                totals={{
-                  nodes: baseDataset.graph.nodes.length,
-                  edges: baseDataset.graph.edges.length,
-                  clusters: baseDataset.clusters.length,
-                  candidates: baseDataset.candidates.length,
-                }}
-                onReset={resetSlice}
-              />
-            ) : null}
             <PaperDemoStepView
               step={activeStep}
               dataset={selectedDataset}
@@ -732,9 +830,9 @@ export function PaperDemoPage() {
               candidates={allCandidates}
               feedbackCandidates={feedbackCandidates}
               selectedCandidate={selectedCandidate}
-              selectedCandidateId={selectedCandidateId}
+              selectedCandidateId={selectedCandidate?.candidateId ?? selectedCandidateId}
               onSelectCandidate={setSelectedCandidateId}
-              selectedClusterId={selectedClusterId}
+              selectedClusterId={selectedCluster?.id ?? selectedClusterId}
               onSelectCluster={onSelectCluster}
               latestDecisionForSelected={latestDecisionForSelected}
               feedbackDecisions={feedbackDecisions}
@@ -744,7 +842,11 @@ export function PaperDemoPage() {
               interactiveGraphPayload={interactiveGraphPayload}
               sessionId={liveSessionId}
               onGraphSelectionChange={setGraphSelection}
-              useStaticPaperGraph={!isLiveMode && activeSlice.mode === "guided"}
+              useStaticPaperGraph={!isLiveModeActive && activeSlice.mode === "guided"}
+              filteringAvailable={liveViewModel?.filtering.available ?? !isLiveModeActive}
+              llmAvailable={liveViewModel?.llm.available ?? !isLiveModeActive}
+              onExpandContext={isLiveModeActive ? () => void expandContext() : undefined}
+              expandContextPending={expandContextPending}
             />
 
             {isCompleted ? (
@@ -865,8 +967,10 @@ export function PaperDemoPage() {
           </main>
 
           {!isCompleted ? (
-            <aside className="right-panel min-w-0 space-y-3">
-              <NodeDetailPanel
+            <aside className="right-panel min-w-0">
+              <PaperDemoInspectorPanel
+                step={activeStep}
+                dataset={selectedDataset}
                 graph={interactiveGraphPayload}
                 selection={graphSelection}
                 selectedCandidate={selectedCandidate}
@@ -875,25 +979,16 @@ export function PaperDemoPage() {
                 clusters={selectedDataset.clusters}
                 sessionId={liveSessionId}
                 onShowCandidatesForNode={onShowCandidatesForNode}
-              />
-              <StepStatsPanel
-                dataset={selectedDataset}
-                step={activeStep}
-                selectedCandidate={selectedCandidate}
                 feedbackSummary={feedbackSummary}
                 completedSummary={completedStatsSummary}
                 backendDiagnostics={feedbackBridge.completedSummary}
+                filteringAvailable={liveViewModel?.filtering.available ?? !isLiveModeActive}
+                llmAvailable={liveViewModel?.llm.available ?? !isLiveModeActive}
+                stepExplanation={stepExplanation}
               />
             </aside>
           ) : null}
         </div>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Step explanation
-          </p>
-          <p className="mt-1 text-sm text-slate-700">{explanationForStep(activeStep)}</p>
-        </section>
       </div>
     </div>
   );
