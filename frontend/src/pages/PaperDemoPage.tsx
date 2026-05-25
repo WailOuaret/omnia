@@ -14,8 +14,10 @@ import { WorkflowStepMenu } from "../components/paper-demo/WorkflowStepMenu";
 import { DATASET_LIST, DATASETS } from "../demo-data/datasets";
 import type { DemoCandidate, DemoCluster, DemoDatasetId } from "../demo-data/types";
 import { useFeedbackBridge } from "../hooks/useFeedbackBridge";
+import { usePaperDemoScenario } from "../hooks/usePaperDemoScenario";
 import { isBackendLoadable, usePaperDemoSession } from "../hooks/usePaperDemoSession";
 import { api, exportCompletedTsvUrl, exportFeedbackJsonUrl } from "../lib/api";
+import { getDemoMode } from "../lib/demoMode";
 import {
   GUIDED_SLICE,
   withSlicedGraph,
@@ -62,6 +64,10 @@ function readInitialDatasetId(): DemoDatasetId {
 }
 
 export function PaperDemoPage() {
+  const deploymentMode = getDemoMode();
+  const enableLiveSession = deploymentMode === "live" || deploymentMode === "auto";
+  const enableScenario = deploymentMode === "static" || deploymentMode === "auto";
+
   const [selectedDatasetId, setSelectedDatasetId] = useState<DemoDatasetId | null>(readInitialDatasetId);
   const [activeStep, setActiveStep] = useState<PaperDemoStepId>("kg");
   const [demoStarted, setDemoStarted] = useState(true);
@@ -71,8 +77,17 @@ export function PaperDemoPage() {
   const [refreshToken, setRefreshToken] = useState(0);
   const [activeSlice, setActiveSlice] = useState<DatasetSlice>(GUIDED_SLICE);
   const [expandContextPending, setExpandContextPending] = useState(false);
-  const liveSession = usePaperDemoSession(selectedDatasetId);
-  const feedbackBridge = useFeedbackBridge(selectedDatasetId, liveSession.sessionId);
+  const liveSession = usePaperDemoSession(enableLiveSession ? selectedDatasetId : null);
+  const scenarioSession = usePaperDemoScenario(selectedDatasetId, {
+    enabled: enableScenario,
+    activeStep,
+    selectedClusterId: selectedClusterId || null,
+    selectedCandidateId: selectedCandidateId || null,
+  });
+  const feedbackBridge = useFeedbackBridge(
+    selectedDatasetId,
+    enableLiveSession ? liveSession.sessionId : null,
+  );
   const syncedLiveSliceRef = useRef(false);
 
   // In live mode, bind the feedback/localStorage key to the backend session's sample.
@@ -125,7 +140,7 @@ export function PaperDemoPage() {
   }, [allFeedbackEvents]);
 
   const liveViewModel = useMemo(() => {
-    if (liveSession.mode !== "live" || !liveSession.graphSlice?.data_available || !liveSession.sessionId) {
+    if (!enableLiveSession || liveSession.mode !== "live" || !liveSession.graphSlice?.data_available || !liveSession.sessionId) {
       return null;
     }
     return buildLiveOmniaViewModel({
@@ -152,9 +167,30 @@ export function PaperDemoPage() {
     feedbackDecisions,
   ]);
 
+  const scenarioViewModel = useMemo(() => {
+    if (!enableScenario || liveViewModel) return null;
+    if (deploymentMode === "auto" && liveSession.loading) return null;
+    if (deploymentMode === "auto" && liveSession.mode === "live" && liveSession.bindStatus === "ready") {
+      return null;
+    }
+    return scenarioSession.viewModel;
+  }, [
+    enableScenario,
+    liveViewModel,
+    deploymentMode,
+    liveSession.loading,
+    liveSession.mode,
+    liveSession.bindStatus,
+    scenarioSession.viewModel,
+  ]);
+
+  const activeViewModel = liveViewModel ?? scenarioViewModel;
+
   const staticDataset = selectedDatasetId ? DATASETS[selectedDatasetId] : null;
-  const isLiveMode = liveSession.mode === "live";
+  const isLiveMode = enableLiveSession && liveSession.mode === "live";
+  const isScenarioModeActive = Boolean(scenarioViewModel);
   const isLiveModeActive = Boolean(liveViewModel);
+  const isInteractiveModeActive = isLiveModeActive || isScenarioModeActive;
   const liveSessionId = liveSession.sessionId;
   const sessionDatasetId = useMemo(
     () => sampleIdToDemoDatasetId(liveSession.meta?.sample_id),
@@ -162,29 +198,40 @@ export function PaperDemoPage() {
   );
 
   const sliced = useMemo(() => {
-    if (liveViewModel) {
-      const gs = liveSession.graphSlice!;
+    if (activeViewModel) {
+      const gs =
+        liveViewModel && liveSession.graphSlice
+          ? liveSession.graphSlice
+          : {
+              label: activeViewModel.metadata.label,
+              stats: {
+                nodes: activeViewModel.graph.displayed_nodes,
+                edges: activeViewModel.graph.displayed_triples,
+                clusters: activeViewModel.clusters.length,
+                candidates: activeViewModel.candidates.length,
+              },
+            };
       const result: SliceResult = {
         mode: activeSlice.mode,
-        label: gs.label || "Backend session slice",
+        label: gs.label || "Interactive scenario slice",
         isGuided: activeSlice.mode === "guided",
         nodes: [],
         edges: [],
-        clusters: liveViewModel.clusters,
+        clusters: activeViewModel.clusters,
         clusterBoxes: [],
-        candidates: liveViewModel.candidates,
+        candidates: activeViewModel.candidates,
         stats: {
-          nodes: gs.stats?.nodes ?? liveViewModel.graph.displayed_nodes,
-          edges: gs.stats?.edges ?? liveViewModel.graph.displayed_triples,
-          clusters: gs.stats?.clusters ?? liveViewModel.clusters.length,
-          candidates: gs.stats?.candidates ?? liveViewModel.candidates.length,
+          nodes: gs.stats?.nodes ?? activeViewModel.graph.displayed_nodes,
+          edges: gs.stats?.edges ?? activeViewModel.graph.displayed_triples,
+          clusters: gs.stats?.clusters ?? activeViewModel.clusters.length,
+          candidates: gs.stats?.candidates ?? activeViewModel.candidates.length,
         },
       };
-      return { dataset: liveViewModel.metadata, result };
+      return { dataset: activeViewModel.metadata, result };
     }
     if (!staticDataset) return null;
     return withSlicedGraph(staticDataset, activeSlice, allFeedbackEvents);
-  }, [liveViewModel, staticDataset, activeSlice, allFeedbackEvents, liveSession.graphSlice]);
+  }, [activeViewModel, liveViewModel, liveSession.graphSlice, staticDataset, activeSlice, allFeedbackEvents]);
 
   const selectedDataset = sliced?.dataset ?? null;
   const sliceResult = sliced?.result ?? null;
@@ -260,8 +307,8 @@ export function PaperDemoPage() {
 
   const feedbackCandidates = useMemo<DemoCandidate[]>(
     () =>
-      liveViewModel
-        ? liveViewModel.candidates.filter(
+      activeViewModel
+        ? activeViewModel.candidates.filter(
             (candidate) => candidate.status !== "removed" && candidate.llmVerdict !== undefined,
           )
         : selectedDataset
@@ -269,17 +316,17 @@ export function PaperDemoPage() {
               (candidate) => candidate.status !== "removed" && candidate.llmVerdict !== undefined,
             )
           : [],
-    [liveViewModel, selectedDataset],
+    [activeViewModel, selectedDataset],
   );
 
-  const allCandidates = liveViewModel?.candidates ?? selectedDataset?.candidates ?? [];
+  const allCandidates = activeViewModel?.candidates ?? selectedDataset?.candidates ?? [];
 
-  const selectedCandidate: DemoCandidate | null = liveViewModel
-    ? liveViewModel.selectedCandidate
+  const selectedCandidate: DemoCandidate | null = activeViewModel
+    ? activeViewModel.selectedCandidate
     : allCandidates.find((candidate) => candidate.candidateId === selectedCandidateId) ?? null;
 
-  const selectedCluster: DemoCluster | null = liveViewModel
-    ? liveViewModel.selectedCluster
+  const selectedCluster: DemoCluster | null = activeViewModel
+    ? activeViewModel.selectedCluster
     : selectedDataset?.clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
 
   const latestDecisionForSelected = selectedCandidate
@@ -288,7 +335,7 @@ export function PaperDemoPage() {
         .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]?.userDecision ?? null
     : null;
 
-  const interactiveGraphPayload = liveViewModel?.graph ?? null;
+  const interactiveGraphPayload = activeViewModel?.graph ?? null;
 
   const expandContext = useCallback(async () => {
     if (!liveSession.sessionId || liveSession.mode !== "live") return;
@@ -397,12 +444,29 @@ export function PaperDemoPage() {
   );
 
   const onFeedbackSubmit = async (feedback: UserFeedback) => {
-    await feedbackBridge.submit(feedback);
+    if (isScenarioModeActive) {
+      scenarioSession.submitFeedbackDecision(feedback);
+    } else {
+      await feedbackBridge.submit(feedback);
+    }
     setRefreshToken((value) => value + 1);
     if (liveSession.mode === "live") {
       void liveSession.refresh();
     }
   };
+
+  useEffect(() => {
+    if (!isScenarioModeActive || !scenarioViewModel) return;
+    const clusterId = scenarioViewModel.diagnostics.selectedClusterId;
+    const candidateId = scenarioViewModel.diagnostics.selectedCandidateId;
+    if (!selectedClusterId && clusterId) setSelectedClusterId(clusterId);
+    if (!selectedCandidateId && candidateId) setSelectedCandidateId(candidateId);
+  }, [
+    isScenarioModeActive,
+    scenarioViewModel,
+    selectedClusterId,
+    selectedCandidateId,
+  ]);
 
   useEffect(() => {
     if (!isLiveModeActive || !liveViewModel || !liveSession.graphSlice) return;
@@ -479,8 +543,8 @@ export function PaperDemoPage() {
           onFeedbackSubmit={onFeedbackSubmit}
           interactiveGraphPayload={interactiveGraphPayload}
           sessionId={liveSessionId}
-          filteringAvailable={liveViewModel?.filtering.available ?? !isLiveModeActive}
-          llmAvailable={liveViewModel?.llm.available ?? !isLiveModeActive}
+          filteringAvailable={activeViewModel?.filtering.available ?? !isInteractiveModeActive}
+          llmAvailable={activeViewModel?.llm.available ?? !isInteractiveModeActive}
         />
       ) : null,
     [
@@ -520,16 +584,40 @@ export function PaperDemoPage() {
   // Landing screen — skipped when auto-loading a backend benchmark dataset
   // ──────────────────────────────────────────────────────────────────────
   const awaitingAutoLive =
+    enableLiveSession &&
     selectedDatasetId &&
     isBackendLoadable(selectedDatasetId) &&
     (liveSession.bindStatus === "checking" ||
       liveSession.bindStatus === "creating" ||
       liveSession.loading);
 
+  const awaitingStaticScenario =
+    deploymentMode === "static" &&
+    selectedDatasetId &&
+    (scenarioSession.status === "idle" || scenarioSession.status === "loading");
+
   if (awaitingAutoLive) {
     return (
       <div className="paper-demo min-h-screen bg-slate-50 p-6 text-slate-700" data-testid="paper-demo-root">
         <p className="text-sm">Loading CoDEx-M backend session…</p>
+      </div>
+    );
+  }
+
+  if (awaitingStaticScenario) {
+    return (
+      <div className="paper-demo min-h-screen bg-slate-50 p-6 text-slate-700" data-testid="paper-demo-root">
+        <p className="text-sm">Loading static interactive scenario…</p>
+      </div>
+    );
+  }
+
+  if (scenarioSession.status === "error" && deploymentMode === "static") {
+    return (
+      <div className="paper-demo min-h-screen bg-slate-50 p-6 text-slate-700" data-testid="paper-demo-root">
+        <p className="text-sm text-rose-700">
+          Could not load static scenario: {scenarioSession.error ?? "unknown error"}
+        </p>
       </div>
     );
   }
@@ -697,36 +785,47 @@ export function PaperDemoPage() {
             <DatasetSelectorPanel
               selectedDatasetId={activeDatasetId}
               onSelect={onDatasetChange}
-              isLiveMode={isLiveMode}
+              isLiveMode={isLiveMode && !isScenarioModeActive}
+              isStaticScenarioMode={isScenarioModeActive || deploymentMode === "static"}
               sessionDatasetId={sessionDatasetId}
-              liveDataset={isLiveModeActive ? liveViewModel?.metadata ?? null : null}
-              sessionId={liveSessionId}
-              onCreateSession={createSessionForDataset}
+              liveDataset={isLiveModeActive ? activeViewModel?.metadata ?? null : null}
+              sessionId={isScenarioModeActive ? null : liveSessionId}
+              onCreateSession={deploymentMode === "static" ? undefined : createSessionForDataset}
             />
             <section
               className={`rounded-lg border px-3 py-2 text-xs ${
                 isLiveModeActive
                   ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                  : isLiveMode
-                    ? "border-amber-300 bg-amber-50 text-amber-900"
-                    : "border-slate-300 bg-slate-50 text-slate-800"
+                  : isScenarioModeActive
+                    ? "border-sky-300 bg-sky-50 text-sky-900"
+                    : isLiveMode
+                      ? "border-amber-300 bg-amber-50 text-amber-900"
+                      : "border-slate-300 bg-slate-50 text-slate-800"
               }`}
               data-testid="graph-source-badge"
             >
               <p className="font-semibold">
                 {isLiveModeActive
                   ? "Graph source: backend session slice"
-                  : isLiveMode
-                    ? "Live session loading — no static fallback"
-                    : "Graph source: static demo"}
+                  : isScenarioModeActive
+                    ? "Static interactive scenario"
+                    : isLiveMode
+                      ? "Live session loading — no static fallback"
+                      : "Graph source: static demo"}
               </p>
-              {isLiveMode && liveSession.meta ? (
+              {isScenarioModeActive ? (
+                <p className="mt-1 text-[11px] opacity-90">
+                  This online demo uses a prepared interactive scenario generated from the OMNIA workflow.
+                  Full backend live mode is available locally.
+                </p>
+              ) : null}
+              {isLiveMode && liveSession.meta && !isScenarioModeActive ? (
                 <p className="mt-0.5 truncate text-[11px] opacity-90">
                   {liveSession.meta.dataset_name}
                   {liveSessionId ? ` · session ${liveSessionId.slice(0, 8)}…` : ""}
                 </p>
               ) : null}
-              {isLiveMode && liveSessionId ? (
+              {isLiveMode && liveSessionId && !isScenarioModeActive ? (
                 <button
                   type="button"
                   onClick={() => void liveSession.recreateSession()}
@@ -736,11 +835,18 @@ export function PaperDemoPage() {
                   Recreate backend session
                 </button>
               ) : null}
-              {isLiveMode && liveSession.error ? (
+              {isLiveMode && liveSession.error && !isScenarioModeActive ? (
                 <p className="mt-1 text-[10px] text-amber-900">Warning: {liveSession.error}</p>
               ) : null}
-              {isLiveMode && liveSession.loading ? (
+              {isLiveMode && liveSession.loading && !isScenarioModeActive ? (
                 <p className="mt-1 text-[10px]">Loading backend slice…</p>
+              ) : null}
+              {isScenarioModeActive && scenarioViewModel?.limitations?.length ? (
+                <ul className="mt-1 list-disc pl-4 text-[10px] opacity-90">
+                  {scenarioViewModel.limitations.slice(0, 3).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
               ) : null}
             </section>
             {liveViewModel?.diagnostics ? (
@@ -768,10 +874,10 @@ export function PaperDemoPage() {
               <GraphSliceSummaryCard
                 result={sliceResult}
                 totals={{
-                  nodes: liveViewModel?.graph.displayed_nodes ?? selectedDataset.graph.nodes.length,
-                  edges: liveViewModel?.graph.displayed_triples ?? selectedDataset.graph.edges.length,
-                  clusters: liveViewModel?.clusters.length ?? selectedDataset.clusters.length,
-                  candidates: liveViewModel?.candidates.length ?? selectedDataset.candidates.length,
+                  nodes: activeViewModel?.graph.displayed_nodes ?? selectedDataset.graph.nodes.length,
+                  edges: activeViewModel?.graph.displayed_triples ?? selectedDataset.graph.edges.length,
+                  clusters: activeViewModel?.clusters.length ?? selectedDataset.clusters.length,
+                  candidates: activeViewModel?.candidates.length ?? selectedDataset.candidates.length,
                 }}
                 onReset={resetSlice}
               />
@@ -782,8 +888,8 @@ export function PaperDemoPage() {
                 activeSlice={activeSlice}
                 onApply={applySlice}
                 onReset={resetSlice}
-                sessionId={liveSessionId}
-                isLiveMode={isLiveMode}
+                sessionId={isScenarioModeActive ? null : liveSessionId}
+                isLiveMode={isLiveMode && !isScenarioModeActive}
                 backendClusters={liveSession.clusters.map((c) => ({
                   cluster_id: c.cluster_id,
                   shared_relation: c.shared_relation,
@@ -841,11 +947,11 @@ export function PaperDemoPage() {
               bridgeStatus={feedbackBridge.status}
               onFeedbackSubmit={onFeedbackSubmit}
               interactiveGraphPayload={interactiveGraphPayload}
-              sessionId={liveSessionId}
+              sessionId={isScenarioModeActive ? null : liveSessionId}
               onGraphSelectionChange={setGraphSelection}
-              useStaticPaperGraph={!isLiveModeActive && activeSlice.mode === "guided"}
-              filteringAvailable={liveViewModel?.filtering.available ?? !isLiveModeActive}
-              llmAvailable={liveViewModel?.llm.available ?? !isLiveModeActive}
+              useStaticPaperGraph={!isInteractiveModeActive && activeSlice.mode === "guided"}
+              filteringAvailable={activeViewModel?.filtering.available ?? !isInteractiveModeActive}
+              llmAvailable={activeViewModel?.llm.available ?? !isInteractiveModeActive}
               onExpandContext={isLiveModeActive ? () => void expandContext() : undefined}
               expandContextPending={expandContextPending}
             />
@@ -978,13 +1084,13 @@ export function PaperDemoPage() {
                 selectedCluster={selectedCluster}
                 candidates={allCandidates}
                 clusters={selectedDataset.clusters}
-                sessionId={liveSessionId}
+                sessionId={isScenarioModeActive ? null : liveSessionId}
                 onShowCandidatesForNode={onShowCandidatesForNode}
                 feedbackSummary={feedbackSummary}
                 completedSummary={completedStatsSummary}
                 backendDiagnostics={feedbackBridge.completedSummary}
-                filteringAvailable={liveViewModel?.filtering.available ?? !isLiveModeActive}
-                llmAvailable={liveViewModel?.llm.available ?? !isLiveModeActive}
+                filteringAvailable={activeViewModel?.filtering.available ?? !isInteractiveModeActive}
+                llmAvailable={activeViewModel?.llm.available ?? !isInteractiveModeActive}
                 stepExplanation={stepExplanation}
               />
             </aside>

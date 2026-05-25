@@ -1,0 +1,3984 @@
+{
+  "datasetId": "wn18rr",
+  "label": "WN18RR",
+  "shortName": "WN18RR",
+  "source": "WordNet benchmark",
+  "sourceNote": "Prepared from a real WN18RR backend session slice.",
+  "description": "Bounded OMNIA walkthrough for WN18RR.",
+  "whyInteresting": "Shows the full OMNIA workflow on one coherent cluster-centred slice.",
+  "recommendedMode": "triple-rag",
+  "publicStatus": "public",
+  "paperStats": {
+    "entities": 40943,
+    "relations": 11,
+    "triples": 93003
+  },
+  "overviewSlice": {
+    "slice_id": "6d0bf908d4df:overview",
+    "mode": "overview",
+    "label": "KG overview (10 nodes)",
+    "source": "backend_session",
+    "dataset_id": "wn18rr",
+    "selected_cluster": null,
+    "selected_candidate": null,
+    "clusters": [],
+    "candidates": [],
+    "nodes": [
+      {
+        "id": "12940609",
+        "label": "12940609",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "context",
+        "cluster_id": null
+      },
+      {
+        "id": "11699071",
+        "label": "11699071",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "context",
+        "cluster_id": null
+      },
+      {
+        "id": "12292877",
+        "label": "12292877",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "context",
+        "cluster_id": null
+      },
+      {
+        "id": "12205694",
+        "label": "12205694",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "anchor",
+        "cluster_id": null
+      },
+      {
+        "id": "12848499",
+        "label": "12848499",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "context",
+        "cluster_id": null
+      },
+      {
+        "id": "12533190",
+        "label": "12533190",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "context",
+        "cluster_id": null
+      },
+      {
+        "id": "12939874",
+        "label": "12939874",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "context",
+        "cluster_id": null
+      },
+      {
+        "id": "11857320",
+        "label": "11857320",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "context",
+        "cluster_id": null
+      },
+      {
+        "id": "12943049",
+        "label": "12943049",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "context",
+        "cluster_id": null
+      },
+      {
+        "id": "12858150",
+        "label": "12858150",
+        "type": "entity",
+        "source": "backend_session",
+        "role": "context",
+        "cluster_id": null
+      }
+    ],
+    "edges": [
+      {
+        "id": "12939874|_hypernym|12205694|known|known",
+        "source": "12939874",
+        "target": "12205694",
+        "label": "_hypernym",
+        "status": "known",
+        "provenance": "original",
+        "candidate_id": null,
+        "role": "context"
+      },
+      {
+        "id": "12533190|_hypernym|12205694|known|known",
+        "source": "12533190",
+        "target": "12205694",
+        "label": "_hypernym",
+        "status": "known",
+        "provenance": "original",
+        "candidate_id": null,
+        "role": "context"
+      },
+      {
+        "id": "12943049|_hypernym|12205694|known|known",
+        "source": "12943049",
+        "target": "12205694",
+        "label": "_hypernym",
+        "status": "known",
+        "provenance": "original",
+        "candidate_id": null,
+        "role": "context"
+      },
+      {
+        "id": "11857320|_hypernym|12205694|known|known",
+        "source": "11857320",
+        "target": "12205694",
+        "label": "_hypernym",
+        "status": "known",
+        "provenance": "original",
+        "candidate_id": null,
+        "role": "context"
+      },
+      {
+        "id": "11699071|_hypernym|12205694|known|known",
+        "source": "11699071",
+        "target": "12205694",
+        "label": "_hypernym",
+        "status": "known",
+        "provenance": "original",
+        "candidate_id": null,
+        "role": "context"
+      },
+      {
+        "id": "12848499|_hypernym|12205694|known|known",
+        "source": "12848499",
+        "target": "12205694",
+        "label": "_hypernym",
+        "status": "known",
+        "provenance": "original",
+        "candidate_id": null,
+        "role": "context"
+      },
+      {
+        "id": "12292877|_hypernym|12205694|known|known",
+        "source": "12292877",
+        "target": "12205694",
+        "label": "_hypernym",
+        "status": "known",
+        "provenance": "original",
+        "candidate_id": null,
+        "role": "context"
+      },
+      {
+        "id": "12940609|_hypernym|12205694|known|known",
+        "source": "12940609",
+        "target": "12205694",
+        "label": "_hypernym",
+        "status": "known",
+        "provenance": "original",
+        "candidate_id": null,
+        "role": "context"
+      },
+      {
+        "id": "12858150|_hypernym|12205694|known|known",
+        "source": "12858150",
+        "target": "12205694",
+        "label": "_hypernym",
+        "status": "known",
+        "provenance": "original",
+        "candidate_id": null,
+        "role": "context"
+      }
+    ],
+    "stats": {
+      "nodes": 10,
+      "edges": 9,
+      "triples": 9,
+      "candidates": 0,
+      "clusters": 0,
+      "nodes_visible": 10,
+      "edges_visible": 9
+    },
+    "explanation": {
+      "overview": true,
+      "anchor": "12205694"
+    },
+    "data_available": true,
+    "warnings": []
+  },
+  "selectedCluster": {
+    "cluster_id": "cluster-54",
+    "shared_relation": "_synset_domain_topic_of",
+    "shared_tail": "06066555",
+    "members": [
+      "02678677",
+      "11677259"
+    ],
+    "size": 2,
+    "candidate_count": 1,
+    "_index": 53,
+    "cluster_key": "(_synset_domain_topic_of, 06066555)"
+  },
+  "selectedCandidate": {
+    "candidate_id": "a45e2dde4ed945c6",
+    "Head": "11677259",
+    "Relation": "_derivationally_related_form",
+    "Tail": "11685179",
+    "cluster_ids": [
+      "cluster-54"
+    ],
+    "distance": null,
+    "threshold": null,
+    "filter_status": "",
+    "llm_decision": "",
+    "llm_score": null,
+    "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+    "retrieved_context": [],
+    "feedback_status": "none",
+    "status_bucket": "candidate",
+    "already_known": false,
+    "source_cluster": "cluster-54",
+    "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+  },
+  "generatedCandidates": [
+    {
+      "candidate_id": "3ad539a797563870",
+      "Head": "11677259",
+      "Relation": "_synset_domain_topic_of",
+      "Tail": "06066555",
+      "cluster_ids": [
+        "cluster-54"
+      ],
+      "distance": null,
+      "threshold": null,
+      "filter_status": "",
+      "llm_decision": "",
+      "llm_score": null,
+      "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+      "retrieved_context": [],
+      "feedback_status": "none",
+      "status_bucket": "known",
+      "already_known": true,
+      "source_cluster": "cluster-54",
+      "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+    },
+    {
+      "candidate_id": "a45e2dde4ed945c6",
+      "Head": "11677259",
+      "Relation": "_derivationally_related_form",
+      "Tail": "11685179",
+      "cluster_ids": [
+        "cluster-54"
+      ],
+      "distance": null,
+      "threshold": null,
+      "filter_status": "",
+      "llm_decision": "",
+      "llm_score": null,
+      "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+      "retrieved_context": [],
+      "feedback_status": "none",
+      "status_bucket": "candidate",
+      "already_known": false,
+      "source_cluster": "cluster-54",
+      "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+    },
+    {
+      "candidate_id": "c19a17d7438139c8",
+      "Head": "02678677",
+      "Relation": "_synset_domain_topic_of",
+      "Tail": "06066555",
+      "cluster_ids": [
+        "cluster-54"
+      ],
+      "distance": null,
+      "threshold": null,
+      "filter_status": "",
+      "llm_decision": "",
+      "llm_score": null,
+      "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+      "retrieved_context": [],
+      "feedback_status": "none",
+      "status_bucket": "known",
+      "already_known": true,
+      "source_cluster": "cluster-54",
+      "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+    },
+    {
+      "candidate_id": "fe775b87d41146c5",
+      "Head": "02678677",
+      "Relation": "_derivationally_related_form",
+      "Tail": "11685179",
+      "cluster_ids": [
+        "cluster-54"
+      ],
+      "distance": null,
+      "threshold": null,
+      "filter_status": "",
+      "llm_decision": "",
+      "llm_score": null,
+      "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+      "retrieved_context": [],
+      "feedback_status": "none",
+      "status_bucket": "known",
+      "already_known": true,
+      "source_cluster": "cluster-54",
+      "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+    }
+  ],
+  "clusters": [
+    {
+      "cluster_id": "cluster-1",
+      "shared_relation": "_derivationally_related_form",
+      "shared_tail": "00091124",
+      "members": [
+        "14299070",
+        "14299336"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-2",
+      "shared_relation": "_derivationally_related_form",
+      "shared_tail": "01745722",
+      "members": [
+        "01103614",
+        "08062623"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-3",
+      "shared_relation": "_derivationally_related_form",
+      "shared_tail": "07439570",
+      "members": [
+        "00454868",
+        "00455212"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-4",
+      "shared_relation": "_derivationally_related_form",
+      "shared_tail": "14286549",
+      "members": [
+        "01309143",
+        "01309478"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-5",
+      "shared_relation": "_hypernym",
+      "shared_tail": "00007846",
+      "members": [
+        "09860415",
+        "09883452",
+        "09970088",
+        "10052843",
+        "10635788"
+      ],
+      "size": 5,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-6",
+      "shared_relation": "_hypernym",
+      "shared_tail": "00109660",
+      "members": [
+        "00155547",
+        "00336260",
+        "00434374"
+      ],
+      "size": 3,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-7",
+      "shared_relation": "_hypernym",
+      "shared_tail": "00173338",
+      "members": [
+        "00178380",
+        "01309701"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-8",
+      "shared_relation": "_hypernym",
+      "shared_tail": "00276373",
+      "members": [
+        "00276214",
+        "01472807"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-9",
+      "shared_relation": "_hypernym",
+      "shared_tail": "00407535",
+      "members": [
+        "00543233",
+        "01017987"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-10",
+      "shared_relation": "_hypernym",
+      "shared_tail": "00766234",
+      "members": [
+        "00773814",
+        "00782338"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-11",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01212572",
+      "members": [
+        "01215137",
+        "01215851"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-12",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01405044",
+      "members": [
+        "01403540",
+        "01408958"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-13",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01429349",
+      "members": [
+        "02544754",
+        "02552737",
+        "02573918",
+        "02654890"
+      ],
+      "size": 4,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-14",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01507175",
+      "members": [
+        "01593423",
+        "01857171",
+        "02013034",
+        "02019762"
+      ],
+      "size": 4,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-15",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01525720",
+      "members": [
+        "01587834",
+        "01600657"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-16",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01657723",
+      "members": [
+        "01670961",
+        "01692143"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-17",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01674464",
+      "members": [
+        "01676755",
+        "01693783"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-18",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01675963",
+      "members": [
+        "01670777",
+        "01678407"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-19",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01759182",
+      "members": [
+        "02174153",
+        "02255567"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    },
+    {
+      "cluster_id": "cluster-20",
+      "shared_relation": "_hypernym",
+      "shared_tail": "01864707",
+      "members": [
+        "02500144",
+        "02505342"
+      ],
+      "size": 2,
+      "candidate_count": 0,
+      "selected": false
+    }
+  ],
+  "filtering": {
+    "available": false,
+    "model": "TransE (unavailable in this scenario)",
+    "threshold": null,
+    "beforeFiltering": 0,
+    "afterFiltering": 0
+  },
+  "llm": {
+    "available": true,
+    "strategy": "Backend RAG (session)",
+    "topK": 3,
+    "promptMode": "Triple-based RAG"
+  },
+  "limitations": [
+    "Static interactive scenario \u2014 not a live backend session.",
+    "Sessions are not persisted; feedback is stored locally in the browser.",
+    "TransE filtering artifacts were not stored for this scenario."
+  ],
+  "steps": {
+    "kg": {
+      "graphSlice": {
+        "slice_id": "6d0bf908d4df:overview",
+        "mode": "overview",
+        "label": "KG overview (10 nodes)",
+        "source": "backend_session",
+        "dataset_id": "wn18rr",
+        "selected_cluster": null,
+        "selected_candidate": null,
+        "clusters": [],
+        "candidates": [],
+        "nodes": [
+          {
+            "id": "12940609",
+            "label": "12940609",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context",
+            "cluster_id": null
+          },
+          {
+            "id": "11699071",
+            "label": "11699071",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context",
+            "cluster_id": null
+          },
+          {
+            "id": "12292877",
+            "label": "12292877",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context",
+            "cluster_id": null
+          },
+          {
+            "id": "12205694",
+            "label": "12205694",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "anchor",
+            "cluster_id": null
+          },
+          {
+            "id": "12848499",
+            "label": "12848499",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context",
+            "cluster_id": null
+          },
+          {
+            "id": "12533190",
+            "label": "12533190",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context",
+            "cluster_id": null
+          },
+          {
+            "id": "12939874",
+            "label": "12939874",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context",
+            "cluster_id": null
+          },
+          {
+            "id": "11857320",
+            "label": "11857320",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context",
+            "cluster_id": null
+          },
+          {
+            "id": "12943049",
+            "label": "12943049",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context",
+            "cluster_id": null
+          },
+          {
+            "id": "12858150",
+            "label": "12858150",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context",
+            "cluster_id": null
+          }
+        ],
+        "edges": [
+          {
+            "id": "12939874|_hypernym|12205694|known|known",
+            "source": "12939874",
+            "target": "12205694",
+            "label": "_hypernym",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "context"
+          },
+          {
+            "id": "12533190|_hypernym|12205694|known|known",
+            "source": "12533190",
+            "target": "12205694",
+            "label": "_hypernym",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "context"
+          },
+          {
+            "id": "12943049|_hypernym|12205694|known|known",
+            "source": "12943049",
+            "target": "12205694",
+            "label": "_hypernym",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "context"
+          },
+          {
+            "id": "11857320|_hypernym|12205694|known|known",
+            "source": "11857320",
+            "target": "12205694",
+            "label": "_hypernym",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "context"
+          },
+          {
+            "id": "11699071|_hypernym|12205694|known|known",
+            "source": "11699071",
+            "target": "12205694",
+            "label": "_hypernym",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "context"
+          },
+          {
+            "id": "12848499|_hypernym|12205694|known|known",
+            "source": "12848499",
+            "target": "12205694",
+            "label": "_hypernym",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "context"
+          },
+          {
+            "id": "12292877|_hypernym|12205694|known|known",
+            "source": "12292877",
+            "target": "12205694",
+            "label": "_hypernym",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "context"
+          },
+          {
+            "id": "12940609|_hypernym|12205694|known|known",
+            "source": "12940609",
+            "target": "12205694",
+            "label": "_hypernym",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "context"
+          },
+          {
+            "id": "12858150|_hypernym|12205694|known|known",
+            "source": "12858150",
+            "target": "12205694",
+            "label": "_hypernym",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "context"
+          }
+        ],
+        "stats": {
+          "nodes": 10,
+          "edges": 9,
+          "triples": 9,
+          "candidates": 0,
+          "clusters": 0,
+          "nodes_visible": 10,
+          "edges_visible": 9
+        },
+        "explanation": {
+          "overview": true,
+          "anchor": "12205694"
+        },
+        "data_available": true,
+        "warnings": []
+      }
+    },
+    "clustering": {
+      "graphSlice": {
+        "slice_id": "6d0bf908d4df:omnia:cluster-54:4n:7e",
+        "mode": "omnia_demo",
+        "label": "Cluster-centred slice: 4 core nodes + 0 context",
+        "source": "backend_session",
+        "dataset_id": "wn18rr",
+        "selected_cluster": {
+          "cluster_id": "cluster-54",
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555",
+          "members": [
+            "02678677",
+            "11677259"
+          ],
+          "size": 2,
+          "candidate_count": 1,
+          "_index": 53,
+          "cluster_key": "(_synset_domain_topic_of, 06066555)"
+        },
+        "selected_candidate": {
+          "candidate_id": "a45e2dde4ed945c6",
+          "Head": "11677259",
+          "Relation": "_derivationally_related_form",
+          "Tail": "11685179",
+          "cluster_ids": [
+            "cluster-54"
+          ],
+          "distance": null,
+          "threshold": null,
+          "filter_status": "",
+          "llm_decision": "",
+          "llm_score": null,
+          "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+          "retrieved_context": [],
+          "feedback_status": "none",
+          "status_bucket": "candidate",
+          "already_known": false,
+          "source_cluster": "cluster-54",
+          "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+        },
+        "clusters": [
+          {
+            "cluster_id": "cluster-1",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "00091124",
+            "members": [
+              "14299070",
+              "14299336"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-2",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "01745722",
+            "members": [
+              "01103614",
+              "08062623"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-3",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "07439570",
+            "members": [
+              "00454868",
+              "00455212"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-4",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "14286549",
+            "members": [
+              "01309143",
+              "01309478"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-5",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00007846",
+            "members": [
+              "09860415",
+              "09883452",
+              "09970088",
+              "10052843",
+              "10635788"
+            ],
+            "size": 5,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-6",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00109660",
+            "members": [
+              "00155547",
+              "00336260",
+              "00434374"
+            ],
+            "size": 3,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-7",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00173338",
+            "members": [
+              "00178380",
+              "01309701"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-8",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00276373",
+            "members": [
+              "00276214",
+              "01472807"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-9",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00407535",
+            "members": [
+              "00543233",
+              "01017987"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-10",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00766234",
+            "members": [
+              "00773814",
+              "00782338"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-11",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01212572",
+            "members": [
+              "01215137",
+              "01215851"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-12",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01405044",
+            "members": [
+              "01403540",
+              "01408958"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-13",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01429349",
+            "members": [
+              "02544754",
+              "02552737",
+              "02573918",
+              "02654890"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-14",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01507175",
+            "members": [
+              "01593423",
+              "01857171",
+              "02013034",
+              "02019762"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-15",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01525720",
+            "members": [
+              "01587834",
+              "01600657"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-16",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01657723",
+            "members": [
+              "01670961",
+              "01692143"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-17",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01674464",
+            "members": [
+              "01676755",
+              "01693783"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-18",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01675963",
+            "members": [
+              "01670777",
+              "01678407"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-19",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01759182",
+            "members": [
+              "02174153",
+              "02255567"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-20",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01864707",
+            "members": [
+              "02500144",
+              "02505342"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "3ad539a797563870",
+            "Head": "11677259",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "a45e2dde4ed945c6",
+            "Head": "11677259",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "candidate",
+            "already_known": false,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "c19a17d7438139c8",
+            "Head": "02678677",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "fe775b87d41146c5",
+            "Head": "02678677",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          }
+        ],
+        "nodes": [
+          {
+            "id": "06066555",
+            "label": "06066555",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "shared_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259",
+            "label": "11677259",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11685179",
+            "label": "11685179",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677",
+            "label": "02678677",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "edges": [
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|known",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|known",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|known",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_context"
+          },
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|3ad539a797563870",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "3ad539a797563870",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259|_derivationally_related_form|11685179|candidate|a45e2dde4ed945c6",
+            "source": "11677259",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "candidate",
+            "provenance": "cluster_generated",
+            "candidate_id": "a45e2dde4ed945c6",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": false,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|c19a17d7438139c8",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "c19a17d7438139c8",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|fe775b87d41146c5",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "fe775b87d41146c5",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "stats": {
+          "nodes": 4,
+          "edges": 7,
+          "triples": 1200,
+          "candidates": 4,
+          "clusters": 20,
+          "nodes_visible": 4,
+          "edges_visible": 7,
+          "cluster_members": 2,
+          "generated_candidates": 4,
+          "context_nodes": 0,
+          "limits_applied": false,
+          "expand_context": true
+        },
+        "explanation": {
+          "cluster_key": "(relation, tail)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": false,
+          "llm_available": true,
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555"
+        },
+        "data_available": true,
+        "warnings": []
+      }
+    },
+    "candidateGeneration": {
+      "graphSlice": {
+        "slice_id": "6d0bf908d4df:omnia:cluster-54:4n:7e",
+        "mode": "omnia_demo",
+        "label": "Cluster-centred slice: 4 core nodes + 0 context",
+        "source": "backend_session",
+        "dataset_id": "wn18rr",
+        "selected_cluster": {
+          "cluster_id": "cluster-54",
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555",
+          "members": [
+            "02678677",
+            "11677259"
+          ],
+          "size": 2,
+          "candidate_count": 1,
+          "_index": 53,
+          "cluster_key": "(_synset_domain_topic_of, 06066555)"
+        },
+        "selected_candidate": {
+          "candidate_id": "a45e2dde4ed945c6",
+          "Head": "11677259",
+          "Relation": "_derivationally_related_form",
+          "Tail": "11685179",
+          "cluster_ids": [
+            "cluster-54"
+          ],
+          "distance": null,
+          "threshold": null,
+          "filter_status": "",
+          "llm_decision": "",
+          "llm_score": null,
+          "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+          "retrieved_context": [],
+          "feedback_status": "none",
+          "status_bucket": "candidate",
+          "already_known": false,
+          "source_cluster": "cluster-54",
+          "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+        },
+        "clusters": [
+          {
+            "cluster_id": "cluster-1",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "00091124",
+            "members": [
+              "14299070",
+              "14299336"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-2",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "01745722",
+            "members": [
+              "01103614",
+              "08062623"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-3",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "07439570",
+            "members": [
+              "00454868",
+              "00455212"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-4",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "14286549",
+            "members": [
+              "01309143",
+              "01309478"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-5",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00007846",
+            "members": [
+              "09860415",
+              "09883452",
+              "09970088",
+              "10052843",
+              "10635788"
+            ],
+            "size": 5,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-6",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00109660",
+            "members": [
+              "00155547",
+              "00336260",
+              "00434374"
+            ],
+            "size": 3,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-7",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00173338",
+            "members": [
+              "00178380",
+              "01309701"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-8",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00276373",
+            "members": [
+              "00276214",
+              "01472807"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-9",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00407535",
+            "members": [
+              "00543233",
+              "01017987"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-10",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00766234",
+            "members": [
+              "00773814",
+              "00782338"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-11",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01212572",
+            "members": [
+              "01215137",
+              "01215851"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-12",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01405044",
+            "members": [
+              "01403540",
+              "01408958"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-13",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01429349",
+            "members": [
+              "02544754",
+              "02552737",
+              "02573918",
+              "02654890"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-14",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01507175",
+            "members": [
+              "01593423",
+              "01857171",
+              "02013034",
+              "02019762"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-15",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01525720",
+            "members": [
+              "01587834",
+              "01600657"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-16",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01657723",
+            "members": [
+              "01670961",
+              "01692143"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-17",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01674464",
+            "members": [
+              "01676755",
+              "01693783"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-18",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01675963",
+            "members": [
+              "01670777",
+              "01678407"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-19",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01759182",
+            "members": [
+              "02174153",
+              "02255567"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-20",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01864707",
+            "members": [
+              "02500144",
+              "02505342"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "3ad539a797563870",
+            "Head": "11677259",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "a45e2dde4ed945c6",
+            "Head": "11677259",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "candidate",
+            "already_known": false,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "c19a17d7438139c8",
+            "Head": "02678677",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "fe775b87d41146c5",
+            "Head": "02678677",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          }
+        ],
+        "nodes": [
+          {
+            "id": "06066555",
+            "label": "06066555",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "shared_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259",
+            "label": "11677259",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11685179",
+            "label": "11685179",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677",
+            "label": "02678677",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "edges": [
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|known",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|known",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|known",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_context"
+          },
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|3ad539a797563870",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "3ad539a797563870",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259|_derivationally_related_form|11685179|candidate|a45e2dde4ed945c6",
+            "source": "11677259",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "candidate",
+            "provenance": "cluster_generated",
+            "candidate_id": "a45e2dde4ed945c6",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": false,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|c19a17d7438139c8",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "c19a17d7438139c8",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|fe775b87d41146c5",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "fe775b87d41146c5",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "stats": {
+          "nodes": 4,
+          "edges": 7,
+          "triples": 1200,
+          "candidates": 4,
+          "clusters": 20,
+          "nodes_visible": 4,
+          "edges_visible": 7,
+          "cluster_members": 2,
+          "generated_candidates": 4,
+          "context_nodes": 0,
+          "limits_applied": false,
+          "expand_context": true
+        },
+        "explanation": {
+          "cluster_key": "(relation, tail)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": false,
+          "llm_available": true,
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555"
+        },
+        "data_available": true,
+        "warnings": []
+      }
+    },
+    "filtering": {
+      "graphSlice": {
+        "slice_id": "6d0bf908d4df:omnia:cluster-54:4n:7e",
+        "mode": "omnia_demo",
+        "label": "Cluster-centred slice: 4 core nodes + 0 context",
+        "source": "backend_session",
+        "dataset_id": "wn18rr",
+        "selected_cluster": {
+          "cluster_id": "cluster-54",
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555",
+          "members": [
+            "02678677",
+            "11677259"
+          ],
+          "size": 2,
+          "candidate_count": 1,
+          "_index": 53,
+          "cluster_key": "(_synset_domain_topic_of, 06066555)"
+        },
+        "selected_candidate": {
+          "candidate_id": "a45e2dde4ed945c6",
+          "Head": "11677259",
+          "Relation": "_derivationally_related_form",
+          "Tail": "11685179",
+          "cluster_ids": [
+            "cluster-54"
+          ],
+          "distance": null,
+          "threshold": null,
+          "filter_status": "",
+          "llm_decision": "",
+          "llm_score": null,
+          "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+          "retrieved_context": [],
+          "feedback_status": "none",
+          "status_bucket": "candidate",
+          "already_known": false,
+          "source_cluster": "cluster-54",
+          "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+        },
+        "clusters": [
+          {
+            "cluster_id": "cluster-1",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "00091124",
+            "members": [
+              "14299070",
+              "14299336"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-2",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "01745722",
+            "members": [
+              "01103614",
+              "08062623"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-3",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "07439570",
+            "members": [
+              "00454868",
+              "00455212"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-4",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "14286549",
+            "members": [
+              "01309143",
+              "01309478"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-5",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00007846",
+            "members": [
+              "09860415",
+              "09883452",
+              "09970088",
+              "10052843",
+              "10635788"
+            ],
+            "size": 5,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-6",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00109660",
+            "members": [
+              "00155547",
+              "00336260",
+              "00434374"
+            ],
+            "size": 3,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-7",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00173338",
+            "members": [
+              "00178380",
+              "01309701"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-8",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00276373",
+            "members": [
+              "00276214",
+              "01472807"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-9",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00407535",
+            "members": [
+              "00543233",
+              "01017987"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-10",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00766234",
+            "members": [
+              "00773814",
+              "00782338"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-11",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01212572",
+            "members": [
+              "01215137",
+              "01215851"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-12",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01405044",
+            "members": [
+              "01403540",
+              "01408958"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-13",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01429349",
+            "members": [
+              "02544754",
+              "02552737",
+              "02573918",
+              "02654890"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-14",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01507175",
+            "members": [
+              "01593423",
+              "01857171",
+              "02013034",
+              "02019762"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-15",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01525720",
+            "members": [
+              "01587834",
+              "01600657"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-16",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01657723",
+            "members": [
+              "01670961",
+              "01692143"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-17",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01674464",
+            "members": [
+              "01676755",
+              "01693783"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-18",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01675963",
+            "members": [
+              "01670777",
+              "01678407"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-19",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01759182",
+            "members": [
+              "02174153",
+              "02255567"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-20",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01864707",
+            "members": [
+              "02500144",
+              "02505342"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "3ad539a797563870",
+            "Head": "11677259",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "a45e2dde4ed945c6",
+            "Head": "11677259",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "candidate",
+            "already_known": false,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "c19a17d7438139c8",
+            "Head": "02678677",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "fe775b87d41146c5",
+            "Head": "02678677",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          }
+        ],
+        "nodes": [
+          {
+            "id": "06066555",
+            "label": "06066555",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "shared_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259",
+            "label": "11677259",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11685179",
+            "label": "11685179",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677",
+            "label": "02678677",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "edges": [
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|known",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|known",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|known",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_context"
+          },
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|3ad539a797563870",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "3ad539a797563870",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259|_derivationally_related_form|11685179|candidate|a45e2dde4ed945c6",
+            "source": "11677259",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "candidate",
+            "provenance": "cluster_generated",
+            "candidate_id": "a45e2dde4ed945c6",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": false,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|c19a17d7438139c8",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "c19a17d7438139c8",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|fe775b87d41146c5",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "fe775b87d41146c5",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "stats": {
+          "nodes": 4,
+          "edges": 7,
+          "triples": 1200,
+          "candidates": 4,
+          "clusters": 20,
+          "nodes_visible": 4,
+          "edges_visible": 7,
+          "cluster_members": 2,
+          "generated_candidates": 4,
+          "context_nodes": 0,
+          "limits_applied": false,
+          "expand_context": true
+        },
+        "explanation": {
+          "cluster_key": "(relation, tail)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": false,
+          "llm_available": true,
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555"
+        },
+        "data_available": true,
+        "warnings": []
+      }
+    },
+    "semanticValidation": {
+      "graphSlice": {
+        "slice_id": "6d0bf908d4df:omnia:cluster-54:4n:7e",
+        "mode": "omnia_demo",
+        "label": "Cluster-centred slice: 4 core nodes + 0 context",
+        "source": "backend_session",
+        "dataset_id": "wn18rr",
+        "selected_cluster": {
+          "cluster_id": "cluster-54",
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555",
+          "members": [
+            "02678677",
+            "11677259"
+          ],
+          "size": 2,
+          "candidate_count": 1,
+          "_index": 53,
+          "cluster_key": "(_synset_domain_topic_of, 06066555)"
+        },
+        "selected_candidate": {
+          "candidate_id": "a45e2dde4ed945c6",
+          "Head": "11677259",
+          "Relation": "_derivationally_related_form",
+          "Tail": "11685179",
+          "cluster_ids": [
+            "cluster-54"
+          ],
+          "distance": null,
+          "threshold": null,
+          "filter_status": "",
+          "llm_decision": "",
+          "llm_score": null,
+          "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+          "retrieved_context": [],
+          "feedback_status": "none",
+          "status_bucket": "candidate",
+          "already_known": false,
+          "source_cluster": "cluster-54",
+          "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+        },
+        "clusters": [
+          {
+            "cluster_id": "cluster-1",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "00091124",
+            "members": [
+              "14299070",
+              "14299336"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-2",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "01745722",
+            "members": [
+              "01103614",
+              "08062623"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-3",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "07439570",
+            "members": [
+              "00454868",
+              "00455212"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-4",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "14286549",
+            "members": [
+              "01309143",
+              "01309478"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-5",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00007846",
+            "members": [
+              "09860415",
+              "09883452",
+              "09970088",
+              "10052843",
+              "10635788"
+            ],
+            "size": 5,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-6",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00109660",
+            "members": [
+              "00155547",
+              "00336260",
+              "00434374"
+            ],
+            "size": 3,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-7",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00173338",
+            "members": [
+              "00178380",
+              "01309701"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-8",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00276373",
+            "members": [
+              "00276214",
+              "01472807"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-9",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00407535",
+            "members": [
+              "00543233",
+              "01017987"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-10",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00766234",
+            "members": [
+              "00773814",
+              "00782338"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-11",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01212572",
+            "members": [
+              "01215137",
+              "01215851"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-12",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01405044",
+            "members": [
+              "01403540",
+              "01408958"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-13",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01429349",
+            "members": [
+              "02544754",
+              "02552737",
+              "02573918",
+              "02654890"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-14",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01507175",
+            "members": [
+              "01593423",
+              "01857171",
+              "02013034",
+              "02019762"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-15",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01525720",
+            "members": [
+              "01587834",
+              "01600657"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-16",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01657723",
+            "members": [
+              "01670961",
+              "01692143"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-17",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01674464",
+            "members": [
+              "01676755",
+              "01693783"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-18",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01675963",
+            "members": [
+              "01670777",
+              "01678407"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-19",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01759182",
+            "members": [
+              "02174153",
+              "02255567"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-20",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01864707",
+            "members": [
+              "02500144",
+              "02505342"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "3ad539a797563870",
+            "Head": "11677259",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "a45e2dde4ed945c6",
+            "Head": "11677259",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "candidate",
+            "already_known": false,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "c19a17d7438139c8",
+            "Head": "02678677",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "fe775b87d41146c5",
+            "Head": "02678677",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          }
+        ],
+        "nodes": [
+          {
+            "id": "06066555",
+            "label": "06066555",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "shared_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259",
+            "label": "11677259",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11685179",
+            "label": "11685179",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677",
+            "label": "02678677",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "edges": [
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|known",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|known",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|known",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_context"
+          },
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|3ad539a797563870",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "3ad539a797563870",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259|_derivationally_related_form|11685179|candidate|a45e2dde4ed945c6",
+            "source": "11677259",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "candidate",
+            "provenance": "cluster_generated",
+            "candidate_id": "a45e2dde4ed945c6",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": false,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|c19a17d7438139c8",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "c19a17d7438139c8",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|fe775b87d41146c5",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "fe775b87d41146c5",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "stats": {
+          "nodes": 4,
+          "edges": 7,
+          "triples": 1200,
+          "candidates": 4,
+          "clusters": 20,
+          "nodes_visible": 4,
+          "edges_visible": 7,
+          "cluster_members": 2,
+          "generated_candidates": 4,
+          "context_nodes": 0,
+          "limits_applied": false,
+          "expand_context": true
+        },
+        "explanation": {
+          "cluster_key": "(relation, tail)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": false,
+          "llm_available": true,
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555"
+        },
+        "data_available": true,
+        "warnings": []
+      }
+    },
+    "feedback": {
+      "graphSlice": {
+        "slice_id": "6d0bf908d4df:omnia:cluster-54:4n:7e",
+        "mode": "omnia_demo",
+        "label": "Cluster-centred slice: 4 core nodes + 0 context",
+        "source": "backend_session",
+        "dataset_id": "wn18rr",
+        "selected_cluster": {
+          "cluster_id": "cluster-54",
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555",
+          "members": [
+            "02678677",
+            "11677259"
+          ],
+          "size": 2,
+          "candidate_count": 1,
+          "_index": 53,
+          "cluster_key": "(_synset_domain_topic_of, 06066555)"
+        },
+        "selected_candidate": {
+          "candidate_id": "a45e2dde4ed945c6",
+          "Head": "11677259",
+          "Relation": "_derivationally_related_form",
+          "Tail": "11685179",
+          "cluster_ids": [
+            "cluster-54"
+          ],
+          "distance": null,
+          "threshold": null,
+          "filter_status": "",
+          "llm_decision": "",
+          "llm_score": null,
+          "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+          "retrieved_context": [],
+          "feedback_status": "none",
+          "status_bucket": "candidate",
+          "already_known": false,
+          "source_cluster": "cluster-54",
+          "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+        },
+        "clusters": [
+          {
+            "cluster_id": "cluster-1",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "00091124",
+            "members": [
+              "14299070",
+              "14299336"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-2",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "01745722",
+            "members": [
+              "01103614",
+              "08062623"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-3",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "07439570",
+            "members": [
+              "00454868",
+              "00455212"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-4",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "14286549",
+            "members": [
+              "01309143",
+              "01309478"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-5",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00007846",
+            "members": [
+              "09860415",
+              "09883452",
+              "09970088",
+              "10052843",
+              "10635788"
+            ],
+            "size": 5,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-6",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00109660",
+            "members": [
+              "00155547",
+              "00336260",
+              "00434374"
+            ],
+            "size": 3,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-7",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00173338",
+            "members": [
+              "00178380",
+              "01309701"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-8",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00276373",
+            "members": [
+              "00276214",
+              "01472807"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-9",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00407535",
+            "members": [
+              "00543233",
+              "01017987"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-10",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00766234",
+            "members": [
+              "00773814",
+              "00782338"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-11",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01212572",
+            "members": [
+              "01215137",
+              "01215851"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-12",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01405044",
+            "members": [
+              "01403540",
+              "01408958"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-13",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01429349",
+            "members": [
+              "02544754",
+              "02552737",
+              "02573918",
+              "02654890"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-14",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01507175",
+            "members": [
+              "01593423",
+              "01857171",
+              "02013034",
+              "02019762"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-15",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01525720",
+            "members": [
+              "01587834",
+              "01600657"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-16",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01657723",
+            "members": [
+              "01670961",
+              "01692143"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-17",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01674464",
+            "members": [
+              "01676755",
+              "01693783"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-18",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01675963",
+            "members": [
+              "01670777",
+              "01678407"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-19",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01759182",
+            "members": [
+              "02174153",
+              "02255567"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-20",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01864707",
+            "members": [
+              "02500144",
+              "02505342"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "3ad539a797563870",
+            "Head": "11677259",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "a45e2dde4ed945c6",
+            "Head": "11677259",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "candidate",
+            "already_known": false,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "c19a17d7438139c8",
+            "Head": "02678677",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "fe775b87d41146c5",
+            "Head": "02678677",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          }
+        ],
+        "nodes": [
+          {
+            "id": "06066555",
+            "label": "06066555",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "shared_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259",
+            "label": "11677259",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11685179",
+            "label": "11685179",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677",
+            "label": "02678677",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "edges": [
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|known",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|known",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|known",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_context"
+          },
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|3ad539a797563870",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "3ad539a797563870",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259|_derivationally_related_form|11685179|candidate|a45e2dde4ed945c6",
+            "source": "11677259",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "candidate",
+            "provenance": "cluster_generated",
+            "candidate_id": "a45e2dde4ed945c6",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": false,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|c19a17d7438139c8",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "c19a17d7438139c8",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|fe775b87d41146c5",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "fe775b87d41146c5",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "stats": {
+          "nodes": 4,
+          "edges": 7,
+          "triples": 1200,
+          "candidates": 4,
+          "clusters": 20,
+          "nodes_visible": 4,
+          "edges_visible": 7,
+          "cluster_members": 2,
+          "generated_candidates": 4,
+          "context_nodes": 0,
+          "limits_applied": false,
+          "expand_context": true
+        },
+        "explanation": {
+          "cluster_key": "(relation, tail)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": false,
+          "llm_available": true,
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555"
+        },
+        "data_available": true,
+        "warnings": []
+      }
+    },
+    "completed": {
+      "graphSlice": {
+        "slice_id": "6d0bf908d4df:omnia:cluster-54:4n:7e",
+        "mode": "omnia_demo",
+        "label": "Cluster-centred slice: 4 core nodes + 0 context",
+        "source": "backend_session",
+        "dataset_id": "wn18rr",
+        "selected_cluster": {
+          "cluster_id": "cluster-54",
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555",
+          "members": [
+            "02678677",
+            "11677259"
+          ],
+          "size": 2,
+          "candidate_count": 1,
+          "_index": 53,
+          "cluster_key": "(_synset_domain_topic_of, 06066555)"
+        },
+        "selected_candidate": {
+          "candidate_id": "a45e2dde4ed945c6",
+          "Head": "11677259",
+          "Relation": "_derivationally_related_form",
+          "Tail": "11685179",
+          "cluster_ids": [
+            "cluster-54"
+          ],
+          "distance": null,
+          "threshold": null,
+          "filter_status": "",
+          "llm_decision": "",
+          "llm_score": null,
+          "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+          "retrieved_context": [],
+          "feedback_status": "none",
+          "status_bucket": "candidate",
+          "already_known": false,
+          "source_cluster": "cluster-54",
+          "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+        },
+        "clusters": [
+          {
+            "cluster_id": "cluster-1",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "00091124",
+            "members": [
+              "14299070",
+              "14299336"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-2",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "01745722",
+            "members": [
+              "01103614",
+              "08062623"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-3",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "07439570",
+            "members": [
+              "00454868",
+              "00455212"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-4",
+            "shared_relation": "_derivationally_related_form",
+            "shared_tail": "14286549",
+            "members": [
+              "01309143",
+              "01309478"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-5",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00007846",
+            "members": [
+              "09860415",
+              "09883452",
+              "09970088",
+              "10052843",
+              "10635788"
+            ],
+            "size": 5,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-6",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00109660",
+            "members": [
+              "00155547",
+              "00336260",
+              "00434374"
+            ],
+            "size": 3,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-7",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00173338",
+            "members": [
+              "00178380",
+              "01309701"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-8",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00276373",
+            "members": [
+              "00276214",
+              "01472807"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-9",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00407535",
+            "members": [
+              "00543233",
+              "01017987"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-10",
+            "shared_relation": "_hypernym",
+            "shared_tail": "00766234",
+            "members": [
+              "00773814",
+              "00782338"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-11",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01212572",
+            "members": [
+              "01215137",
+              "01215851"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-12",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01405044",
+            "members": [
+              "01403540",
+              "01408958"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-13",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01429349",
+            "members": [
+              "02544754",
+              "02552737",
+              "02573918",
+              "02654890"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-14",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01507175",
+            "members": [
+              "01593423",
+              "01857171",
+              "02013034",
+              "02019762"
+            ],
+            "size": 4,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-15",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01525720",
+            "members": [
+              "01587834",
+              "01600657"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-16",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01657723",
+            "members": [
+              "01670961",
+              "01692143"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-17",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01674464",
+            "members": [
+              "01676755",
+              "01693783"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-18",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01675963",
+            "members": [
+              "01670777",
+              "01678407"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-19",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01759182",
+            "members": [
+              "02174153",
+              "02255567"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          },
+          {
+            "cluster_id": "cluster-20",
+            "shared_relation": "_hypernym",
+            "shared_tail": "01864707",
+            "members": [
+              "02500144",
+              "02505342"
+            ],
+            "size": 2,
+            "candidate_count": 0,
+            "selected": false
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "3ad539a797563870",
+            "Head": "11677259",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "a45e2dde4ed945c6",
+            "Head": "11677259",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Generated because 02678677, 11677259 share _synset_domain_topic_of -> 06066555 and exchange observed relation-tail evidence.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "candidate",
+            "already_known": false,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "c19a17d7438139c8",
+            "Head": "02678677",
+            "Relation": "_synset_domain_topic_of",
+            "Tail": "06066555",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          },
+          {
+            "candidate_id": "fe775b87d41146c5",
+            "Head": "02678677",
+            "Relation": "_derivationally_related_form",
+            "Tail": "11685179",
+            "cluster_ids": [
+              "cluster-54"
+            ],
+            "distance": null,
+            "threshold": null,
+            "filter_status": "",
+            "llm_decision": "",
+            "llm_score": null,
+            "llm_rationale": "Already present in the known graph; kept to show the relation-tail propagation path.",
+            "retrieved_context": [],
+            "feedback_status": "none",
+            "status_bucket": "known",
+            "already_known": true,
+            "source_cluster": "cluster-54",
+            "why_generated": "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context."
+          }
+        ],
+        "nodes": [
+          {
+            "id": "06066555",
+            "label": "06066555",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "shared_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259",
+            "label": "11677259",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11685179",
+            "label": "11685179",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "context_tail",
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677",
+            "label": "02678677",
+            "type": "entity",
+            "source": "backend_session",
+            "role": "cluster_member",
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "edges": [
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|known",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|known",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_key"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|known",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "original",
+            "candidate_id": null,
+            "role": "cluster_context"
+          },
+          {
+            "id": "11677259|_synset_domain_topic_of|06066555|known|3ad539a797563870",
+            "source": "11677259",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "3ad539a797563870",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "11677259|_derivationally_related_form|11685179|candidate|a45e2dde4ed945c6",
+            "source": "11677259",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "candidate",
+            "provenance": "cluster_generated",
+            "candidate_id": "a45e2dde4ed945c6",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": false,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_synset_domain_topic_of|06066555|known|c19a17d7438139c8",
+            "source": "02678677",
+            "target": "06066555",
+            "label": "_synset_domain_topic_of",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "c19a17d7438139c8",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          },
+          {
+            "id": "02678677|_derivationally_related_form|11685179|known|fe775b87d41146c5",
+            "source": "02678677",
+            "target": "11685179",
+            "label": "_derivationally_related_form",
+            "status": "known",
+            "provenance": "cluster_generated",
+            "candidate_id": "fe775b87d41146c5",
+            "role": "generated_candidate",
+            "distance": null,
+            "threshold": null,
+            "llm_score": null,
+            "already_known": true,
+            "cluster_id": "cluster-54"
+          }
+        ],
+        "stats": {
+          "nodes": 4,
+          "edges": 7,
+          "triples": 1200,
+          "candidates": 4,
+          "clusters": 20,
+          "nodes_visible": 4,
+          "edges_visible": 7,
+          "cluster_members": 2,
+          "generated_candidates": 4,
+          "context_nodes": 0,
+          "limits_applied": false,
+          "expand_context": true
+        },
+        "explanation": {
+          "cluster_key": "(relation, tail)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": false,
+          "llm_available": true,
+          "shared_relation": "_synset_domain_topic_of",
+          "shared_tail": "06066555"
+        },
+        "data_available": true,
+        "warnings": []
+      }
+    }
+  },
+  "defaultClusterId": "cluster-54",
+  "defaultCandidateId": "a45e2dde4ed945c6"
+}

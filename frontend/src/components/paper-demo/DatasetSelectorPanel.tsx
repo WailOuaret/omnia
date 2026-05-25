@@ -7,6 +7,7 @@ interface DatasetSelectorPanelProps {
   selectedDatasetId: DemoDatasetId;
   onSelect: (id: DemoDatasetId) => void;
   isLiveMode?: boolean;
+  isStaticScenarioMode?: boolean;
   /** Dataset bound to the active backend session (if any). */
   sessionDatasetId?: DemoDatasetId | null;
   liveDataset?: DemoDatasetConfig | null;
@@ -56,6 +57,7 @@ export function DatasetSelectorPanel({
   selectedDatasetId,
   onSelect,
   isLiveMode = false,
+  isStaticScenarioMode = false,
   sessionDatasetId = null,
   liveDataset = null,
   sessionId = null,
@@ -94,7 +96,7 @@ export function DatasetSelectorPanel({
         onChange={(event) => onSelect(event.target.value as DemoDatasetId)}
         data-testid="dataset-selector-dropdown"
       >
-        <optgroup label="Live backend datasets">
+        <optgroup label={isStaticScenarioMode ? "Static interactive scenarios" : "Live backend datasets"}>
           {LIVE_BACKEND_DATASET_IDS.map((id) => {
             const dataset = DATASETS[id];
             if (!dataset) return null;
@@ -118,7 +120,16 @@ export function DatasetSelectorPanel({
         </optgroup>
       </select>
 
-      {!isBackendLoadable(selectedDatasetId) ? (
+      {isStaticScenarioMode ? (
+        <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+          <p className="font-semibold">Static interactive scenario</p>
+          <p className="mt-1">
+            Prepared JSON scenarios run entirely in the browser. No backend session is required on Vercel.
+          </p>
+        </div>
+      ) : null}
+
+      {!isStaticScenarioMode && !isBackendLoadable(selectedDatasetId) ? (
         <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <p className="font-semibold">Static guided demo only</p>
           {selectedDatasetId === "covidFact" ? (
@@ -134,7 +145,7 @@ export function DatasetSelectorPanel({
         </div>
       ) : null}
 
-      {isLiveMode && sessionId ? (
+      {!isStaticScenarioMode && isLiveMode && sessionId ? (
         <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
           <p className="font-semibold">Active backend session</p>
           <p className="mt-1 font-mono text-[11px] text-emerald-800">sessionId: {sessionId}</p>
@@ -236,7 +247,7 @@ export function DatasetSelectorPanel({
         ) : null}
       </div>
 
-      {!isLiveMode && canCreateSession && onCreateSession ? (
+      {!isStaticScenarioMode && !isLiveMode && canCreateSession && onCreateSession ? (
         <button
           type="button"
           onClick={() => void handleCreateSession()}

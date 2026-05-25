@@ -1,0 +1,2242 @@
+{
+  "datasetId": "covidFact",
+  "label": "COVID-Fact",
+  "shortName": "COVID-Fact",
+  "source": "COVID-19 literature extraction",
+  "sourceNote": "Static guided scenario only. JSONL source verified; KG converter pending.",
+  "description": "Biomedical KG extracted from COVID-19 literature \u2014 static guided demo.",
+  "whyInteresting": "Clear real-world missing triple example for conference demos.",
+  "recommendedMode": "sentence-rag",
+  "publicStatus": "public",
+  "paperStats": {
+    "entities": 1416,
+    "relations": 28,
+    "triples": 908
+  },
+  "overviewSlice": {
+    "slice_id": "scenario:covid:C1",
+    "mode": "overview",
+    "label": "COVID-Fact overview",
+    "source": "static_scenario",
+    "data_available": true,
+    "nodes": [
+      {
+        "id": "remdesivir",
+        "label": "remdesivir",
+        "type": "entity",
+        "role": "cluster_member"
+      },
+      {
+        "id": "chloroquine",
+        "label": "chloroquine",
+        "type": "entity",
+        "role": "cluster_member"
+      },
+      {
+        "id": "sars-cov-2",
+        "label": "sars-cov-2",
+        "type": "entity",
+        "role": "shared_tail"
+      },
+      {
+        "id": "2019-ncov",
+        "label": "2019-ncov",
+        "type": "entity",
+        "role": "context"
+      },
+      {
+        "id": "fda",
+        "label": "FDA",
+        "type": "entity",
+        "role": "context"
+      },
+      {
+        "id": "hydroxychloroquine",
+        "label": "hydroxychloroquine",
+        "type": "entity",
+        "role": "context"
+      },
+      {
+        "id": "mers",
+        "label": "MERS",
+        "type": "entity",
+        "role": "context"
+      },
+      {
+        "id": "covid-19",
+        "label": "COVID-19",
+        "type": "entity",
+        "role": "context"
+      }
+    ],
+    "edges": [
+      {
+        "id": "covid-e1|treats|known",
+        "source": "remdesivir",
+        "target": "sars-cov-2",
+        "label": "treats",
+        "status": "known",
+        "provenance": "original"
+      },
+      {
+        "id": "covid-e2|inhibits|known",
+        "source": "remdesivir",
+        "target": "2019-ncov",
+        "label": "inhibits",
+        "status": "known",
+        "provenance": "original"
+      },
+      {
+        "id": "covid-e3|inhibits|known",
+        "source": "chloroquine",
+        "target": "2019-ncov",
+        "label": "inhibits",
+        "status": "known",
+        "provenance": "original"
+      },
+      {
+        "id": "covid-e4|approves|known",
+        "source": "fda",
+        "target": "chloroquine",
+        "label": "approves",
+        "status": "known",
+        "provenance": "original"
+      },
+      {
+        "id": "covid-e5|approves|known",
+        "source": "fda",
+        "target": "hydroxychloroquine",
+        "label": "approves",
+        "status": "known",
+        "provenance": "original"
+      },
+      {
+        "id": "covid-e6|treats|candidate|cov-c1",
+        "source": "chloroquine",
+        "target": "sars-cov-2",
+        "label": "treats",
+        "status": "kept",
+        "provenance": "cluster_generated",
+        "candidate_id": "cov-c1",
+        "distance": 0.42,
+        "threshold": 0.7
+      },
+      {
+        "id": "covid-e7|treats|candidate|cov-c2",
+        "source": "remdesivir",
+        "target": "2019-ncov",
+        "label": "treats",
+        "status": "kept",
+        "provenance": "cluster_generated",
+        "candidate_id": "cov-c2",
+        "distance": 0.51,
+        "threshold": 0.7
+      },
+      {
+        "id": "covid-e8|affects|removed|cov-c3",
+        "source": "chloroquine",
+        "target": "mers",
+        "label": "affects",
+        "status": "removed",
+        "provenance": "cluster_generated",
+        "candidate_id": "cov-c3",
+        "distance": 0.91,
+        "threshold": 0.7
+      }
+    ],
+    "clusters": [
+      {
+        "cluster_id": "C1",
+        "shared_relation": "inhibits",
+        "shared_tail": "2019-ncov",
+        "members": [
+          "remdesivir",
+          "chloroquine"
+        ],
+        "size": 2,
+        "cluster_key": "(inhibits, 2019-ncov)"
+      }
+    ],
+    "candidates": [
+      {
+        "candidate_id": "cov-c1",
+        "Head": "chloroquine",
+        "Relation": "treats",
+        "Tail": "sars-cov-2",
+        "cluster_ids": [
+          "C1"
+        ],
+        "distance": 0.42,
+        "threshold": 0.7,
+        "filter_status": "kept",
+        "llm_decision": "valid",
+        "llm_score": 0.86,
+        "llm_rationale": "Semantically supported by retrieved antiviral context.",
+        "retrieved_context": [
+          "(remdesivir, treats, sars-cov-2)",
+          "(chloroquine, inhibits, 2019-ncov)"
+        ],
+        "feedback_status": "none",
+        "status_bucket": "kept",
+        "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+      },
+      {
+        "candidate_id": "cov-c2",
+        "Head": "remdesivir",
+        "Relation": "treats",
+        "Tail": "2019-ncov",
+        "cluster_ids": [
+          "C1"
+        ],
+        "distance": 0.51,
+        "threshold": 0.7,
+        "filter_status": "kept",
+        "llm_decision": "uncertain",
+        "llm_score": 0.58,
+        "llm_rationale": "Structurally plausible but weaker direct evidence.",
+        "retrieved_context": [
+          "(remdesivir, inhibits, 2019-ncov)"
+        ],
+        "feedback_status": "none",
+        "status_bucket": "kept"
+      },
+      {
+        "candidate_id": "cov-c3",
+        "Head": "chloroquine",
+        "Relation": "affects",
+        "Tail": "MERS",
+        "cluster_ids": [
+          "C1"
+        ],
+        "distance": 0.91,
+        "threshold": 0.7,
+        "filter_status": "removed",
+        "llm_decision": "invalid",
+        "llm_score": 0.21,
+        "llm_rationale": "No biomedical evidence in retrieved context.",
+        "retrieved_context": [
+          "(remdesivir, affects, MERS)"
+        ],
+        "feedback_status": "none",
+        "status_bucket": "removed"
+      }
+    ],
+    "selected_cluster": {
+      "cluster_id": "C1",
+      "shared_relation": "inhibits",
+      "shared_tail": "2019-ncov",
+      "members": [
+        "remdesivir",
+        "chloroquine"
+      ],
+      "size": 2,
+      "cluster_key": "(inhibits, 2019-ncov)"
+    },
+    "selected_candidate": {
+      "candidate_id": "cov-c1",
+      "Head": "chloroquine",
+      "Relation": "treats",
+      "Tail": "sars-cov-2",
+      "cluster_ids": [
+        "C1"
+      ],
+      "distance": 0.42,
+      "threshold": 0.7,
+      "filter_status": "kept",
+      "llm_decision": "valid",
+      "llm_score": 0.86,
+      "llm_rationale": "Semantically supported by retrieved antiviral context.",
+      "retrieved_context": [
+        "(remdesivir, treats, sars-cov-2)",
+        "(chloroquine, inhibits, 2019-ncov)"
+      ],
+      "feedback_status": "none",
+      "status_bucket": "kept",
+      "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+    },
+    "stats": {
+      "nodes": 8,
+      "edges": 8,
+      "triples": 908,
+      "candidates": 3,
+      "clusters": 1
+    },
+    "explanation": {
+      "cluster_key": "(inhibits, 2019-ncov)",
+      "generation_rule": "Hk x Pk",
+      "filtering_available": true,
+      "llm_available": true,
+      "shared_relation": "inhibits",
+      "shared_tail": "2019-ncov"
+    },
+    "warnings": [
+      "COVID-Fact JSONL source exists but validated KG converter is pending."
+    ]
+  },
+  "selectedCluster": {
+    "cluster_id": "C1",
+    "shared_relation": "inhibits",
+    "shared_tail": "2019-ncov",
+    "members": [
+      "remdesivir",
+      "chloroquine"
+    ],
+    "size": 2,
+    "cluster_key": "(inhibits, 2019-ncov)"
+  },
+  "selectedCandidate": {
+    "candidate_id": "cov-c1",
+    "Head": "chloroquine",
+    "Relation": "treats",
+    "Tail": "sars-cov-2",
+    "cluster_ids": [
+      "C1"
+    ],
+    "distance": 0.42,
+    "threshold": 0.7,
+    "filter_status": "kept",
+    "llm_decision": "valid",
+    "llm_score": 0.86,
+    "llm_rationale": "Semantically supported by retrieved antiviral context.",
+    "retrieved_context": [
+      "(remdesivir, treats, sars-cov-2)",
+      "(chloroquine, inhibits, 2019-ncov)"
+    ],
+    "feedback_status": "none",
+    "status_bucket": "kept",
+    "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+  },
+  "generatedCandidates": [
+    {
+      "candidate_id": "cov-c1",
+      "Head": "chloroquine",
+      "Relation": "treats",
+      "Tail": "sars-cov-2",
+      "cluster_ids": [
+        "C1"
+      ],
+      "distance": 0.42,
+      "threshold": 0.7,
+      "filter_status": "kept",
+      "llm_decision": "valid",
+      "llm_score": 0.86,
+      "llm_rationale": "Semantically supported by retrieved antiviral context.",
+      "retrieved_context": [
+        "(remdesivir, treats, sars-cov-2)",
+        "(chloroquine, inhibits, 2019-ncov)"
+      ],
+      "feedback_status": "none",
+      "status_bucket": "kept",
+      "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+    },
+    {
+      "candidate_id": "cov-c2",
+      "Head": "remdesivir",
+      "Relation": "treats",
+      "Tail": "2019-ncov",
+      "cluster_ids": [
+        "C1"
+      ],
+      "distance": 0.51,
+      "threshold": 0.7,
+      "filter_status": "kept",
+      "llm_decision": "uncertain",
+      "llm_score": 0.58,
+      "llm_rationale": "Structurally plausible but weaker direct evidence.",
+      "retrieved_context": [
+        "(remdesivir, inhibits, 2019-ncov)"
+      ],
+      "feedback_status": "none",
+      "status_bucket": "kept"
+    },
+    {
+      "candidate_id": "cov-c3",
+      "Head": "chloroquine",
+      "Relation": "affects",
+      "Tail": "MERS",
+      "cluster_ids": [
+        "C1"
+      ],
+      "distance": 0.91,
+      "threshold": 0.7,
+      "filter_status": "removed",
+      "llm_decision": "invalid",
+      "llm_score": 0.21,
+      "llm_rationale": "No biomedical evidence in retrieved context.",
+      "retrieved_context": [
+        "(remdesivir, affects, MERS)"
+      ],
+      "feedback_status": "none",
+      "status_bucket": "removed"
+    }
+  ],
+  "clusters": [
+    {
+      "cluster_id": "C1",
+      "shared_relation": "inhibits",
+      "shared_tail": "2019-ncov",
+      "members": [
+        "remdesivir",
+        "chloroquine"
+      ],
+      "size": 2,
+      "cluster_key": "(inhibits, 2019-ncov)"
+    }
+  ],
+  "filtering": {
+    "available": true,
+    "model": "TransE (session)",
+    "threshold": 0.7,
+    "beforeFiltering": 3,
+    "afterFiltering": 2
+  },
+  "llm": {
+    "available": true,
+    "strategy": "Backend RAG (session)",
+    "topK": 3,
+    "promptMode": "Sentence-based RAG"
+  },
+  "limitations": [
+    "COVID-Fact JSONL is downloaded and verified; validated KG converter is pending.",
+    "This scenario is static/guided only \u2014 not a live backend KG session.",
+    "Feedback is stored locally in the browser."
+  ],
+  "steps": {
+    "kg": {
+      "graphSlice": {
+        "slice_id": "scenario:covid:C1",
+        "mode": "guided",
+        "label": "COVID-Fact guided static scenario",
+        "source": "static_scenario",
+        "data_available": true,
+        "nodes": [
+          {
+            "id": "remdesivir",
+            "label": "remdesivir",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "chloroquine",
+            "label": "chloroquine",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "sars-cov-2",
+            "label": "sars-cov-2",
+            "type": "entity",
+            "role": "shared_tail"
+          },
+          {
+            "id": "2019-ncov",
+            "label": "2019-ncov",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "fda",
+            "label": "FDA",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "hydroxychloroquine",
+            "label": "hydroxychloroquine",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "mers",
+            "label": "MERS",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "covid-19",
+            "label": "COVID-19",
+            "type": "entity",
+            "role": "context"
+          }
+        ],
+        "edges": [
+          {
+            "id": "covid-e1|treats|known",
+            "source": "remdesivir",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e2|inhibits|known",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e3|inhibits|known",
+            "source": "chloroquine",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e4|approves|known",
+            "source": "fda",
+            "target": "chloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e5|approves|known",
+            "source": "fda",
+            "target": "hydroxychloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e6|treats|candidate|cov-c1",
+            "source": "chloroquine",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c1",
+            "distance": 0.42,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e7|treats|candidate|cov-c2",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c2",
+            "distance": 0.51,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e8|affects|removed|cov-c3",
+            "source": "chloroquine",
+            "target": "mers",
+            "label": "affects",
+            "status": "removed",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c3",
+            "distance": 0.91,
+            "threshold": 0.7
+          }
+        ],
+        "clusters": [
+          {
+            "cluster_id": "C1",
+            "shared_relation": "inhibits",
+            "shared_tail": "2019-ncov",
+            "members": [
+              "remdesivir",
+              "chloroquine"
+            ],
+            "size": 2,
+            "cluster_key": "(inhibits, 2019-ncov)"
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "cov-c1",
+            "Head": "chloroquine",
+            "Relation": "treats",
+            "Tail": "sars-cov-2",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.42,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "valid",
+            "llm_score": 0.86,
+            "llm_rationale": "Semantically supported by retrieved antiviral context.",
+            "retrieved_context": [
+              "(remdesivir, treats, sars-cov-2)",
+              "(chloroquine, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept",
+            "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+          },
+          {
+            "candidate_id": "cov-c2",
+            "Head": "remdesivir",
+            "Relation": "treats",
+            "Tail": "2019-ncov",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.51,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "uncertain",
+            "llm_score": 0.58,
+            "llm_rationale": "Structurally plausible but weaker direct evidence.",
+            "retrieved_context": [
+              "(remdesivir, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept"
+          },
+          {
+            "candidate_id": "cov-c3",
+            "Head": "chloroquine",
+            "Relation": "affects",
+            "Tail": "MERS",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.91,
+            "threshold": 0.7,
+            "filter_status": "removed",
+            "llm_decision": "invalid",
+            "llm_score": 0.21,
+            "llm_rationale": "No biomedical evidence in retrieved context.",
+            "retrieved_context": [
+              "(remdesivir, affects, MERS)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "removed"
+          }
+        ],
+        "selected_cluster": {
+          "cluster_id": "C1",
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov",
+          "members": [
+            "remdesivir",
+            "chloroquine"
+          ],
+          "size": 2,
+          "cluster_key": "(inhibits, 2019-ncov)"
+        },
+        "selected_candidate": {
+          "candidate_id": "cov-c1",
+          "Head": "chloroquine",
+          "Relation": "treats",
+          "Tail": "sars-cov-2",
+          "cluster_ids": [
+            "C1"
+          ],
+          "distance": 0.42,
+          "threshold": 0.7,
+          "filter_status": "kept",
+          "llm_decision": "valid",
+          "llm_score": 0.86,
+          "llm_rationale": "Semantically supported by retrieved antiviral context.",
+          "retrieved_context": [
+            "(remdesivir, treats, sars-cov-2)",
+            "(chloroquine, inhibits, 2019-ncov)"
+          ],
+          "feedback_status": "none",
+          "status_bucket": "kept",
+          "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+        },
+        "stats": {
+          "nodes": 8,
+          "edges": 8,
+          "triples": 908,
+          "candidates": 3,
+          "clusters": 1
+        },
+        "explanation": {
+          "cluster_key": "(inhibits, 2019-ncov)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": true,
+          "llm_available": true,
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov"
+        },
+        "warnings": [
+          "COVID-Fact JSONL source exists but validated KG converter is pending."
+        ]
+      }
+    },
+    "clustering": {
+      "graphSlice": {
+        "slice_id": "scenario:covid:C1",
+        "mode": "guided",
+        "label": "COVID-Fact guided static scenario",
+        "source": "static_scenario",
+        "data_available": true,
+        "nodes": [
+          {
+            "id": "remdesivir",
+            "label": "remdesivir",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "chloroquine",
+            "label": "chloroquine",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "sars-cov-2",
+            "label": "sars-cov-2",
+            "type": "entity",
+            "role": "shared_tail"
+          },
+          {
+            "id": "2019-ncov",
+            "label": "2019-ncov",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "fda",
+            "label": "FDA",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "hydroxychloroquine",
+            "label": "hydroxychloroquine",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "mers",
+            "label": "MERS",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "covid-19",
+            "label": "COVID-19",
+            "type": "entity",
+            "role": "context"
+          }
+        ],
+        "edges": [
+          {
+            "id": "covid-e1|treats|known",
+            "source": "remdesivir",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e2|inhibits|known",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e3|inhibits|known",
+            "source": "chloroquine",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e4|approves|known",
+            "source": "fda",
+            "target": "chloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e5|approves|known",
+            "source": "fda",
+            "target": "hydroxychloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e6|treats|candidate|cov-c1",
+            "source": "chloroquine",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c1",
+            "distance": 0.42,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e7|treats|candidate|cov-c2",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c2",
+            "distance": 0.51,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e8|affects|removed|cov-c3",
+            "source": "chloroquine",
+            "target": "mers",
+            "label": "affects",
+            "status": "removed",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c3",
+            "distance": 0.91,
+            "threshold": 0.7
+          }
+        ],
+        "clusters": [
+          {
+            "cluster_id": "C1",
+            "shared_relation": "inhibits",
+            "shared_tail": "2019-ncov",
+            "members": [
+              "remdesivir",
+              "chloroquine"
+            ],
+            "size": 2,
+            "cluster_key": "(inhibits, 2019-ncov)"
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "cov-c1",
+            "Head": "chloroquine",
+            "Relation": "treats",
+            "Tail": "sars-cov-2",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.42,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "valid",
+            "llm_score": 0.86,
+            "llm_rationale": "Semantically supported by retrieved antiviral context.",
+            "retrieved_context": [
+              "(remdesivir, treats, sars-cov-2)",
+              "(chloroquine, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept",
+            "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+          },
+          {
+            "candidate_id": "cov-c2",
+            "Head": "remdesivir",
+            "Relation": "treats",
+            "Tail": "2019-ncov",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.51,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "uncertain",
+            "llm_score": 0.58,
+            "llm_rationale": "Structurally plausible but weaker direct evidence.",
+            "retrieved_context": [
+              "(remdesivir, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept"
+          },
+          {
+            "candidate_id": "cov-c3",
+            "Head": "chloroquine",
+            "Relation": "affects",
+            "Tail": "MERS",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.91,
+            "threshold": 0.7,
+            "filter_status": "removed",
+            "llm_decision": "invalid",
+            "llm_score": 0.21,
+            "llm_rationale": "No biomedical evidence in retrieved context.",
+            "retrieved_context": [
+              "(remdesivir, affects, MERS)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "removed"
+          }
+        ],
+        "selected_cluster": {
+          "cluster_id": "C1",
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov",
+          "members": [
+            "remdesivir",
+            "chloroquine"
+          ],
+          "size": 2,
+          "cluster_key": "(inhibits, 2019-ncov)"
+        },
+        "selected_candidate": {
+          "candidate_id": "cov-c1",
+          "Head": "chloroquine",
+          "Relation": "treats",
+          "Tail": "sars-cov-2",
+          "cluster_ids": [
+            "C1"
+          ],
+          "distance": 0.42,
+          "threshold": 0.7,
+          "filter_status": "kept",
+          "llm_decision": "valid",
+          "llm_score": 0.86,
+          "llm_rationale": "Semantically supported by retrieved antiviral context.",
+          "retrieved_context": [
+            "(remdesivir, treats, sars-cov-2)",
+            "(chloroquine, inhibits, 2019-ncov)"
+          ],
+          "feedback_status": "none",
+          "status_bucket": "kept",
+          "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+        },
+        "stats": {
+          "nodes": 8,
+          "edges": 8,
+          "triples": 908,
+          "candidates": 3,
+          "clusters": 1
+        },
+        "explanation": {
+          "cluster_key": "(inhibits, 2019-ncov)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": true,
+          "llm_available": true,
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov"
+        },
+        "warnings": [
+          "COVID-Fact JSONL source exists but validated KG converter is pending."
+        ]
+      }
+    },
+    "candidateGeneration": {
+      "graphSlice": {
+        "slice_id": "scenario:covid:C1",
+        "mode": "guided",
+        "label": "COVID-Fact guided static scenario",
+        "source": "static_scenario",
+        "data_available": true,
+        "nodes": [
+          {
+            "id": "remdesivir",
+            "label": "remdesivir",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "chloroquine",
+            "label": "chloroquine",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "sars-cov-2",
+            "label": "sars-cov-2",
+            "type": "entity",
+            "role": "shared_tail"
+          },
+          {
+            "id": "2019-ncov",
+            "label": "2019-ncov",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "fda",
+            "label": "FDA",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "hydroxychloroquine",
+            "label": "hydroxychloroquine",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "mers",
+            "label": "MERS",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "covid-19",
+            "label": "COVID-19",
+            "type": "entity",
+            "role": "context"
+          }
+        ],
+        "edges": [
+          {
+            "id": "covid-e1|treats|known",
+            "source": "remdesivir",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e2|inhibits|known",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e3|inhibits|known",
+            "source": "chloroquine",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e4|approves|known",
+            "source": "fda",
+            "target": "chloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e5|approves|known",
+            "source": "fda",
+            "target": "hydroxychloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e6|treats|candidate|cov-c1",
+            "source": "chloroquine",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c1",
+            "distance": 0.42,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e7|treats|candidate|cov-c2",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c2",
+            "distance": 0.51,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e8|affects|removed|cov-c3",
+            "source": "chloroquine",
+            "target": "mers",
+            "label": "affects",
+            "status": "removed",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c3",
+            "distance": 0.91,
+            "threshold": 0.7
+          }
+        ],
+        "clusters": [
+          {
+            "cluster_id": "C1",
+            "shared_relation": "inhibits",
+            "shared_tail": "2019-ncov",
+            "members": [
+              "remdesivir",
+              "chloroquine"
+            ],
+            "size": 2,
+            "cluster_key": "(inhibits, 2019-ncov)"
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "cov-c1",
+            "Head": "chloroquine",
+            "Relation": "treats",
+            "Tail": "sars-cov-2",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.42,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "valid",
+            "llm_score": 0.86,
+            "llm_rationale": "Semantically supported by retrieved antiviral context.",
+            "retrieved_context": [
+              "(remdesivir, treats, sars-cov-2)",
+              "(chloroquine, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept",
+            "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+          },
+          {
+            "candidate_id": "cov-c2",
+            "Head": "remdesivir",
+            "Relation": "treats",
+            "Tail": "2019-ncov",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.51,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "uncertain",
+            "llm_score": 0.58,
+            "llm_rationale": "Structurally plausible but weaker direct evidence.",
+            "retrieved_context": [
+              "(remdesivir, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept"
+          },
+          {
+            "candidate_id": "cov-c3",
+            "Head": "chloroquine",
+            "Relation": "affects",
+            "Tail": "MERS",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.91,
+            "threshold": 0.7,
+            "filter_status": "removed",
+            "llm_decision": "invalid",
+            "llm_score": 0.21,
+            "llm_rationale": "No biomedical evidence in retrieved context.",
+            "retrieved_context": [
+              "(remdesivir, affects, MERS)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "removed"
+          }
+        ],
+        "selected_cluster": {
+          "cluster_id": "C1",
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov",
+          "members": [
+            "remdesivir",
+            "chloroquine"
+          ],
+          "size": 2,
+          "cluster_key": "(inhibits, 2019-ncov)"
+        },
+        "selected_candidate": {
+          "candidate_id": "cov-c1",
+          "Head": "chloroquine",
+          "Relation": "treats",
+          "Tail": "sars-cov-2",
+          "cluster_ids": [
+            "C1"
+          ],
+          "distance": 0.42,
+          "threshold": 0.7,
+          "filter_status": "kept",
+          "llm_decision": "valid",
+          "llm_score": 0.86,
+          "llm_rationale": "Semantically supported by retrieved antiviral context.",
+          "retrieved_context": [
+            "(remdesivir, treats, sars-cov-2)",
+            "(chloroquine, inhibits, 2019-ncov)"
+          ],
+          "feedback_status": "none",
+          "status_bucket": "kept",
+          "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+        },
+        "stats": {
+          "nodes": 8,
+          "edges": 8,
+          "triples": 908,
+          "candidates": 3,
+          "clusters": 1
+        },
+        "explanation": {
+          "cluster_key": "(inhibits, 2019-ncov)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": true,
+          "llm_available": true,
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov"
+        },
+        "warnings": [
+          "COVID-Fact JSONL source exists but validated KG converter is pending."
+        ]
+      }
+    },
+    "filtering": {
+      "graphSlice": {
+        "slice_id": "scenario:covid:C1",
+        "mode": "guided",
+        "label": "COVID-Fact guided static scenario",
+        "source": "static_scenario",
+        "data_available": true,
+        "nodes": [
+          {
+            "id": "remdesivir",
+            "label": "remdesivir",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "chloroquine",
+            "label": "chloroquine",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "sars-cov-2",
+            "label": "sars-cov-2",
+            "type": "entity",
+            "role": "shared_tail"
+          },
+          {
+            "id": "2019-ncov",
+            "label": "2019-ncov",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "fda",
+            "label": "FDA",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "hydroxychloroquine",
+            "label": "hydroxychloroquine",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "mers",
+            "label": "MERS",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "covid-19",
+            "label": "COVID-19",
+            "type": "entity",
+            "role": "context"
+          }
+        ],
+        "edges": [
+          {
+            "id": "covid-e1|treats|known",
+            "source": "remdesivir",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e2|inhibits|known",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e3|inhibits|known",
+            "source": "chloroquine",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e4|approves|known",
+            "source": "fda",
+            "target": "chloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e5|approves|known",
+            "source": "fda",
+            "target": "hydroxychloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e6|treats|candidate|cov-c1",
+            "source": "chloroquine",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c1",
+            "distance": 0.42,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e7|treats|candidate|cov-c2",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c2",
+            "distance": 0.51,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e8|affects|removed|cov-c3",
+            "source": "chloroquine",
+            "target": "mers",
+            "label": "affects",
+            "status": "removed",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c3",
+            "distance": 0.91,
+            "threshold": 0.7
+          }
+        ],
+        "clusters": [
+          {
+            "cluster_id": "C1",
+            "shared_relation": "inhibits",
+            "shared_tail": "2019-ncov",
+            "members": [
+              "remdesivir",
+              "chloroquine"
+            ],
+            "size": 2,
+            "cluster_key": "(inhibits, 2019-ncov)"
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "cov-c1",
+            "Head": "chloroquine",
+            "Relation": "treats",
+            "Tail": "sars-cov-2",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.42,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "valid",
+            "llm_score": 0.86,
+            "llm_rationale": "Semantically supported by retrieved antiviral context.",
+            "retrieved_context": [
+              "(remdesivir, treats, sars-cov-2)",
+              "(chloroquine, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept",
+            "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+          },
+          {
+            "candidate_id": "cov-c2",
+            "Head": "remdesivir",
+            "Relation": "treats",
+            "Tail": "2019-ncov",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.51,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "uncertain",
+            "llm_score": 0.58,
+            "llm_rationale": "Structurally plausible but weaker direct evidence.",
+            "retrieved_context": [
+              "(remdesivir, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept"
+          },
+          {
+            "candidate_id": "cov-c3",
+            "Head": "chloroquine",
+            "Relation": "affects",
+            "Tail": "MERS",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.91,
+            "threshold": 0.7,
+            "filter_status": "removed",
+            "llm_decision": "invalid",
+            "llm_score": 0.21,
+            "llm_rationale": "No biomedical evidence in retrieved context.",
+            "retrieved_context": [
+              "(remdesivir, affects, MERS)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "removed"
+          }
+        ],
+        "selected_cluster": {
+          "cluster_id": "C1",
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov",
+          "members": [
+            "remdesivir",
+            "chloroquine"
+          ],
+          "size": 2,
+          "cluster_key": "(inhibits, 2019-ncov)"
+        },
+        "selected_candidate": {
+          "candidate_id": "cov-c1",
+          "Head": "chloroquine",
+          "Relation": "treats",
+          "Tail": "sars-cov-2",
+          "cluster_ids": [
+            "C1"
+          ],
+          "distance": 0.42,
+          "threshold": 0.7,
+          "filter_status": "kept",
+          "llm_decision": "valid",
+          "llm_score": 0.86,
+          "llm_rationale": "Semantically supported by retrieved antiviral context.",
+          "retrieved_context": [
+            "(remdesivir, treats, sars-cov-2)",
+            "(chloroquine, inhibits, 2019-ncov)"
+          ],
+          "feedback_status": "none",
+          "status_bucket": "kept",
+          "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+        },
+        "stats": {
+          "nodes": 8,
+          "edges": 8,
+          "triples": 908,
+          "candidates": 3,
+          "clusters": 1
+        },
+        "explanation": {
+          "cluster_key": "(inhibits, 2019-ncov)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": true,
+          "llm_available": true,
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov"
+        },
+        "warnings": [
+          "COVID-Fact JSONL source exists but validated KG converter is pending."
+        ]
+      }
+    },
+    "semanticValidation": {
+      "graphSlice": {
+        "slice_id": "scenario:covid:C1",
+        "mode": "guided",
+        "label": "COVID-Fact guided static scenario",
+        "source": "static_scenario",
+        "data_available": true,
+        "nodes": [
+          {
+            "id": "remdesivir",
+            "label": "remdesivir",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "chloroquine",
+            "label": "chloroquine",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "sars-cov-2",
+            "label": "sars-cov-2",
+            "type": "entity",
+            "role": "shared_tail"
+          },
+          {
+            "id": "2019-ncov",
+            "label": "2019-ncov",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "fda",
+            "label": "FDA",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "hydroxychloroquine",
+            "label": "hydroxychloroquine",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "mers",
+            "label": "MERS",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "covid-19",
+            "label": "COVID-19",
+            "type": "entity",
+            "role": "context"
+          }
+        ],
+        "edges": [
+          {
+            "id": "covid-e1|treats|known",
+            "source": "remdesivir",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e2|inhibits|known",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e3|inhibits|known",
+            "source": "chloroquine",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e4|approves|known",
+            "source": "fda",
+            "target": "chloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e5|approves|known",
+            "source": "fda",
+            "target": "hydroxychloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e6|treats|candidate|cov-c1",
+            "source": "chloroquine",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c1",
+            "distance": 0.42,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e7|treats|candidate|cov-c2",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c2",
+            "distance": 0.51,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e8|affects|removed|cov-c3",
+            "source": "chloroquine",
+            "target": "mers",
+            "label": "affects",
+            "status": "removed",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c3",
+            "distance": 0.91,
+            "threshold": 0.7
+          }
+        ],
+        "clusters": [
+          {
+            "cluster_id": "C1",
+            "shared_relation": "inhibits",
+            "shared_tail": "2019-ncov",
+            "members": [
+              "remdesivir",
+              "chloroquine"
+            ],
+            "size": 2,
+            "cluster_key": "(inhibits, 2019-ncov)"
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "cov-c1",
+            "Head": "chloroquine",
+            "Relation": "treats",
+            "Tail": "sars-cov-2",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.42,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "valid",
+            "llm_score": 0.86,
+            "llm_rationale": "Semantically supported by retrieved antiviral context.",
+            "retrieved_context": [
+              "(remdesivir, treats, sars-cov-2)",
+              "(chloroquine, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept",
+            "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+          },
+          {
+            "candidate_id": "cov-c2",
+            "Head": "remdesivir",
+            "Relation": "treats",
+            "Tail": "2019-ncov",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.51,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "uncertain",
+            "llm_score": 0.58,
+            "llm_rationale": "Structurally plausible but weaker direct evidence.",
+            "retrieved_context": [
+              "(remdesivir, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept"
+          },
+          {
+            "candidate_id": "cov-c3",
+            "Head": "chloroquine",
+            "Relation": "affects",
+            "Tail": "MERS",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.91,
+            "threshold": 0.7,
+            "filter_status": "removed",
+            "llm_decision": "invalid",
+            "llm_score": 0.21,
+            "llm_rationale": "No biomedical evidence in retrieved context.",
+            "retrieved_context": [
+              "(remdesivir, affects, MERS)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "removed"
+          }
+        ],
+        "selected_cluster": {
+          "cluster_id": "C1",
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov",
+          "members": [
+            "remdesivir",
+            "chloroquine"
+          ],
+          "size": 2,
+          "cluster_key": "(inhibits, 2019-ncov)"
+        },
+        "selected_candidate": {
+          "candidate_id": "cov-c1",
+          "Head": "chloroquine",
+          "Relation": "treats",
+          "Tail": "sars-cov-2",
+          "cluster_ids": [
+            "C1"
+          ],
+          "distance": 0.42,
+          "threshold": 0.7,
+          "filter_status": "kept",
+          "llm_decision": "valid",
+          "llm_score": 0.86,
+          "llm_rationale": "Semantically supported by retrieved antiviral context.",
+          "retrieved_context": [
+            "(remdesivir, treats, sars-cov-2)",
+            "(chloroquine, inhibits, 2019-ncov)"
+          ],
+          "feedback_status": "none",
+          "status_bucket": "kept",
+          "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+        },
+        "stats": {
+          "nodes": 8,
+          "edges": 8,
+          "triples": 908,
+          "candidates": 3,
+          "clusters": 1
+        },
+        "explanation": {
+          "cluster_key": "(inhibits, 2019-ncov)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": true,
+          "llm_available": true,
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov"
+        },
+        "warnings": [
+          "COVID-Fact JSONL source exists but validated KG converter is pending."
+        ]
+      }
+    },
+    "feedback": {
+      "graphSlice": {
+        "slice_id": "scenario:covid:C1",
+        "mode": "guided",
+        "label": "COVID-Fact guided static scenario",
+        "source": "static_scenario",
+        "data_available": true,
+        "nodes": [
+          {
+            "id": "remdesivir",
+            "label": "remdesivir",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "chloroquine",
+            "label": "chloroquine",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "sars-cov-2",
+            "label": "sars-cov-2",
+            "type": "entity",
+            "role": "shared_tail"
+          },
+          {
+            "id": "2019-ncov",
+            "label": "2019-ncov",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "fda",
+            "label": "FDA",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "hydroxychloroquine",
+            "label": "hydroxychloroquine",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "mers",
+            "label": "MERS",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "covid-19",
+            "label": "COVID-19",
+            "type": "entity",
+            "role": "context"
+          }
+        ],
+        "edges": [
+          {
+            "id": "covid-e1|treats|known",
+            "source": "remdesivir",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e2|inhibits|known",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e3|inhibits|known",
+            "source": "chloroquine",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e4|approves|known",
+            "source": "fda",
+            "target": "chloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e5|approves|known",
+            "source": "fda",
+            "target": "hydroxychloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e6|treats|candidate|cov-c1",
+            "source": "chloroquine",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c1",
+            "distance": 0.42,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e7|treats|candidate|cov-c2",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c2",
+            "distance": 0.51,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e8|affects|removed|cov-c3",
+            "source": "chloroquine",
+            "target": "mers",
+            "label": "affects",
+            "status": "removed",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c3",
+            "distance": 0.91,
+            "threshold": 0.7
+          }
+        ],
+        "clusters": [
+          {
+            "cluster_id": "C1",
+            "shared_relation": "inhibits",
+            "shared_tail": "2019-ncov",
+            "members": [
+              "remdesivir",
+              "chloroquine"
+            ],
+            "size": 2,
+            "cluster_key": "(inhibits, 2019-ncov)"
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "cov-c1",
+            "Head": "chloroquine",
+            "Relation": "treats",
+            "Tail": "sars-cov-2",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.42,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "valid",
+            "llm_score": 0.86,
+            "llm_rationale": "Semantically supported by retrieved antiviral context.",
+            "retrieved_context": [
+              "(remdesivir, treats, sars-cov-2)",
+              "(chloroquine, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept",
+            "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+          },
+          {
+            "candidate_id": "cov-c2",
+            "Head": "remdesivir",
+            "Relation": "treats",
+            "Tail": "2019-ncov",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.51,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "uncertain",
+            "llm_score": 0.58,
+            "llm_rationale": "Structurally plausible but weaker direct evidence.",
+            "retrieved_context": [
+              "(remdesivir, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept"
+          },
+          {
+            "candidate_id": "cov-c3",
+            "Head": "chloroquine",
+            "Relation": "affects",
+            "Tail": "MERS",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.91,
+            "threshold": 0.7,
+            "filter_status": "removed",
+            "llm_decision": "invalid",
+            "llm_score": 0.21,
+            "llm_rationale": "No biomedical evidence in retrieved context.",
+            "retrieved_context": [
+              "(remdesivir, affects, MERS)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "removed"
+          }
+        ],
+        "selected_cluster": {
+          "cluster_id": "C1",
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov",
+          "members": [
+            "remdesivir",
+            "chloroquine"
+          ],
+          "size": 2,
+          "cluster_key": "(inhibits, 2019-ncov)"
+        },
+        "selected_candidate": {
+          "candidate_id": "cov-c1",
+          "Head": "chloroquine",
+          "Relation": "treats",
+          "Tail": "sars-cov-2",
+          "cluster_ids": [
+            "C1"
+          ],
+          "distance": 0.42,
+          "threshold": 0.7,
+          "filter_status": "kept",
+          "llm_decision": "valid",
+          "llm_score": 0.86,
+          "llm_rationale": "Semantically supported by retrieved antiviral context.",
+          "retrieved_context": [
+            "(remdesivir, treats, sars-cov-2)",
+            "(chloroquine, inhibits, 2019-ncov)"
+          ],
+          "feedback_status": "none",
+          "status_bucket": "kept",
+          "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+        },
+        "stats": {
+          "nodes": 8,
+          "edges": 8,
+          "triples": 908,
+          "candidates": 3,
+          "clusters": 1
+        },
+        "explanation": {
+          "cluster_key": "(inhibits, 2019-ncov)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": true,
+          "llm_available": true,
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov"
+        },
+        "warnings": [
+          "COVID-Fact JSONL source exists but validated KG converter is pending."
+        ]
+      }
+    },
+    "completed": {
+      "graphSlice": {
+        "slice_id": "scenario:covid:C1",
+        "mode": "guided",
+        "label": "COVID-Fact guided static scenario",
+        "source": "static_scenario",
+        "data_available": true,
+        "nodes": [
+          {
+            "id": "remdesivir",
+            "label": "remdesivir",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "chloroquine",
+            "label": "chloroquine",
+            "type": "entity",
+            "role": "cluster_member"
+          },
+          {
+            "id": "sars-cov-2",
+            "label": "sars-cov-2",
+            "type": "entity",
+            "role": "shared_tail"
+          },
+          {
+            "id": "2019-ncov",
+            "label": "2019-ncov",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "fda",
+            "label": "FDA",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "hydroxychloroquine",
+            "label": "hydroxychloroquine",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "mers",
+            "label": "MERS",
+            "type": "entity",
+            "role": "context"
+          },
+          {
+            "id": "covid-19",
+            "label": "COVID-19",
+            "type": "entity",
+            "role": "context"
+          }
+        ],
+        "edges": [
+          {
+            "id": "covid-e1|treats|known",
+            "source": "remdesivir",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e2|inhibits|known",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e3|inhibits|known",
+            "source": "chloroquine",
+            "target": "2019-ncov",
+            "label": "inhibits",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e4|approves|known",
+            "source": "fda",
+            "target": "chloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e5|approves|known",
+            "source": "fda",
+            "target": "hydroxychloroquine",
+            "label": "approves",
+            "status": "known",
+            "provenance": "original"
+          },
+          {
+            "id": "covid-e6|treats|candidate|cov-c1",
+            "source": "chloroquine",
+            "target": "sars-cov-2",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c1",
+            "distance": 0.42,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e7|treats|candidate|cov-c2",
+            "source": "remdesivir",
+            "target": "2019-ncov",
+            "label": "treats",
+            "status": "kept",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c2",
+            "distance": 0.51,
+            "threshold": 0.7
+          },
+          {
+            "id": "covid-e8|affects|removed|cov-c3",
+            "source": "chloroquine",
+            "target": "mers",
+            "label": "affects",
+            "status": "removed",
+            "provenance": "cluster_generated",
+            "candidate_id": "cov-c3",
+            "distance": 0.91,
+            "threshold": 0.7
+          }
+        ],
+        "clusters": [
+          {
+            "cluster_id": "C1",
+            "shared_relation": "inhibits",
+            "shared_tail": "2019-ncov",
+            "members": [
+              "remdesivir",
+              "chloroquine"
+            ],
+            "size": 2,
+            "cluster_key": "(inhibits, 2019-ncov)"
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "cov-c1",
+            "Head": "chloroquine",
+            "Relation": "treats",
+            "Tail": "sars-cov-2",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.42,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "valid",
+            "llm_score": 0.86,
+            "llm_rationale": "Semantically supported by retrieved antiviral context.",
+            "retrieved_context": [
+              "(remdesivir, treats, sars-cov-2)",
+              "(chloroquine, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept",
+            "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+          },
+          {
+            "candidate_id": "cov-c2",
+            "Head": "remdesivir",
+            "Relation": "treats",
+            "Tail": "2019-ncov",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.51,
+            "threshold": 0.7,
+            "filter_status": "kept",
+            "llm_decision": "uncertain",
+            "llm_score": 0.58,
+            "llm_rationale": "Structurally plausible but weaker direct evidence.",
+            "retrieved_context": [
+              "(remdesivir, inhibits, 2019-ncov)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "kept"
+          },
+          {
+            "candidate_id": "cov-c3",
+            "Head": "chloroquine",
+            "Relation": "affects",
+            "Tail": "MERS",
+            "cluster_ids": [
+              "C1"
+            ],
+            "distance": 0.91,
+            "threshold": 0.7,
+            "filter_status": "removed",
+            "llm_decision": "invalid",
+            "llm_score": 0.21,
+            "llm_rationale": "No biomedical evidence in retrieved context.",
+            "retrieved_context": [
+              "(remdesivir, affects, MERS)"
+            ],
+            "feedback_status": "none",
+            "status_bucket": "removed"
+          }
+        ],
+        "selected_cluster": {
+          "cluster_id": "C1",
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov",
+          "members": [
+            "remdesivir",
+            "chloroquine"
+          ],
+          "size": 2,
+          "cluster_key": "(inhibits, 2019-ncov)"
+        },
+        "selected_candidate": {
+          "candidate_id": "cov-c1",
+          "Head": "chloroquine",
+          "Relation": "treats",
+          "Tail": "sars-cov-2",
+          "cluster_ids": [
+            "C1"
+          ],
+          "distance": 0.42,
+          "threshold": 0.7,
+          "filter_status": "kept",
+          "llm_decision": "valid",
+          "llm_score": 0.86,
+          "llm_rationale": "Semantically supported by retrieved antiviral context.",
+          "retrieved_context": [
+            "(remdesivir, treats, sars-cov-2)",
+            "(chloroquine, inhibits, 2019-ncov)"
+          ],
+          "feedback_status": "none",
+          "status_bucket": "kept",
+          "why_generated": "Generated because chloroquine shares the inhibits\u21922019-ncov cluster pattern."
+        },
+        "stats": {
+          "nodes": 8,
+          "edges": 8,
+          "triples": 908,
+          "candidates": 3,
+          "clusters": 1
+        },
+        "explanation": {
+          "cluster_key": "(inhibits, 2019-ncov)",
+          "generation_rule": "Hk x Pk",
+          "filtering_available": true,
+          "llm_available": true,
+          "shared_relation": "inhibits",
+          "shared_tail": "2019-ncov"
+        },
+        "warnings": [
+          "COVID-Fact JSONL source exists but validated KG converter is pending."
+        ]
+      }
+    }
+  },
+  "defaultClusterId": "C1",
+  "defaultCandidateId": "cov-c1"
+}

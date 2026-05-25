@@ -18,6 +18,7 @@ import {
   type BackendSessionMeta,
 } from "../lib/api";
 import type { DemoDatasetId } from "../demo-data/types";
+import { getDemoMode } from "../lib/demoMode";
 import { demoDatasetIdToSampleId, sampleIdToDemoDatasetId } from "../lib/sessionToDemoDataset";
 
 export type PaperDemoSessionMode = "live" | "static";
@@ -165,7 +166,7 @@ async function validateSession(sessionId: string): Promise<boolean> {
 }
 
 export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): PaperDemoSessionState {
-  const effectiveDatasetId = datasetId ?? readDatasetFromUrl() ?? "codexM";
+  const effectiveDatasetId = datasetId ?? readDatasetFromUrl() ?? null;
   const [sessionId, setSessionId] = useState<string | null>(() => readSessionIdFromUrl());
   const [bindStatus, setBindStatus] = useState<SessionBindStatus>("idle");
   const [mode, setMode] = useState<PaperDemoSessionMode>(() =>
@@ -177,7 +178,9 @@ export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): Pap
   const [candidates, setCandidates] = useState<BackendCandidateRow[]>([]);
   const [feedback, setFeedback] = useState<Record<string, unknown> | null>(null);
   const [completedPayload, setCompletedPayload] = useState<Record<string, unknown> | null>(null);
-  const [loading, setLoading] = useState<boolean>(isBackendLoadable(effectiveDatasetId));
+  const [loading, setLoading] = useState<boolean>(
+    Boolean(effectiveDatasetId && isBackendLoadable(effectiveDatasetId) && getDemoMode() !== "static"),
+  );
   const [error, setError] = useState<string | null>(null);
   const [activeSlice, setActiveSlice] = useState<PaperDemoSliceQuery>(GUIDED);
   const creatingRef = useRef(false);
@@ -262,6 +265,16 @@ export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): Pap
 
   const bindSession = useCallback(
     async (targetDatasetId: DemoDatasetId, force = false) => {
+      if (getDemoMode() === "static") {
+        setMode("static");
+        setBindStatus("static");
+        setSessionId(null);
+        setLoading(false);
+        setError(null);
+        updatePaperDemoUrl(targetDatasetId, null);
+        return;
+      }
+
       if (!isBackendLoadable(targetDatasetId)) {
         setMode("static");
         setBindStatus("static");
@@ -345,7 +358,20 @@ export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): Pap
   );
 
   useEffect(() => {
-    if (!effectiveDatasetId) return;
+    if (!effectiveDatasetId) {
+      setMode("static");
+      setBindStatus("static");
+      setLoading(false);
+      return;
+    }
+    if (getDemoMode() === "static") {
+      setMode("static");
+      setBindStatus("static");
+      setSessionId(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     if (bindTargetRef.current === effectiveDatasetId) return;
     bindTargetRef.current = effectiveDatasetId;
     void bindSession(effectiveDatasetId);
