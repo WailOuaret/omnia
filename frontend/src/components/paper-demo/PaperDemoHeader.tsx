@@ -84,8 +84,7 @@ export function PaperDemoHeader({
           <p className="mt-1 text-sm text-slate-700">{PAPER_DEMO_STEP_GOAL[step]}</p>
           {mode === "static" ? (
             <p className="mt-1 text-[11px] leading-snug text-amber-800">
-              Online demo uses prepared/static scenarios. Full backend live mode is available locally or when{" "}
-              <code className="rounded bg-amber-50 px-1">VITE_API_BASE_URL</code> points to a deployed FastAPI backend.
+              Backend session unavailable — showing the prepared static scenario for this dataset.
             </p>
           ) : null}
         </div>

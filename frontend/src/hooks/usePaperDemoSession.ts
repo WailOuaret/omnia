@@ -19,7 +19,6 @@ import {
 } from "../lib/api";
 import type { DemoDatasetId } from "../demo-data/types";
 import { demoDatasetIdToSampleId, sampleIdToDemoDatasetId } from "../lib/sessionToDemoDataset";
-import { prefersStaticTeacherDemo } from "../lib/hostedDemo";
 
 export type PaperDemoSessionMode = "live" | "static";
 export type PaperDemoSliceMode =
@@ -289,18 +288,6 @@ export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): Pap
         setBindStatus("static");
         setLoading(false);
         setError("This dataset is static-only in the paper demo.");
-        return;
-      }
-
-      if (prefersStaticTeacherDemo()) {
-        setMode("static");
-        setBindStatus("static");
-        setSessionId(null);
-        setLoading(false);
-        setError(
-          "Live backend is not connected to this deployment. Select COVID-Fact or Socio-Economic for the prepared guided demo, or run locally with FastAPI.",
-        );
-        updatePaperDemoUrl(targetDatasetId, null);
         return;
       }
 

@@ -23,7 +23,6 @@ import {
   type SliceResult,
 } from "../lib/datasetSlice";
 import { buildLiveOmniaViewModel } from "../lib/buildLiveOmniaViewModel";
-import { defaultDatasetForHost, prefersStaticTeacherDemo } from "../lib/hostedDemo";
 import { sampleIdToDemoDatasetId } from "../lib/sessionToDemoDataset";
 import {
   exportCompletedKGTSV,
@@ -59,17 +58,13 @@ function readInitialDatasetId(): DemoDatasetId {
   ) {
     return dataset;
   }
-  return defaultDatasetForHost();
+  return "codexM";
 }
 
 export function PaperDemoPage() {
   const [selectedDatasetId, setSelectedDatasetId] = useState<DemoDatasetId | null>(readInitialDatasetId);
   const [activeStep, setActiveStep] = useState<PaperDemoStepId>("kg");
-  const [demoStarted, setDemoStarted] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const dataset = readInitialDatasetId();
-    return prefersStaticTeacherDemo() && (dataset === "covidFact" || dataset === "socioEconomic");
-  });
+  const [demoStarted, setDemoStarted] = useState(true);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
   const [selectedClusterId, setSelectedClusterId] = useState<string>("");
   const [graphSelection, setGraphSelection] = useState<GraphSelection>(null);
@@ -527,7 +522,6 @@ export function PaperDemoPage() {
   const awaitingAutoLive =
     selectedDatasetId &&
     isBackendLoadable(selectedDatasetId) &&
-    !prefersStaticTeacherDemo() &&
     (liveSession.bindStatus === "checking" ||
       liveSession.bindStatus === "creating" ||
       liveSession.loading);
@@ -617,13 +611,6 @@ export function PaperDemoPage() {
 
           <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
             <p className="font-semibold text-slate-900">Why OMNIA+ matters</p>
-            {prefersStaticTeacherDemo() ? (
-              <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-snug text-amber-900">
-                This online deployment uses prepared static scenarios (recommended: COVID-Fact guided demo).
-                Full live backend mode with CoDEx-M / FB15K-237 / WN18RR runs locally with{" "}
-                <code className="rounded bg-white px-1">python -m uvicorn backend.app.main:app --port 8000</code>.
-              </p>
-            ) : null}
             <p className="mt-1">
               OMNIA+ combines structural reasoning (clustering + TransE filtering), LLM semantic
               validation with RAG, and human-in-the-loop curation to make KG completion

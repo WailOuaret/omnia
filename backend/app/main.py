@@ -72,6 +72,11 @@ def health():
     }
 
 
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "service": "omnia-demo-api"}
+
+
 @app.get("/api/samples")
 def list_samples():
     return {"samples": ingestion.list_samples()}

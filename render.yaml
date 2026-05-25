@@ -1,0 +1,16 @@
+# Deploy: connect https://dashboard.render.com to GitHub repo WailOuaret/omnia_demo
+# Service URL becomes https://omnia-demo-api.onrender.com (used by vercel.json proxy).
+
+services:
+  - type: web
+    name: omnia-demo-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-cloud.txt && python scripts/bootstrap_cloud_datasets.py
+    startCommand: python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: DEMO_FAST_MODE
+        value: "true"

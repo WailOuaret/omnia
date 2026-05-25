@@ -12,6 +12,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://omnia-demo-api.onrender.com/api/:path*"
+    },
+    {
       "source": "/:path*",
       "destination": "/index.html"
     }

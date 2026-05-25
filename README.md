@@ -203,16 +203,12 @@ Captures screenshots at 1366×768 and 1920×1080 into `docs/screenshots/` and wr
 
 [Video placeholder — will be added after recording]
 
-## Vercel deployment (frontend-only)
+## Vercel deployment (live backend)
 
-This repo is configured for a **frontend-only** Vercel deployment:
+Frontend on Vercel + backend on Render — **live CoDEx-M demo** for the teacher link.
 
-- **Build command:** `cd frontend && npm run build` (see root `vercel.json`)
-- **Output directory:** `frontend/dist`
-- **Entry route:** `/` redirects to `/paper-demo`
+1. Deploy backend: [Render Blueprint](https://dashboard.render.com/) → connect `WailOuaret/omnia_demo` (uses `render.yaml`)
+2. Vercel auto-builds frontend; `/api/*` proxies to `https://omnia-demo-api.onrender.com`
+3. Share: `https://<your-vercel-project>.vercel.app/paper-demo`
 
-The hosted demo runs in **prepared/static scenario mode** when no backend is reachable. CoDEx-M, FB15K-237, and WN18RR require a local or deployed FastAPI backend (`python -m uvicorn backend.app.main:app --port 8000`) plus `VITE_API_BASE_URL` at build time for live sessions.
-
-COVID-Fact and Socio-Economic always use static guided scenarios on Vercel. See [`outputs/reports/final_demo_readiness_report.md`](outputs/reports/final_demo_readiness_report.md) for teacher review notes.
-
-**Teacher link (hosted):** open your Vercel project URL → `/paper-demo` (defaults to **COVID-Fact** guided demo). For live CoDEx-M locally: start backend + frontend, then open `http://127.0.0.1:5173/paper-demo`.
+Full steps: [`docs/DEPLOY_LIVE.md`](docs/DEPLOY_LIVE.md)

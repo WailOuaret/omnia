@@ -131,6 +131,7 @@ function resolveApiBase() {
     return `${protocol}//${hostname}:8000`;
   }
 
+  // Production (Vercel): same-origin /api is proxied to Render via vercel.json.
   return "";
 }
 
