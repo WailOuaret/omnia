@@ -719,7 +719,9 @@ function FilteringStepExplanation({
         </div>
         {!filteringAvailable || rows.length === 0 ? (
           <EmptyStepBanner>
-            Filtering artifacts are not available for this session. Run filtering first or use a session with filtering artifacts.
+            {dataset.role === "static-interactive-scenario"
+              ? "Filtering artifacts are not available in this static scenario."
+              : "Filtering artifacts are not available for this session. Run filtering first or use a session with filtering artifacts."}
           </EmptyStepBanner>
         ) : (
           <>
@@ -854,7 +856,9 @@ function SemanticValidationStepExplanation({
         </div>
         {!llmAvailable ? (
           <EmptyStepBanner>
-            LLM/RAG validation artifacts are not available for this session.
+            {dataset.role === "static-interactive-scenario"
+              ? "LLM/RAG validation artifacts are not available in this static scenario."
+              : "LLM/RAG validation artifacts are not available for this session."}
           </EmptyStepBanner>
         ) : null}
         {llmAvailable ? (
