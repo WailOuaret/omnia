@@ -244,7 +244,7 @@ export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): Pap
           setMode("live");
         } else if (!metaResp && !sliceResp) {
           setMode("static");
-          setError(`Could not reach backend session ${targetSessionId}. Live slice unavailable.`);
+          setError("Could not reach the live graph sample.");
         }
 
         setGraphSlice(sliceResp);
@@ -255,7 +255,7 @@ export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): Pap
         setActiveSlice(effectiveSlice);
       } catch (err) {
         console.error("[paper-demo] fetchAll error", err);
-        setError(err instanceof Error ? err.message : "Backend hydration failed for the paper demo.");
+        setError(err instanceof Error ? err.message : "Could not load the live graph sample.");
       } finally {
         setLoading(false);
       }
@@ -282,7 +282,7 @@ export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): Pap
         setLoading(false);
         setError(
           targetDatasetId === "covidFact" || targetDatasetId === "socioEconomic"
-            ? "This dataset is static-only in the paper demo."
+            ? "This dataset uses a prepared example in the paper demo."
             : null,
         );
         updatePaperDemoUrl(targetDatasetId, null);
@@ -300,7 +300,7 @@ export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): Pap
         setMode("static");
         setBindStatus("static");
         setLoading(false);
-        setError("This dataset is static-only in the paper demo.");
+        setError("This dataset uses a prepared example in the paper demo.");
         return;
       }
 
@@ -348,7 +348,7 @@ export function usePaperDemoSession(datasetId: DemoDatasetId | null = null): Pap
       } catch (err) {
         setMode("static");
         setBindStatus("static");
-        setError(err instanceof Error ? err.message : "Could not create backend session.");
+        setError(err instanceof Error ? err.message : "Could not load the live graph sample.");
       } finally {
         creatingRef.current = false;
         setLoading(false);

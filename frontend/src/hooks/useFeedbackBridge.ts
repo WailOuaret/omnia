@@ -44,7 +44,7 @@ export function useFeedbackBridge(
   const [mode, setMode] = useState<FeedbackMode>(sessionId ? "live" : "static");
   const [status, setStatus] = useState<FeedbackStatus>("idle");
   const [lastMessage, setLastMessage] = useState<string | null>(
-    sessionId ? "Probing backend session…" : "Static demo mode (no ?sessionId= provided).",
+    sessionId ? "Checking live sample..." : "Prepared sample feedback.",
   );
   const [hydratedFeedback, setHydratedFeedback] = useState<UserFeedback[] | null>(null);
   const [completedSummary, setCompletedSummary] = useState<CompletedSummaryView | null>(null);
@@ -78,11 +78,11 @@ export function useFeedbackBridge(
         );
         setMode("live");
         setStatus("synced");
-        setLastMessage("Live backend feedback connected.");
+        setLastMessage("Live feedback connected.");
       } catch (error) {
         console.warn("[paper-demo] hydration failed", error);
         setStatus("sync-failed");
-        setLastMessage("Hydration failed; static demo mode.");
+        setLastMessage("Could not load live feedback; using prepared sample.");
       }
     },
     [sessionId],
@@ -91,7 +91,7 @@ export function useFeedbackBridge(
   useEffect(() => {
     if (!sessionId) {
       setMode("static");
-      setLastMessage("Static demo mode (no ?sessionId= provided).");
+      setLastMessage("Prepared sample feedback.");
       setHydratedFeedback(null);
       setCompletedSummary(null);
       return;
@@ -102,13 +102,13 @@ export function useFeedbackBridge(
       .then(async () => {
         if (cancelled) return;
         setMode("live");
-        setLastMessage("Live backend feedback connected.");
+        setLastMessage("Live feedback connected.");
         await hydrate(datasetId ?? null);
       })
       .catch(() => {
         if (cancelled) return;
         setMode("static");
-        setLastMessage(`Session ${sessionId} not found on backend; using static demo mode.`);
+        setLastMessage("Live sample not found; using prepared sample.");
         setHydratedFeedback(null);
         setCompletedSummary(null);
       });
@@ -121,11 +121,11 @@ export function useFeedbackBridge(
     addFeedback(feedback);
     if (!sessionId) {
       setStatus("synced");
-      setLastMessage("Saved locally (static demo mode).");
+      setLastMessage("Saved in prepared sample.");
       return;
     }
     setStatus("syncing");
-    setLastMessage("Syncing with backend…");
+    setLastMessage("Syncing live feedback...");
     try {
       await postFeedbackApi(sessionId, {
         candidate_id: feedback.candidateId,
@@ -150,11 +150,11 @@ export function useFeedbackBridge(
       // any backend-side enrichment (LLM/filtering metadata, threshold suggestion).
       await hydrate(feedback.datasetId);
       setStatus("synced");
-      setLastMessage("Saved locally and synced with backend.");
+      setLastMessage("Saved and synced with live sample.");
     } catch (error) {
       console.warn("[paper-demo] backend feedback submission failed", error);
       setStatus("sync-failed");
-      setLastMessage("Saved locally; backend sync failed.");
+      setLastMessage("Saved locally; live sync failed.");
     }
   };
 

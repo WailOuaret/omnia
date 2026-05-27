@@ -40,7 +40,7 @@ export function GraphSliceSummaryCard({ result, totals, onReset }: GraphSliceSum
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            Current slice
+            Current graph view
           </p>
           <p className="truncate text-sm font-semibold text-slate-900">{result.label}</p>
         </div>
@@ -48,7 +48,7 @@ export function GraphSliceSummaryCard({ result, totals, onReset }: GraphSliceSum
           <span
             className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ring-1 ${badgeClass}`}
           >
-            {result.isGuided ? "guided" : `custom · ${result.mode}`}
+            {result.isGuided ? "suggested" : "custom view"}
           </span>
           {!result.isGuided && onReset ? (
             <button

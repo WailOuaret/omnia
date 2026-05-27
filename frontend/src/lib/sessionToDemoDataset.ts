@@ -218,7 +218,7 @@ export function sessionToDemoDataset({
     triples: meta?.triple_count ?? template.triples,
     recommendedMode: template.recommendedMode,
     bestF1: template.bestF1,
-    note: "Live backend session",
+    note: "Live dataset sample",
     role: "live-mode",
     graph: { nodes, edges, clusterBoxes: [] },
     clusters: demoClusters,

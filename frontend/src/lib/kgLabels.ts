@@ -85,14 +85,22 @@ export function formatKgLabelParts(
 
   return {
     primary: readable ?? raw,
-    secondary: readable && readable !== raw ? raw : rawId ? "Label unavailable" : raw,
+    secondary: readable && readable !== raw ? raw : raw,
     isRawId: rawId && (!trimmedLabel || trimmedLabel === raw),
     kind,
   };
 }
 
+/** Inspector-only hint when no human-readable label exists. */
+export function missingLabelHint(): string {
+  return "Label unavailable";
+}
+
 export function formatKgInline(id: string | null | undefined, label?: string | null, kind: "entity" | "relation" | "value" = "entity") {
   const parts = formatKgLabelParts(id, label, kind);
+  if (parts.secondary && parts.secondary !== parts.primary && parts.isRawId) {
+    return parts.primary;
+  }
   return parts.secondary && parts.secondary !== parts.primary
     ? `${parts.primary} (${parts.secondary})`
     : parts.primary;

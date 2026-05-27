@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { GraphComparisonPanel } from "./GraphComparisonPanel";
 import { RestoredGraphStagePanel } from "./RestoredGraphStagePanel";
 import { UserFeedbackPanel } from "./UserFeedbackPanel";
-import type { DemoCandidate, DemoDatasetConfig } from "../../demo-data/types";
+import type { DemoCandidate, DemoCluster, DemoDatasetConfig } from "../../demo-data/types";
 import type { FeedbackStatus } from "../../hooks/useFeedbackBridge";
 import { formatKgInline, formatKgLabelParts } from "../../lib/kgLabels";
 import type { UserFeedback } from "../../stores/feedbackStore";
@@ -36,6 +36,7 @@ interface PaperDemoStepViewProps {
   llmAvailable?: boolean;
   onExpandContext?: () => void;
   expandContextPending?: boolean;
+  graphFocusRequest?: number;
 }
 
 function fmt(n: number) {
@@ -68,17 +69,17 @@ function KgLabel({
   return (
     <span
       className="block min-w-0"
-      title="Raw IDs come from the benchmark dataset. Labels are shown when available."
+      title="Names are shown when the dataset provides them."
     >
       <span className={`block truncate font-semibold ${compact ? "text-xs" : "text-sm"} ${inverse ? "text-white" : "text-slate-900"}`}>
         {parts.primary}
       </span>
       <span className={`block truncate font-mono text-[10px] ${inverse ? "text-slate-300" : "text-slate-500"}`}>
-        {parts.secondary}
+        {parts.isRawId ? "" : parts.secondary}
       </span>
       {parts.isRawId ? (
         <span className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ring-1 ${inverse ? "bg-amber-200 text-amber-950 ring-amber-100" : "bg-amber-50 text-amber-700 ring-amber-200"}`}>
-          raw Wikidata ID
+          raw ID
         </span>
       ) : null}
     </span>
@@ -112,6 +113,9 @@ function StepGraph({
   onSelectCandidate,
   onExpandContext,
   expandContextPending,
+  filteringAvailable = true,
+  llmAvailable = true,
+  graphFocusRequest = 0,
 }: {
   dataset: DemoDatasetConfig;
   activeStep: StepId;
@@ -126,6 +130,9 @@ function StepGraph({
   onSelectCandidate: (id: string) => void;
   onExpandContext?: () => void;
   expandContextPending?: boolean;
+  filteringAvailable?: boolean;
+  llmAvailable?: boolean;
+  graphFocusRequest?: number;
 }) {
   return (
     <RestoredGraphStagePanel
@@ -141,7 +148,10 @@ function StepGraph({
       onCandidateSelect={onSelectCandidate}
       onExpandContext={onExpandContext}
       expandContextPending={expandContextPending}
+      filteringAvailable={filteringAvailable}
+      llmAvailable={llmAvailable}
       useStaticPaperGraph={useStaticPaperGraph}
+      focusRequest={graphFocusRequest}
     />
   );
 }
@@ -275,6 +285,7 @@ function KGStepView({
   selectedClusterId,
   onGraphSelectionChange,
   onSelectCandidate,
+  graphFocusRequest = 0,
 }: {
   dataset: DemoDatasetConfig;
   feedbackDecisions: Record<string, Decision>;
@@ -284,6 +295,7 @@ function KGStepView({
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
   onSelectCandidate: (id: string) => void;
+  graphFocusRequest?: number;
 }) {
   const graph = (
     <StepGraph
@@ -296,6 +308,7 @@ function KGStepView({
       selectedClusterId={selectedClusterId}
       onGraphSelectionChange={onGraphSelectionChange}
       onSelectCandidate={onSelectCandidate}
+      graphFocusRequest={graphFocusRequest}
     />
   );
   return <GraphStage graph={graph} />;
@@ -341,6 +354,11 @@ function ClusteringStepView({
   onSelectCluster,
   onGraphSelectionChange,
   onSelectCandidate,
+  onExpandContext,
+  expandContextPending,
+  filteringAvailable = true,
+  llmAvailable = true,
+  graphFocusRequest = 0,
 }: {
   dataset: DemoDatasetConfig;
   candidates: DemoCandidate[];
@@ -352,6 +370,11 @@ function ClusteringStepView({
   onSelectCluster?: (clusterId: string) => void;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
   onSelectCandidate: (id: string) => void;
+  onExpandContext?: () => void;
+  expandContextPending?: boolean;
+  filteringAvailable?: boolean;
+  llmAvailable?: boolean;
+  graphFocusRequest?: number;
 }) {
   const selectedCluster =
     dataset.clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
@@ -366,10 +389,36 @@ function ClusteringStepView({
       selectedClusterId={selectedCluster?.id ?? selectedClusterId}
       onGraphSelectionChange={onGraphSelectionChange}
       onSelectCandidate={onSelectCandidate}
+      onExpandContext={onExpandContext}
+      expandContextPending={expandContextPending}
+      filteringAvailable={filteringAvailable}
+      llmAvailable={llmAvailable}
+      graphFocusRequest={graphFocusRequest}
     />
   );
 
   return <GraphStage graph={graph} />;
+}
+
+function clusterMatchesQuery(
+  cluster: DemoCluster,
+  query: string,
+) {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  const relationText = formatKgInline(cluster.sharedRelation, cluster.sharedRelation, "relation");
+  const tailText = formatKgInline(cluster.sharedTail);
+  const haystack = [
+    cluster.id,
+    cluster.sharedRelation,
+    cluster.sharedTail,
+    relationText,
+    tailText,
+    ...cluster.entities,
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(needle);
 }
 
 function ClusteringStepExplanation({
@@ -384,64 +433,97 @@ function ClusteringStepExplanation({
   onSelectCluster?: (clusterId: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [showTechnical, setShowTechnical] = useState(false);
+  const [browseClusters, setBrowseClusters] = useState(false);
   const selectedCluster =
     dataset.clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
+  const candidateCount = selectedCluster
+    ? clusterCandidateCount(candidates, selectedCluster.id)
+    : 0;
   const filteredClusters = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return dataset.clusters;
-    return dataset.clusters.filter((cluster) => {
-      const haystack = `${cluster.id} ${cluster.sharedRelation} ${cluster.sharedTail} ${cluster.entities.join(" ")}`.toLowerCase();
-      return haystack.includes(needle);
+    const sorted = [...dataset.clusters].sort((a, b) => {
+      if (a.id === selectedClusterId) return -1;
+      if (b.id === selectedClusterId) return 1;
+      const candDiff =
+        clusterCandidateCount(candidates, b.id) - clusterCandidateCount(candidates, a.id);
+      if (candDiff !== 0) return candDiff;
+      return b.size - a.size;
     });
-  }, [dataset.clusters, query]);
-  const visibleClusters = filteredClusters.slice(0, 10);
+    return sorted.filter((cluster) => clusterMatchesQuery(cluster, query));
+  }, [dataset.clusters, query, selectedClusterId, candidates]);
+  const visibleClusters = filteredClusters.slice(0, 15);
 
   return (
     <div className="space-y-3">
-        <div className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
-          <p className="font-semibold">How OMNIA clusters</p>
-          <p className="mt-0.5 text-xs">
-            For each known triple (h, r, t), OMNIA groups heads by key = (r, t). These heads share the same relation-tail pattern.
+      <div className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
+        <p className="font-semibold">What this step does</p>
+        <p className="mt-1 text-xs leading-relaxed">
+          OMNIA groups entities when they share the same relation -&gt; tail pattern. These grouped
+          entities may share other missing relations.
+        </p>
+      </div>
+      {selectedCluster ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700">
+          <p className="font-semibold text-slate-900">Current pattern</p>
+          <p className="mt-1 text-sm text-indigo-900">
+            {formatKgInline(selectedCluster.sharedRelation, selectedCluster.sharedRelation, "relation")}{" "}
+            -&gt; {formatKgInline(selectedCluster.sharedTail)}
           </p>
-        </div>
-        <ProcessRail items={["Heads sharing same (relation, tail)", "Cluster Ck", "Candidate generation"]} />
-        {selectedCluster ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-3">
-            <h3 className="text-sm font-semibold text-slate-900">Selected cluster explanation</h3>
-            <p className="mt-1 text-xs font-mono text-indigo-800">
-              Cluster key = ({selectedCluster.sharedRelation}, {selectedCluster.sharedTail})
-            </p>
-            <div className="mt-2 grid gap-2">
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <StatChip
+              label="Members shown"
+              value={`${Math.min(5, selectedCluster.entities.length)} / ${selectedCluster.size}`}
+            />
+            <StatChip label="Generated candidates" value={candidateCount} />
+          </div>
+          <p className="mt-2 text-slate-600">
+            Why useful: similar entities may share missing relations beyond this pattern.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowTechnical((value) => !value)}
+            className="mt-3 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700"
+          >
+            {showTechnical ? "Hide technical details" : "Show technical details"}
+          </button>
+          {showTechnical ? (
+            <div className="mt-2 space-y-2 rounded-md border border-slate-200 bg-slate-50 p-2">
               <StatChip label="Cluster ID" value={selectedCluster.id} />
-              <KgLabel id={selectedCluster.sharedRelation} label={selectedCluster.sharedRelation} kind="relation" />
-              <KgLabel id={selectedCluster.sharedTail} label={selectedCluster.sharedTail} />
-              <div className="grid grid-cols-2 gap-2">
-                <StatChip label="Members" value={selectedCluster.size} />
-                <StatChip label="Generated candidates" value={clusterCandidateCount(candidates, selectedCluster.id)} />
-              </div>
+              <p>
+                <span className="font-semibold">All members:</span>{" "}
+                {selectedCluster.entities.map((entity) => formatKgInline(entity)).join(", ")}
+              </p>
             </div>
-            <p className="mt-2 text-xs text-slate-600">
-              Why useful: heads with the same relation-tail context can plausibly inherit other relation-tail pairs from the same cluster.
-            </p>
-            <p className="mt-2 text-xs text-slate-700">
-              <span className="font-semibold">Members:</span>{" "}
-              {selectedCluster.entities.slice(0, 12).map((entity) => formatKgInline(entity)).join(", ")}
-              {selectedCluster.entities.length > 12 ? ` (+${selectedCluster.entities.length - 12} more)` : ""}
-            </p>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
+      ) : (
+        <EmptyStepBanner>Select a cluster to inspect its shared pattern.</EmptyStepBanner>
+      )}
+      <button
+        type="button"
+        onClick={() => setBrowseClusters((value) => !value)}
+        className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700"
+      >
+        {browseClusters ? "Hide cluster browser" : "Browse clusters"}
+      </button>
+      {browseClusters ? (
         <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">Detected clusters</h3>
-            <span className="text-[10px] text-slate-500">Top 10</span>
-          </div>
+          <p className="mb-2 text-[11px] text-slate-600">
+            Click a row to update the graph pattern. Search matches relation names (e.g. &quot;occupation&quot;,
+            &quot;member&quot;) as well as IDs.
+          </p>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search clusters, relation, tail, member"
-            className="mt-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+            className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
           />
-          <div className="mt-2 max-h-72 overflow-auto pr-1">
+          <div className="mt-2 max-h-56 overflow-auto pr-1">
+            {visibleClusters.length === 0 ? (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-[11px] text-amber-900">
+                No clusters match &quot;{query.trim()}&quot;. Try &quot;occupation&quot; or a cluster ID.
+              </p>
+            ) : (
             <table className="w-full text-left text-xs">
               <thead className="sticky top-0 bg-white text-[10px] uppercase tracking-wide text-slate-500">
                 <tr>
@@ -454,7 +536,7 @@ function ClusteringStepExplanation({
               <tbody>
                 {visibleClusters.map((cluster) => {
                   const isSelected = selectedCluster?.id === cluster.id;
-                  const pattern = `${formatKgInline(cluster.sharedRelation, cluster.sharedRelation, "relation")} → ${formatKgInline(cluster.sharedTail)}`;
+                  const pattern = `${formatKgInline(cluster.sharedRelation, cluster.sharedRelation, "relation")} -> ${formatKgInline(cluster.sharedTail)}`;
                   return (
                     <tr
                       key={cluster.id}
@@ -476,8 +558,15 @@ function ClusteringStepExplanation({
                 })}
               </tbody>
             </table>
+            )}
           </div>
+          {filteredClusters.length > 15 ? (
+            <p className="mt-2 text-[10px] text-slate-500">
+              Showing 15 of {filteredClusters.length} matches. Refine your search to narrow results.
+            </p>
+          ) : null}
         </div>
+      ) : null}
     </div>
   );
 }
@@ -495,6 +584,9 @@ function CandidateGenStepView({
   onGraphSelectionChange,
   onExpandContext,
   expandContextPending,
+  filteringAvailable = true,
+  llmAvailable = true,
+  graphFocusRequest = 0,
 }: {
   dataset: DemoDatasetConfig;
   candidates: DemoCandidate[];
@@ -508,6 +600,9 @@ function CandidateGenStepView({
   onGraphSelectionChange?: (selection: GraphSelection) => void;
   onExpandContext?: () => void;
   expandContextPending?: boolean;
+  filteringAvailable?: boolean;
+  llmAvailable?: boolean;
+  graphFocusRequest?: number;
 }) {
   const sourceCluster = dataset.clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
   const graph = (
@@ -524,6 +619,9 @@ function CandidateGenStepView({
       onSelectCandidate={onSelectCandidate}
       onExpandContext={onExpandContext}
       expandContextPending={expandContextPending}
+      filteringAvailable={filteringAvailable}
+      llmAvailable={llmAvailable}
+      graphFocusRequest={graphFocusRequest}
     />
   );
 
@@ -544,62 +642,75 @@ function CandidateGenStepExplanation({
   onSelectCandidate: (id: string) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
+  const [showTechnical, setShowTechnical] = useState(false);
   const clusterCandidates = selectedClusterId
     ? candidates.filter((candidate) => candidate.clusterIds?.includes(selectedClusterId))
     : candidates;
-  const visibleCandidates = showAll ? clusterCandidates : clusterCandidates.slice(0, 8);
+  const visibleCandidates = showAll ? clusterCandidates : clusterCandidates.slice(0, 4);
   const sourceCluster = dataset.clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
 
   return (
     <div className="space-y-3">
-        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-          For each head h in cluster Hk and each relation-tail pair (r, t) in the cluster context, OMNIA proposes candidate (h, r, t). Generated edges are dashed blue.
+      <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+        <p className="font-semibold">What this step does</p>
+        <p className="mt-1 text-xs leading-relaxed">
+          OMNIA proposes this candidate because similar entities in the selected group share the same
+          relation -&gt; tail pattern.
+        </p>
+      </div>
+      <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
+        <p>
+          <span className="font-semibold">Solid line</span> = existing KG relation
+        </p>
+        <p className="mt-0.5">
+          <span className="font-semibold text-blue-800">Dashed blue line</span> = proposed missing triple
+        </p>
+      </div>
+      {sourceCluster ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700">
+          <p className="font-semibold text-slate-900">Current pattern</p>
+          <p className="mt-1 text-sm">
+            {formatKgInline(sourceCluster.sharedRelation, sourceCluster.sharedRelation, "relation")}{" "}
+            -&gt; {formatKgInline(sourceCluster.sharedTail)}
+          </p>
+          <StatChip label="Candidates in cluster" value={clusterCandidates.length} />
         </div>
-        <div className="grid gap-2 text-xs">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="font-semibold text-slate-900">Cluster members</p>
-            <p className="mt-1 text-slate-700">
-              {sourceCluster?.entities.slice(0, 6).map((entity) => formatKgInline(entity)).join(", ") || "No selected cluster"}
-            </p>
+      ) : null}
+      {clusterCandidates.length === 0 ? (
+        <EmptyStepBanner>No generated candidates are available for this cluster.</EmptyStepBanner>
+      ) : null}
+      {selectedCandidate ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-3">
+          <h3 className="text-sm font-semibold text-slate-900">Selected candidate</h3>
+          <div className="mt-2">
+            <CandidateTriple candidate={selectedCandidate} />
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="font-semibold text-slate-900">Relation-tail pairs</p>
-            <p className="mt-1 text-slate-700">
-              {sourceCluster ? `${formatKgInline(sourceCluster.sharedRelation, sourceCluster.sharedRelation, "relation")} -> ${formatKgInline(sourceCluster.sharedTail)}` : "No source pattern"}
-            </p>
-          </div>
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <p className="font-semibold text-blue-950">Generated candidate triples</p>
-            <p className="mt-1 text-blue-900">
-              {clusterCandidates.length} candidates for cluster {selectedClusterId ?? "n/a"}
-            </p>
-          </div>
-        </div>
-        {clusterCandidates.length === 0 ? (
-          <EmptyStepBanner>
-            No generated candidates are available for this cluster.
-          </EmptyStepBanner>
-        ) : null}
-        {selectedCandidate ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-3">
-            <h3 className="text-sm font-semibold text-slate-900">Selected candidate</h3>
-            <div className="mt-2 space-y-2">
-              <CandidateTriple candidate={selectedCandidate} />
-              <div className="grid grid-cols-2 gap-2">
-                <StatChip label="Candidate ID" value={selectedCandidate.candidateId} />
-                <StatChip label="Source cluster" value={selectedCandidate.clusterIds?.join(", ") ?? "n/a"} />
-                <StatChip label="Status" value={selectedCandidate.status} />
-                <StatChip label="Why generated" value={selectedCandidate.whyGenerated ?? "Cluster propagation"} />
-              </div>
+          <button
+            type="button"
+            onClick={() => setShowTechnical((value) => !value)}
+            className="mt-3 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700"
+          >
+            {showTechnical ? "Hide technical details" : "Show technical details"}
+          </button>
+          {showTechnical ? (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <StatChip label="Candidate ID" value={selectedCandidate.candidateId} />
+              <StatChip label="Source cluster" value={selectedCandidate.clusterIds?.join(", ") ?? "n/a"} />
+              <StatChip label="Status" value={selectedCandidate.status} />
+              <StatChip label="Why generated" value={selectedCandidate.whyGenerated ?? "Cluster propagation"} />
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
+      ) : null}
+      {clusterCandidates.length > 0 ? (
         <div className="rounded-lg border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">Generated candidates</h3>
-            <span className="text-[10px] text-slate-500">{visibleCandidates.length} of {clusterCandidates.length}</span>
+            <h3 className="text-sm font-semibold text-slate-900">Other candidates</h3>
+            <span className="text-[10px] text-slate-500">
+              {visibleCandidates.length} of {clusterCandidates.length}
+            </span>
           </div>
-          <div className="mt-2 max-h-80 space-y-1.5 overflow-auto pr-1">
+          <div className="mt-2 max-h-48 space-y-1.5 overflow-auto pr-1">
             {visibleCandidates.map((candidate) => {
               const isSelected = selectedCandidate?.candidateId === candidate.candidateId;
               return (
@@ -609,25 +720,22 @@ function CandidateGenStepExplanation({
                   onClick={() => onSelectCandidate(candidate.candidateId)}
                   className={`block w-full rounded-md border p-2 text-left ${isSelected ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                 >
-                  <p className={`font-mono text-[10px] ${isSelected ? "text-slate-300" : "text-slate-500"}`}>{candidate.candidateId}</p>
                   <CandidateTriple candidate={candidate} inverse={isSelected} />
-                  <p className={`mt-1 text-[10px] ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
-                    Cluster {candidate.clusterIds?.join(", ") ?? "n/a"}; status {candidate.status}
-                  </p>
                 </button>
               );
             })}
           </div>
-          {clusterCandidates.length > 8 ? (
+          {clusterCandidates.length > 4 ? (
             <button
               type="button"
               onClick={() => setShowAll((value) => !value)}
               className="mt-2 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
             >
-              {showAll ? "Show first 8" : "Show more"}
+              {showAll ? "Show first 4" : "Show all candidates"}
             </button>
           ) : null}
         </div>
+      ) : null}
     </div>
   );
 }
@@ -644,8 +752,10 @@ function FilteringStepView({
   selectedClusterId,
   onGraphSelectionChange,
   filteringAvailable = false,
+  llmAvailable = true,
   onExpandContext,
   expandContextPending,
+  graphFocusRequest = 0,
 }: {
   dataset: DemoDatasetConfig;
   candidates: DemoCandidate[];
@@ -658,8 +768,10 @@ function FilteringStepView({
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
   filteringAvailable?: boolean;
+  llmAvailable?: boolean;
   onExpandContext?: () => void;
   expandContextPending?: boolean;
+  graphFocusRequest?: number;
 }) {
   const graph = (
     <StepGraph
@@ -675,6 +787,9 @@ function FilteringStepView({
       onSelectCandidate={onSelectCandidate}
       onExpandContext={onExpandContext}
       expandContextPending={expandContextPending}
+      filteringAvailable={filteringAvailable}
+      llmAvailable={llmAvailable}
+      graphFocusRequest={graphFocusRequest}
     />
   );
 
@@ -712,16 +827,16 @@ function FilteringStepExplanation({
   return (
     <div className="space-y-3">
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-          <p className="font-semibold">TransE structural filtering</p>
+          <p className="font-semibold">Step 4 — Removing unlikely candidates</p>
           <p className="mt-0.5 text-xs">
-            TransE filtering removes structurally unlikely triples before LLM validation. Distance less than or equal to threshold is kept.
+            OMNIA scores each proposed triple by how well it fits the graph structure. Candidates that
+            score too poorly are discarded here, before the LLM runs.
           </p>
         </div>
         {!filteringAvailable || rows.length === 0 ? (
           <EmptyStepBanner>
-            {dataset.role === "static-interactive-scenario"
-              ? "Filtering artifacts are not available in this static scenario."
-              : "Filtering artifacts are not available for this session. Run filtering first or use a session with filtering artifacts."}
+            Filtering results are not included in this online sample yet. This step is shown to explain
+            where TransE filtering fits in the OMNIA workflow.
           </EmptyStepBanner>
         ) : (
           <>
@@ -787,8 +902,10 @@ function SemanticValidationStepView({
   selectedClusterId,
   onGraphSelectionChange,
   llmAvailable = false,
+  filteringAvailable = true,
   onExpandContext,
   expandContextPending,
+  graphFocusRequest = 0,
 }: {
   dataset: DemoDatasetConfig;
   candidates: DemoCandidate[];
@@ -801,8 +918,10 @@ function SemanticValidationStepView({
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
   llmAvailable?: boolean;
+  filteringAvailable?: boolean;
   onExpandContext?: () => void;
   expandContextPending?: boolean;
+  graphFocusRequest?: number;
 }) {
   const graph = (
     <StepGraph
@@ -818,6 +937,9 @@ function SemanticValidationStepView({
       onSelectCandidate={onSelectCandidate}
       onExpandContext={onExpandContext}
       expandContextPending={expandContextPending}
+      filteringAvailable={filteringAvailable}
+      llmAvailable={llmAvailable}
+      graphFocusRequest={graphFocusRequest}
     />
   );
 
@@ -856,9 +978,8 @@ function SemanticValidationStepExplanation({
         </div>
         {!llmAvailable ? (
           <EmptyStepBanner>
-            {dataset.role === "static-interactive-scenario"
-              ? "LLM/RAG validation artifacts are not available in this static scenario."
-              : "LLM/RAG validation artifacts are not available for this session."}
+            LLM/RAG evidence is not included in this online sample yet. This step is shown to explain
+            where semantic validation fits in the OMNIA workflow.
           </EmptyStepBanner>
         ) : null}
         {llmAvailable ? (
@@ -871,7 +992,9 @@ function SemanticValidationStepExplanation({
         ) : null}
         {!selectedCandidate && llmAvailable ? <EmptyStepBanner>No candidate selected.</EmptyStepBanner> : null}
         {selectedCandidate && llmAvailable && !hasLlmData ? (
-          <EmptyStepBanner>LLM validation not available for this candidate.</EmptyStepBanner>
+          <EmptyStepBanner>
+            LLM/RAG evidence is not included for this candidate yet. This step shows where semantic validation fits in the workflow.
+          </EmptyStepBanner>
         ) : null}
         {selectedCandidate && hasLlmData ? (
           <div className="space-y-2">
@@ -931,6 +1054,7 @@ function FeedbackStepView({
   sessionId,
   selectedClusterId,
   onGraphSelectionChange,
+  graphFocusRequest = 0,
 }: {
   dataset: DemoDatasetConfig;
   datasetId: DemoDatasetConfig["id"];
@@ -947,7 +1071,14 @@ function FeedbackStepView({
   sessionId?: string | null;
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
+  graphFocusRequest?: number;
 }) {
+  const existing = selectedCandidate
+    ? feedbackEvents
+        .filter((event) => event.candidateId === selectedCandidate.candidateId)
+        .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]
+    : undefined;
+
   const graph = (
     <StepGraph
       dataset={dataset}
@@ -961,10 +1092,27 @@ function FeedbackStepView({
       selectedClusterId={selectedClusterId}
       onGraphSelectionChange={onGraphSelectionChange}
       onSelectCandidate={onSelectCandidate}
+      graphFocusRequest={graphFocusRequest}
     />
   );
 
-  return <GraphStage graph={graph} />;
+  return (
+    <div className="space-y-3">
+      <GraphStage graph={graph} />
+      {selectedCandidate ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <UserFeedbackPanel
+            key={selectedCandidate.candidateId}
+            datasetId={datasetId}
+            candidate={selectedCandidate}
+            onFeedbackSubmit={onFeedbackSubmit}
+            existingFeedback={existing}
+            bridgeStatus={bridgeStatus}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function FeedbackStepExplanation({
@@ -995,7 +1143,7 @@ function FeedbackStepExplanation({
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           <p className="font-semibold">Human-in-the-loop curation</p>
           <p className="mt-0.5 text-xs">
-            Feedback keeps the existing backend POST flow and immediately recolors the selected graph edge.
+            A human accepts, rejects, corrects, or marks the candidate as uncertain. The graph updates after the decision.
           </p>
         </div>
         <CandidateSelectorPills
@@ -1033,6 +1181,17 @@ function CompletedStepView({
   feedbackEvents: UserFeedback[];
   interactiveGraphPayload?: GraphPayload | null;
 }) {
+  if (dataset.id === "covidFact") {
+    return (
+      <GraphComparisonPanel
+        dataset={dataset}
+        selectedCandidate={selectedCandidate}
+        feedbackDecisions={feedbackDecisions}
+        feedbackEvents={feedbackEvents}
+        interactiveGraphPayload={interactiveGraphPayload}
+      />
+    );
+  }
   return (
     <GraphComparisonPanel
       dataset={dataset}
@@ -1044,88 +1203,7 @@ function CompletedStepView({
   );
 }
 
-export function PaperDemoStepExplanation(props: PaperDemoStepViewProps) {
-  const {
-    step,
-    dataset,
-    candidates,
-    feedbackCandidates,
-    selectedCandidate,
-    onSelectCandidate,
-    selectedClusterId,
-    onSelectCluster,
-    datasetId,
-    filteringAvailable,
-    llmAvailable,
-    feedbackEvents,
-    bridgeStatus,
-    onFeedbackSubmit,
-  } = props;
-
-  if (step === "kg") return <KGStepExplanation dataset={dataset} />;
-  if (step === "clustering") {
-    return (
-      <ClusteringStepExplanation
-        dataset={dataset}
-        candidates={candidates}
-        selectedClusterId={selectedClusterId}
-        onSelectCluster={onSelectCluster}
-      />
-    );
-  }
-  if (step === "candidates") {
-    return (
-      <CandidateGenStepExplanation
-        dataset={dataset}
-        candidates={candidates}
-        selectedCandidate={selectedCandidate}
-        selectedClusterId={selectedClusterId}
-        onSelectCandidate={onSelectCandidate}
-      />
-    );
-  }
-  if (step === "filtering") {
-    return (
-      <FilteringStepExplanation
-        dataset={dataset}
-        candidates={candidates}
-        selectedCandidate={selectedCandidate}
-        onSelectCandidate={onSelectCandidate}
-        filteringAvailable={filteringAvailable}
-      />
-    );
-  }
-  if (step === "llm") {
-    return (
-      <SemanticValidationStepExplanation
-        dataset={dataset}
-        candidates={candidates.filter((candidate) => candidate.llmVerdict !== undefined)}
-        selectedCandidate={selectedCandidate}
-        onSelectCandidate={onSelectCandidate}
-        llmAvailable={llmAvailable}
-      />
-    );
-  }
-  if (step === "feedback") {
-    return (
-      <FeedbackStepExplanation
-        datasetId={datasetId}
-        feedbackCandidates={feedbackCandidates}
-        selectedCandidate={selectedCandidate}
-        onSelectCandidate={onSelectCandidate}
-        feedbackEvents={feedbackEvents}
-        bridgeStatus={bridgeStatus}
-        onFeedbackSubmit={onFeedbackSubmit}
-      />
-    );
-  }
-  if (step === "completed") {
-    return (
-      <p className="text-xs text-slate-600">
-        Completed KG diff rows appear below the before/after graph comparison in the center panel.
-      </p>
-    );
-  }
+export function PaperDemoStepExplanation(_props: PaperDemoStepViewProps) {
   return null;
 }
 
@@ -1153,6 +1231,7 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
     llmAvailable = false,
     onExpandContext,
     expandContextPending = false,
+    graphFocusRequest = 0,
   } = props;
 
   return (
@@ -1167,6 +1246,7 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           onGraphSelectionChange={onGraphSelectionChange}
           onSelectCandidate={onSelectCandidate}
           useStaticPaperGraph={useStaticPaperGraph}
+          graphFocusRequest={graphFocusRequest}
         />
       ) : null}
       {step === "clustering" ? (
@@ -1181,6 +1261,11 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           onGraphSelectionChange={onGraphSelectionChange}
           onSelectCandidate={onSelectCandidate}
           useStaticPaperGraph={useStaticPaperGraph}
+          onExpandContext={onExpandContext}
+          expandContextPending={expandContextPending}
+          filteringAvailable={filteringAvailable}
+          llmAvailable={llmAvailable}
+          graphFocusRequest={graphFocusRequest}
         />
       ) : null}
       {step === "candidates" ? (
@@ -1197,6 +1282,9 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           useStaticPaperGraph={useStaticPaperGraph}
           onExpandContext={onExpandContext}
           expandContextPending={expandContextPending}
+          filteringAvailable={filteringAvailable}
+          llmAvailable={llmAvailable}
+          graphFocusRequest={graphFocusRequest}
         />
       ) : null}
       {step === "filtering" ? (
@@ -1212,8 +1300,10 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           onGraphSelectionChange={onGraphSelectionChange}
           useStaticPaperGraph={useStaticPaperGraph}
           filteringAvailable={filteringAvailable}
+          llmAvailable={llmAvailable}
           onExpandContext={onExpandContext}
           expandContextPending={expandContextPending}
+          graphFocusRequest={graphFocusRequest}
         />
       ) : null}
       {step === "llm" ? (
@@ -1229,8 +1319,8 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           onGraphSelectionChange={onGraphSelectionChange}
           useStaticPaperGraph={useStaticPaperGraph}
           llmAvailable={llmAvailable}
-          onExpandContext={onExpandContext}
-          expandContextPending={expandContextPending}
+          filteringAvailable={filteringAvailable}
+          graphFocusRequest={graphFocusRequest}
         />
       ) : null}
       {step === "feedback" ? (
@@ -1250,6 +1340,7 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           selectedClusterId={selectedClusterId}
           onGraphSelectionChange={onGraphSelectionChange}
           useStaticPaperGraph={useStaticPaperGraph}
+          graphFocusRequest={graphFocusRequest}
         />
       ) : null}
       {step === "completed" ? (

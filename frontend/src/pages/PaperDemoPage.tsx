@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DatasetNavigatorPanel } from "../components/paper-demo/DatasetNavigatorPanel";
 import { DatasetSelectorPanel } from "../components/paper-demo/DatasetSelectorPanel";
-import { GraphSliceSummaryCard } from "../components/paper-demo/GraphSliceSummaryCard";
 import {
   PAPER_DEMO_STEP_ORDER,
   PaperDemoHeader,
@@ -26,6 +25,7 @@ import {
   type SliceResult,
 } from "../lib/datasetSlice";
 import { buildLiveOmniaViewModel } from "../lib/buildLiveOmniaViewModel";
+import { graphViewLabelForStep } from "../lib/graphDisplayMode";
 import { sampleIdToDemoDatasetId } from "../lib/sessionToDemoDataset";
 import {
   exportCompletedKGTSV,
@@ -77,6 +77,7 @@ export function PaperDemoPage() {
   const [graphSelection, setGraphSelection] = useState<GraphSelection>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [activeSlice, setActiveSlice] = useState<DatasetSlice>(GUIDED_SLICE);
+  const [graphFocusRequest, setGraphFocusRequest] = useState(0);
   const [expandContextPending, setExpandContextPending] = useState(false);
   const liveSession = usePaperDemoSession(enableLiveSession ? selectedDatasetId : null);
   const scenarioSession = usePaperDemoScenario(selectedDatasetId, {
@@ -220,7 +221,7 @@ export function PaperDemoPage() {
             };
       const result: SliceResult = {
         mode: activeSlice.mode,
-        label: gs.label || "Interactive scenario slice",
+        label: graphViewLabelForStep(activeStep),
         isGuided: activeSlice.mode === "guided",
         nodes: [],
         edges: [],
@@ -248,6 +249,7 @@ export function PaperDemoPage() {
     staticDataset,
     activeSlice,
     allFeedbackEvents,
+    activeStep,
     enableScenario,
     hasScenarioFile,
   ]);
@@ -338,7 +340,11 @@ export function PaperDemoPage() {
     [activeViewModel, selectedDataset],
   );
 
-  const allCandidates = activeViewModel?.candidates ?? selectedDataset?.candidates ?? [];
+  const allCandidates =
+    activeViewModel?.metadata.candidates ??
+    activeViewModel?.candidates ??
+    selectedDataset?.candidates ??
+    [];
 
   const selectedCandidate: DemoCandidate | null = activeViewModel
     ? activeViewModel.selectedCandidate
@@ -621,7 +627,7 @@ export function PaperDemoPage() {
   if (awaitingAutoLive) {
     return (
       <div className="paper-demo min-h-screen bg-slate-50 p-6 text-slate-700" data-testid="paper-demo-root">
-        <p className="text-sm">Loading CoDEx-M backend session…</p>
+        <p className="text-sm">Loading CoDEx-M graph sample...</p>
       </div>
     );
   }
@@ -629,7 +635,7 @@ export function PaperDemoPage() {
   if (awaitingStaticScenario) {
     return (
       <div className="paper-demo min-h-screen bg-slate-50 p-6 text-slate-700" data-testid="paper-demo-root">
-        <p className="text-sm">Loading static interactive scenario…</p>
+        <p className="text-sm">Loading prepared interactive sample…</p>
       </div>
     );
   }
@@ -638,7 +644,7 @@ export function PaperDemoPage() {
     return (
       <div className="paper-demo min-h-screen bg-slate-50 p-6 text-slate-700" data-testid="paper-demo-root">
         <div className="mx-auto max-w-xl rounded-xl border border-rose-200 bg-white p-4 text-sm text-rose-900">
-          <p className="font-semibold">Static scenario could not be loaded</p>
+          <p className="font-semibold">Prepared sample could not be loaded</p>
           <p className="mt-2">{scenarioSession.error ?? "unknown error"}</p>
           <p className="mt-2 text-xs text-slate-600">
             Redeploy the frontend so <code className="font-mono">frontend/public/demo-scenarios/</code> is
@@ -781,7 +787,7 @@ export function PaperDemoPage() {
     if (isLiveMode && liveSession.loading) {
       return (
         <div className="paper-demo min-h-screen bg-slate-50 p-6 text-slate-700" data-testid="paper-demo-root">
-          <p className="text-sm">Loading backend session…</p>
+          <p className="text-sm">Loading graph sample...</p>
         </div>
       );
     }
@@ -820,100 +826,11 @@ export function PaperDemoPage() {
               sessionId={isScenarioModeActive ? null : liveSessionId}
               onCreateSession={deploymentMode === "static" ? undefined : createSessionForDataset}
             />
-            <section
-              className={`rounded-lg border px-3 py-2 text-xs ${
-                isLiveModeActive
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                  : isScenarioModeActive
-                    ? "border-sky-300 bg-sky-50 text-sky-900"
-                    : isLiveMode
-                      ? "border-amber-300 bg-amber-50 text-amber-900"
-                      : "border-slate-300 bg-slate-50 text-slate-800"
-              }`}
-              data-testid="graph-source-badge"
-            >
-              <p className="font-semibold">
-                {isLiveModeActive
-                  ? "Graph source: backend session slice"
-                  : isScenarioModeActive
-                    ? "Static interactive scenario"
-                    : isLiveMode
-                      ? "Live session loading — no static fallback"
-                      : "Graph source: static demo"}
-              </p>
-              {isScenarioModeActive ? (
-                <p className="mt-1 text-[11px] opacity-90">
-                  This online demo uses a prepared interactive scenario generated from the OMNIA workflow.
-                  Full backend live mode is available locally.
-                </p>
-              ) : null}
-              {isLiveMode && liveSession.meta && !isScenarioModeActive ? (
-                <p className="mt-0.5 truncate text-[11px] opacity-90">
-                  {liveSession.meta.dataset_name}
-                  {liveSessionId ? ` · session ${liveSessionId.slice(0, 8)}…` : ""}
-                </p>
-              ) : null}
-              {isLiveMode && liveSessionId && !isScenarioModeActive ? (
-                <button
-                  type="button"
-                  onClick={() => void liveSession.recreateSession()}
-                  className="mt-1 rounded border border-emerald-500 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-900"
-                  data-testid="recreate-backend-session"
-                >
-                  Recreate backend session
-                </button>
-              ) : null}
-              {isLiveMode && liveSession.error && !isScenarioModeActive ? (
-                <p className="mt-1 text-[10px] text-amber-900">Warning: {liveSession.error}</p>
-              ) : null}
-              {isLiveMode && liveSession.loading && !isScenarioModeActive ? (
-                <p className="mt-1 text-[10px]">Loading backend slice…</p>
-              ) : null}
-              {isScenarioModeActive && scenarioViewModel?.limitations?.length ? (
-                <ul className="mt-1 list-disc pl-4 text-[10px] opacity-90">
-                  {scenarioViewModel.limitations.slice(0, 3).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </section>
-            {liveViewModel?.diagnostics ? (
-              <section
-                className={`rounded-lg border px-3 py-2 text-[10px] ${
-                  liveViewModel.diagnostics.mismatch
-                    ? "border-rose-300 bg-rose-50 text-rose-900"
-                    : "border-slate-200 bg-slate-50 text-slate-700"
-                }`}
-                data-testid="live-diagnostics-panel"
-              >
-                <p className="font-semibold">Selection diagnostics</p>
-                <p>Selected cluster: {liveViewModel.diagnostics.selectedClusterId ?? "none"}</p>
-                <p>Selected candidate: {liveViewModel.diagnostics.selectedCandidateId ?? "none"}</p>
-                <p>Candidate source cluster: {liveViewModel.diagnostics.candidateSourceCluster ?? "none"}</p>
-                <p>Mismatch: {liveViewModel.diagnostics.mismatch ? "true" : "false"}</p>
-                {liveViewModel.diagnostics.mismatch ? (
-                  <p className="mt-1 font-semibold text-rose-800">
-                    Selected candidate does not belong to selected cluster.
-                  </p>
-                ) : null}
-              </section>
-            ) : null}
-            {selectedDataset && sliceResult ? (
-              <GraphSliceSummaryCard
-                result={sliceResult}
-                totals={{
-                  nodes: activeViewModel?.graph.displayed_nodes ?? selectedDataset.graph.nodes.length,
-                  edges: activeViewModel?.graph.displayed_triples ?? selectedDataset.graph.edges.length,
-                  clusters: activeViewModel?.clusters.length ?? selectedDataset.clusters.length,
-                  candidates: activeViewModel?.candidates.length ?? selectedDataset.candidates.length,
-                }}
-                onReset={resetSlice}
-              />
-            ) : null}
             {selectedDataset ? (
               <DatasetNavigatorPanel
                 dataset={selectedDataset}
                 activeSlice={activeSlice}
+                activeStep={activeStep}
                 onApply={applySlice}
                 onReset={resetSlice}
                 sessionId={isScenarioModeActive ? null : liveSessionId}
@@ -923,38 +840,10 @@ export function PaperDemoPage() {
                   shared_relation: c.shared_relation,
                   shared_tail: c.shared_tail,
                 }))}
+                onFocusGraph={() => setGraphFocusRequest((n) => n + 1)}
               />
             ) : null}
             <WorkflowStepMenu activeStep={activeStep} onStepChange={(s) => setActiveStep(s as PaperDemoStepId)} />
-            <div
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
-                feedbackBridge.mode === "live"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                  : "border-slate-200 bg-slate-50 text-slate-700"
-              }`}
-              data-testid="feedback-bridge-badge"
-            >
-              <span
-                className={`inline-block h-2 w-2 rounded-full ${
-                  feedbackBridge.mode === "live"
-                    ? feedbackBridge.status === "sync-failed"
-                      ? "bg-amber-500"
-                      : "bg-emerald-500"
-                    : "bg-slate-400"
-                }`}
-                aria-hidden
-              />
-              <div className="min-w-0">
-                <p className="truncate font-semibold">
-                  {feedbackBridge.mode === "live"
-                    ? "Live backend feedback connected"
-                    : "Static demo mode"}
-                </p>
-                {feedbackBridge.lastMessage ? (
-                  <p className="truncate text-[11px] text-slate-600">{feedbackBridge.lastMessage}</p>
-                ) : null}
-              </div>
-            </div>
           </aside>
 
           <main className="center-panel min-w-0 space-y-3 overflow-hidden">
@@ -982,6 +871,7 @@ export function PaperDemoPage() {
               llmAvailable={activeViewModel?.llm.available ?? !isInteractiveModeActive}
               onExpandContext={isLiveModeActive ? () => void expandContext() : undefined}
               expandContextPending={expandContextPending}
+              graphFocusRequest={graphFocusRequest}
             />
 
             {isCompleted ? (
@@ -990,8 +880,8 @@ export function PaperDemoPage() {
                   <h3 className="text-sm font-semibold text-slate-900">Exports &amp; summary</h3>
                   <div className="text-[11px] text-slate-600">
                     {feedbackBridge.mode === "live"
-                      ? "Backend export endpoints are also available at /api/sessions/{sessionId}/export/*"
-                      : "Static demo: exports are derived from localStorage."}
+                      ? "Live sample exports include feedback, completed KG, and diff data."
+                      : "Prepared sample exports are derived from local feedback."}
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -1092,8 +982,8 @@ export function PaperDemoPage() {
                     <p className="mt-1 text-[11px] text-slate-500">
                       Source:{" "}
                       {completedStatsSummary?.mode === "live"
-                        ? "backend /completed.summary.completed_triples"
-                        : "getCompletedKG(datasetId).length"}
+                        ? "Live OMNIA session"
+                        : "Local feedback history"}
                     </p>
                   </div>
                 </div>
@@ -1117,6 +1007,8 @@ export function PaperDemoPage() {
                 feedbackSummary={feedbackSummary}
                 completedSummary={completedStatsSummary}
                 backendDiagnostics={feedbackBridge.completedSummary}
+                liveDiagnostics={liveViewModel?.diagnostics ?? null}
+                scenarioLimitations={scenarioViewModel?.limitations ?? []}
                 filteringAvailable={activeViewModel?.filtering.available ?? !isInteractiveModeActive}
                 llmAvailable={activeViewModel?.llm.available ?? !isInteractiveModeActive}
                 stepExplanation={stepExplanation}

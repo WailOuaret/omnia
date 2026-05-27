@@ -177,7 +177,7 @@ function assignOmniaPositions({
   const positionedNodes = nodes.map((node, index) => {
     if (memberSet.has(node.id)) {
       const memberIndex = members.indexOf(node.id);
-      return { ...node, position: { x: memberX, y: spreadY(memberIndex, members.length) } };
+      return { ...node, position: { x: memberX, y: spreadY(memberIndex, members.length, 300, layout.memberSpreadGap) } };
     }
     if (node.id === sharedTail) {
       return { ...node, position: { x: tailX, y: 300 } };
@@ -201,7 +201,7 @@ function assignOmniaPositions({
 
   const clusterNodeId = `cluster-box-${selectedCluster.cluster_id}`;
   if (layout.showClusterBox && !positionedNodes.some((node) => node.id === clusterNodeId)) {
-    const memberYs = members.map((_, idx) => spreadY(idx, members.length));
+    const memberYs = members.map((_, idx) => spreadY(idx, members.length, 300, layout.memberSpreadGap));
     const topY = Math.min(...memberYs) - 48;
     const bottomY = Math.max(...memberYs) + 48;
     positionedNodes.push({

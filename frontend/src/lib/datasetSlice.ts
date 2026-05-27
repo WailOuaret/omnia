@@ -209,7 +209,7 @@ function buildSliceLabel(slice: DatasetSlice, resolved?: { entityId?: string }):
     case "candidate":
       return `Candidates · ${slice.candidateStatus ?? "any"}`;
     case "feedback":
-      return `Feedback bucket · ${slice.feedbackBucket ?? "any"}`;
+      return `Feedback filter · ${slice.feedbackBucket ?? "any"}`;
     default:
       return "Slice";
   }

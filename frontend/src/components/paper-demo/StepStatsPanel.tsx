@@ -106,7 +106,7 @@ export function StepStatsPanel({
               <span className="font-semibold">Selected cluster:</span> {dataset.clusters[0]?.id}
             </p>
             <p>
-              <span className="font-semibold">Cluster key:</span> ({dataset.clusters[0]?.sharedRelation}, {dataset.clusters[0]?.sharedTail})
+              <span className="font-semibold">Pattern:</span> {dataset.clusters[0]?.sharedRelation} -&gt; {dataset.clusters[0]?.sharedTail}
             </p>
             <p>
               <span className="font-semibold">Cluster size:</span> {dataset.clusters[0]?.size ?? 0}
@@ -170,7 +170,7 @@ export function StepStatsPanel({
               <p className="text-xs italic text-slate-500">
                 {filteringAvailable
                   ? "Select a candidate with TransE filtering scores to inspect distance and threshold."
-                  : "Filtering artifacts are not available for this session."}
+                  : "Filtering results are not included in this online sample yet. This step shows where TransE filtering fits in the OMNIA workflow."}
               </p>
             )}
           </>
@@ -209,7 +209,7 @@ export function StepStatsPanel({
               </>
             ) : (
               <p className="text-xs italic text-slate-500">
-                LLM/RAG validation artifacts are not available for this session.
+                LLM/RAG evidence is not included in this online sample yet. This step shows where semantic validation fits in the workflow.
               </p>
             )}
           </>

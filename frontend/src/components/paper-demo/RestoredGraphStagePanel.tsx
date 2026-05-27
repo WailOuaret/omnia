@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { BenchmarkMiniGraph } from "./BenchmarkMiniGraph";
 import { LiveGraphPanel, type GraphSelection } from "./LiveGraphPanel";
 import { PaperCovidExampleGraph } from "./PaperCovidExampleGraph";
+import { CovidOmniaGraphStage } from "./covid/CovidOmniaTeacherPanels";
 import { getCandidateById } from "./paperDemoScenario";
 import type { PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
+import { CandidateTripleCard } from "./CandidateTripleCard";
+import { stepCaptionFor } from "../../lib/stepCaptions";
 import type { GraphPayload } from "../../types";
 import type { DemoCandidate, DemoDatasetConfig } from "../../demo-data/types";
 
@@ -22,11 +25,14 @@ interface RestoredGraphStagePanelProps {
   onCandidateSelect?: (candidateId: string) => void;
   onExpandContext?: () => void;
   expandContextPending?: boolean;
+  filteringAvailable?: boolean;
+  llmAvailable?: boolean;
   /**
    * When true (the default), COVID-Fact uses the hand-drawn paper-style graph.
    * Set false when a custom slice is active so the dynamic slice graph is rendered instead.
    */
   useStaticPaperGraph?: boolean;
+  focusRequest?: number;
 }
 
 const STEP_MAP: Record<string, PaperDemoStep> = {
@@ -97,6 +103,9 @@ interface InnerGraphProps {
   onCandidateSelect?: (candidateId: string) => void;
   onExpandContext?: () => void;
   expandContextPending?: boolean;
+  filteringAvailable?: boolean;
+  llmAvailable?: boolean;
+  focusRequest?: number;
 }
 
 function InnerGraph({
@@ -113,9 +122,25 @@ function InnerGraph({
   onCandidateSelect,
   onExpandContext,
   expandContextPending,
+  filteringAvailable = true,
+  llmAvailable = true,
 }: InnerGraphProps) {
   const paperStep: PaperDemoStep = STEP_MAP[activeStep] ?? "before";
   const paperDecision: UserRefinementDecision = mapDecisionToPaper(selectedDecision);
+
+  const useCandidateCardOnly =
+    (activeStep === "filtering" && !filteringAvailable) ||
+    (activeStep === "llm" && !llmAvailable);
+
+  if (useCandidateCardOnly && selectedCandidate) {
+    return (
+      <div className="flex h-full min-h-[320px] items-center justify-center p-6">
+        <div className="w-full max-w-xl">
+          <CandidateTripleCard candidate={selectedCandidate} decision={selectedDecision ?? null} />
+        </div>
+      </div>
+    );
+  }
 
   if (graphPayload) {
     return (
@@ -129,23 +154,29 @@ function InnerGraph({
         onCandidateSelect={onCandidateSelect}
         onExpandContext={onExpandContext}
         expandContextPending={expandContextPending}
-        title={`${dataset.label} backend slice`}
+        filteringAvailable={filteringAvailable}
+        llmAvailable={llmAvailable}
+        title={`Interactive graph - ${dataset.label}`}
       />
     );
   }
 
   if (dataset.id === "covidFact" && useStaticPaperGraph) {
-    const paperCandidateId = selectedCandidate
-      ? COVID_CANDIDATE_MAP[selectedCandidate.candidateId] ?? "c1"
-      : "c1";
-    const paperCandidate = getCandidateById(paperCandidateId);
-    return (
-      <PaperCovidExampleGraph
-        step={paperStep}
-        selectedCandidate={paperCandidate}
-        selectedDecision={paperDecision}
-      />
-    );
+    const paperStep: PaperDemoStep = STEP_MAP[activeStep] ?? "before";
+    if (paperStep === "diff") {
+      const paperCandidateId = selectedCandidate
+        ? COVID_CANDIDATE_MAP[selectedCandidate.candidateId] ?? "c1"
+        : "c1";
+      const paperCandidate = getCandidateById(paperCandidateId);
+      return (
+        <PaperCovidExampleGraph
+          step={paperStep}
+          selectedCandidate={paperCandidate}
+          selectedDecision={paperDecision}
+        />
+      );
+    }
+    return <CovidOmniaGraphStage step={activeStep as "kg" | "clustering" | "candidates" | "filtering" | "llm" | "feedback" | "completed"} />;
   }
   return (
     <BenchmarkMiniGraph
@@ -172,10 +203,21 @@ export function RestoredGraphStagePanel({
   onCandidateSelect,
   onExpandContext,
   expandContextPending = false,
+  filteringAvailable = true,
+  llmAvailable = true,
   useStaticPaperGraph = true,
+  focusRequest = 0,
 }: RestoredGraphStagePanelProps) {
   const [isFocused, setIsFocused] = useState(false);
   const legend = legendForStep(activeStep);
+  const caption = stepCaptionFor(activeStep);
+  const tripleText = selectedCandidate
+    ? `(${selectedCandidate.head}, ${selectedCandidate.relation}, ${selectedCandidate.tail})`
+    : null;
+
+  useEffect(() => {
+    if (focusRequest > 0) setIsFocused(true);
+  }, [focusRequest]);
 
   useEffect(() => {
     if (!isFocused) return;
@@ -191,39 +233,12 @@ export function RestoredGraphStagePanel({
     };
   }, [isFocused]);
 
-  const tripleText = selectedCandidate
-    ? `(${selectedCandidate.head}, ${selectedCandidate.relation}, ${selectedCandidate.tail})`
-    : null;
-
   return (
     <section
       className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3"
       data-testid="restored-graph-stage"
     >
-      <div className="flex min-w-0 flex-wrap items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold text-slate-900">
-            Interactive graph — {dataset.label}
-          </h3>
-          {tripleText ? (
-            <div
-              className="mt-1 inline-flex max-w-full items-center gap-2 self-start rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-700"
-              title={tripleText}
-            >
-              <span className="text-slate-500">Selected candidate:</span>
-              <span className="block max-w-[42ch] truncate font-mono text-slate-800">{tripleText}</span>
-            </div>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsFocused(true)}
-          className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
-          title="Open the graph in a large focus view (Esc to close)"
-        >
-          Focus graph
-        </button>
-      </div>
+      <p className="text-sm leading-snug text-slate-700">{caption}</p>
 
       <div
         className="mt-2 w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-1"
@@ -243,11 +258,13 @@ export function RestoredGraphStagePanel({
           onCandidateSelect={onCandidateSelect}
           onExpandContext={onExpandContext}
           expandContextPending={expandContextPending}
+          filteringAvailable={filteringAvailable}
+          llmAvailable={llmAvailable}
         />
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-700">
-        {legend.map((item) => (
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-600">
+        {legend.slice(0, activeStep === "kg" ? 1 : 3).map((item) => (
           <div key={item.label} className="flex items-center gap-1.5">
             <span
               className="inline-block w-6"
@@ -309,6 +326,8 @@ export function RestoredGraphStagePanel({
                 onCandidateSelect={onCandidateSelect}
                 onExpandContext={onExpandContext}
                 expandContextPending={expandContextPending}
+                filteringAvailable={filteringAvailable}
+                llmAvailable={llmAvailable}
               />
             </div>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-700">

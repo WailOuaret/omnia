@@ -109,6 +109,10 @@ export interface GraphPayload {
   total_triples: number;
   warnings: string[];
   layoutMode?: "omnia" | "dagre";
+  displayMode?: "explore" | "explain";
+  hiddenNodeCount?: number;
+  totalMemberCount?: number;
+  visibleMemberCount?: number;
   stepCaption?: string;
   selectedCluster?: {
     cluster_id: string;

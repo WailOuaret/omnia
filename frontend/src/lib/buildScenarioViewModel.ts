@@ -8,12 +8,15 @@ import type { PaperDemoScenario } from "../types/scenario";
 import { scenarioStepKeyForActiveStep } from "../types/scenario";
 import type { GraphPayload } from "../types";
 import { applyStepGraphPresentation } from "./applyStepGraphPresentation";
+import { sessionSliceToGraphPayload } from "./sessionSliceToGraphPayload";
+import { synthesizeClusterSlice } from "./synthesizeClusterSlice";
 import {
   buildLiveOmniaViewModel,
   candidateBelongsToCluster,
   filterCandidatesForCluster,
 } from "./buildLiveOmniaViewModel";
-import { sessionSliceToGraphPayload } from "./sessionSliceToGraphPayload";
+import { pickDefaultCandidateId, pickDefaultClusterId } from "./pickDefaultCluster";
+import { limitationsForDemo } from "./demoLimitations";
 
 type Decision = "accept" | "reject" | "uncertain" | "correct";
 
@@ -139,39 +142,52 @@ export function buildScenarioViewModel({
   const datasetId = scenario.datasetId;
   const template = DATASETS[datasetId];
   const stepKey = scenarioStepKeyForActiveStep(activeStep);
-  const graphSlice = scenario.steps[stepKey]?.graphSlice ?? scenario.overviewSlice;
+  const baseGraphSlice = scenario.steps[stepKey]?.graphSlice ?? scenario.overviewSlice;
 
   const demoClusters = clustersFromScenario(scenario.clusters);
   const allCandidates = candidatesFromScenario(scenario.generatedCandidates);
 
   const effectiveClusterId =
-    selectedClusterId && demoClusters.some((c) => c.id === selectedClusterId)
-      ? selectedClusterId
-      : scenario.defaultClusterId ?? scenario.selectedCluster.cluster_id;
+    pickDefaultClusterId(
+      demoClusters,
+      allCandidates,
+      selectedClusterId && demoClusters.some((c) => c.id === selectedClusterId)
+        ? selectedClusterId
+        : scenario.defaultClusterId ?? scenario.selectedCluster.cluster_id,
+    ) ?? scenario.selectedCluster.cluster_id;
 
   const clusterCandidates = filterCandidatesForCluster(allCandidates, effectiveClusterId);
+  const clusterRow = scenario.clusters.find((row) => row.cluster_id === effectiveClusterId);
 
-  let effectiveCandidateId = selectedCandidateId;
-  if (
-    effectiveCandidateId &&
-    !clusterCandidates.some((c) => c.candidateId === effectiveCandidateId)
-  ) {
-    effectiveCandidateId = null;
-  }
-  if (
-    !effectiveCandidateId &&
-    scenario.defaultCandidateId &&
-    clusterCandidates.some((c) => c.candidateId === scenario.defaultCandidateId)
-  ) {
-    effectiveCandidateId = scenario.defaultCandidateId;
-  }
-  if (!effectiveCandidateId && clusterCandidates.length === 1) {
-    effectiveCandidateId = clusterCandidates[0].candidateId;
-  }
+  const graphSlice =
+    activeStep !== "kg" &&
+    clusterRow &&
+    baseGraphSlice.selected_cluster?.cluster_id !== effectiveClusterId
+      ? synthesizeClusterSlice(
+          baseGraphSlice,
+          clusterRow,
+          clusterCandidates,
+          clusterCandidates.find((c) => c.candidateId === selectedCandidateId) ?? null,
+        )
+      : baseGraphSlice;
+
+  const effectiveCandidateId = pickDefaultCandidateId(
+    allCandidates,
+    effectiveClusterId,
+    selectedCandidateId &&
+      clusterCandidates.some((c) => c.candidateId === selectedCandidateId)
+      ? selectedCandidateId
+      : scenario.defaultCandidateId ?? null,
+  );
 
   const selectedCluster = demoClusters.find((c) => c.id === effectiveClusterId) ?? null;
   const selectedCandidate =
     clusterCandidates.find((c) => c.candidateId === effectiveCandidateId) ?? null;
+
+  const filteringAvailable = Boolean(scenario.filtering.available);
+  const llmAvailable = Boolean(scenario.llm.available);
+  const kept = filteringAvailable ? scenario.filtering.afterFiltering : 0;
+  const before = filteringAvailable ? scenario.filtering.beforeFiltering : 0;
 
   const graph = applyStepGraphPresentation(
     sessionSliceToGraphPayload({
@@ -189,11 +205,6 @@ export function buildScenarioViewModel({
     graph.stepCaption ??
     "Prepared interactive scenario generated from the OMNIA workflow (no live backend required).";
 
-  const filteringAvailable = Boolean(scenario.filtering.available);
-  const llmAvailable = Boolean(scenario.llm.available);
-  const kept = filteringAvailable ? scenario.filtering.afterFiltering : 0;
-  const before = filteringAvailable ? scenario.filtering.beforeFiltering : 0;
-
   const metadata: DemoDatasetConfig = {
     ...template,
     id: datasetId,
@@ -210,7 +221,7 @@ export function buildScenarioViewModel({
     role: "static-interactive-scenario",
     graph: { nodes: [], edges: [], clusterBoxes: [] },
     clusters: demoClusters,
-    candidates: clusterCandidates,
+    candidates: allCandidates,
     filteringStats: {
       model: scenario.filtering.model,
       threshold: scenario.filtering.threshold ?? Number.NaN,
@@ -263,7 +274,7 @@ export function buildScenarioViewModel({
       llmAvailable,
       graphSource: "static_interactive_scenario",
     },
-    limitations: scenario.limitations,
+    limitations: limitationsForDemo(true, scenario.limitations),
     sourceNote: scenario.sourceNote,
   };
 }

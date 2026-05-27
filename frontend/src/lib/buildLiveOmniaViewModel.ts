@@ -13,6 +13,7 @@ import { DATASETS } from "../demo-data/datasets";
 import type { DemoCandidate, DemoCluster, DemoDatasetConfig, DemoDatasetId } from "../demo-data/types";
 import type { GraphPayload } from "../types";
 import { applyStepGraphPresentation } from "./applyStepGraphPresentation";
+import { pickDefaultCandidateId, pickDefaultClusterId } from "./pickDefaultCluster";
 import { sessionSliceToGraphPayload } from "./sessionSliceToGraphPayload";
 import { sampleIdToDemoDatasetId } from "./sessionToDemoDataset";
 
@@ -134,7 +135,7 @@ function metadataFromSession(meta: BackendSessionMeta | null, datasetId: DemoDat
     relations: meta?.relation_count ?? template.relations,
     triples: meta?.triple_count ?? template.triples,
     source: meta?.source_type === "sample" ? template.source : "Backend session",
-    note: "Live backend session",
+    note: "Live dataset sample",
     role: "live-mode",
     graph: { nodes: [], edges: [], clusterBoxes: [] },
     clusters: [],
@@ -222,26 +223,25 @@ export function buildLiveOmniaViewModel({
 
   const backendClusterId = graphSlice.selected_cluster?.cluster_id ?? null;
   const effectiveClusterId =
-    selectedClusterId && demoClusters.some((c) => c.id === selectedClusterId)
-      ? selectedClusterId
-      : backendClusterId;
+    pickDefaultClusterId(
+      demoClusters,
+      allCandidates,
+      selectedClusterId && demoClusters.some((c) => c.id === selectedClusterId)
+        ? selectedClusterId
+        : backendClusterId,
+    ) ?? backendClusterId;
 
   const clusterCandidates = filterCandidatesForCluster(allCandidates, effectiveClusterId);
 
   const backendCandidateId = graphSlice.selected_candidate?.candidate_id ?? null;
-  let effectiveCandidateId = selectedCandidateId;
-  if (
-    effectiveCandidateId &&
-    !clusterCandidates.some((c) => c.candidateId === effectiveCandidateId)
-  ) {
-    effectiveCandidateId = null;
-  }
-  if (!effectiveCandidateId && backendCandidateId && clusterCandidates.some((c) => c.candidateId === backendCandidateId)) {
-    effectiveCandidateId = backendCandidateId;
-  }
-  if (!effectiveCandidateId && clusterCandidates.length === 1) {
-    effectiveCandidateId = clusterCandidates[0].candidateId;
-  }
+  const effectiveCandidateId = pickDefaultCandidateId(
+    allCandidates,
+    effectiveClusterId,
+    selectedCandidateId &&
+      clusterCandidates.some((c) => c.candidateId === selectedCandidateId)
+      ? selectedCandidateId
+      : backendCandidateId,
+  );
 
   const selectedCluster = demoClusters.find((c) => c.id === effectiveClusterId) ?? null;
   const selectedCandidate =
@@ -254,6 +254,9 @@ export function buildLiveOmniaViewModel({
       !candidateBelongsToCluster(selectedCandidate, effectiveClusterId),
   );
 
+  const filtering = computeFiltering(clusterCandidates, graphSlice.explanation);
+  const llm = computeLlm(graphSlice.explanation, metadata);
+
   const graph = applyStepGraphPresentation(
     sessionSliceToGraphPayload({
       slice: graphSlice,
@@ -265,9 +268,6 @@ export function buildLiveOmniaViewModel({
     }),
     activeStep,
   );
-
-  const filtering = computeFiltering(clusterCandidates, graphSlice.explanation);
-  const llm = computeLlm(graphSlice.explanation, metadata);
 
   return {
     mode: "live",

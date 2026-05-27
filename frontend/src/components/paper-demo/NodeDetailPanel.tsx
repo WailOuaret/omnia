@@ -1,7 +1,7 @@
 import { GitBranch, MoveUpRight } from "lucide-react";
 import type { DemoCandidate, DemoCluster } from "../../demo-data/types";
 import type { GraphEdge, GraphNode, GraphPayload } from "../../types";
-import { formatKgLabelParts, formatKgInline } from "../../lib/kgLabels";
+import { formatKgLabelParts, formatKgInline, missingLabelHint } from "../../lib/kgLabels";
 import type { GraphSelection } from "./LiveGraphPanel";
 
 interface NodeDetailPanelProps {
@@ -27,7 +27,7 @@ function DetailField({ label, value }: { label: string; value: string | number |
   return (
     <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-0.5 break-words text-xs text-slate-900">{value ?? "—"}</p>
+      <p className="mt-0.5 break-words text-xs text-slate-900">{value ?? "n/a"}</p>
     </div>
   );
 }
@@ -35,12 +35,16 @@ function DetailField({ label, value }: { label: string; value: string | number |
 function LabelBlock({ id, label, kind = "entity" }: { id: string; label?: string | null; kind?: "entity" | "relation" | "value" }) {
   const parts = formatKgLabelParts(id, label, kind);
   return (
-    <div title="Raw IDs come from the benchmark dataset. Labels are shown when available.">
+    <div title="Names are shown when the dataset provides them.">
       <p className="break-words text-sm font-semibold text-slate-950">{parts.primary}</p>
-      <p className="mt-0.5 break-all font-mono text-[11px] text-slate-500">{parts.secondary}</p>
+      {parts.isRawId ? (
+        <p className="mt-0.5 text-[11px] italic text-slate-400">{missingLabelHint()}</p>
+      ) : parts.secondary && parts.secondary !== parts.primary ? (
+        <p className="mt-0.5 break-all font-mono text-[11px] text-slate-500">{parts.secondary}</p>
+      ) : null}
       {parts.isRawId ? (
         <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">
-          raw Wikidata ID
+          raw ID
         </span>
       ) : null}
     </div>
@@ -89,13 +93,13 @@ export function NodeDetailPanel({
           </h3>
         </div>
         <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
-          {sessionId ? "live" : "static"}
+          {sessionId ? "live sample" : "prepared sample"}
         </span>
       </div>
 
       {!node && !edge ? (
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-          Click a node or edge in the graph. Raw IDs come from the benchmark dataset; readable labels appear when available.
+          Click a node or edge in the graph. Some datasets use raw IDs; names appear when the dataset provides them.
         </div>
       ) : null}
 
@@ -113,7 +117,7 @@ export function NodeDetailPanel({
             <div className="max-h-40 space-y-1 overflow-auto pr-1">
               {connectedEdges(graph, node.id).slice(0, 8).map((item) => (
                 <div key={item.id} className="rounded border border-slate-100 bg-slate-50 px-2 py-1 text-[11px] text-slate-700">
-                  {formatKgInline(item.source)} — {formatKgInline(item.label, item.label, "relation")} → {formatKgInline(item.target)}
+                  {formatKgInline(item.source)} - {formatKgInline(item.label, item.label, "relation")} -&gt; {formatKgInline(item.target)}
                 </div>
               ))}
             </div>
@@ -175,12 +179,12 @@ export function NodeDetailPanel({
               ) : null}
             </div>
           ) : (
-            <ArtifactUnavailable message="Filtering artifacts are not available for this session." />
+            <ArtifactUnavailable message="Filtering results are not included in this online sample yet." />
           )}
           {llmAvailable ? (
             <DetailField label="LLM verdict" value={edge.llm_decision} />
           ) : (
-            <ArtifactUnavailable message="LLM/RAG validation artifacts are not available for this session." />
+            <ArtifactUnavailable message="LLM/RAG evidence is not included in this online sample yet." />
           )}
         </div>
       ) : null}
@@ -214,12 +218,12 @@ export function NodeDetailPanel({
               <DetailField label="Threshold" value={selectedCandidate.threshold?.toFixed(3)} />
             </div>
           ) : (
-            <ArtifactUnavailable message="Filtering artifacts are not available for this session." />
+            <ArtifactUnavailable message="Filtering results are not included in this online sample yet." />
           )}
           {llmAvailable ? (
             <DetailField label="LLM verdict" value={selectedCandidate.llmVerdict} />
           ) : (
-            <ArtifactUnavailable message="LLM/RAG validation artifacts are not available for this session." />
+            <ArtifactUnavailable message="LLM/RAG evidence is not included in this online sample yet." />
           )}
           {selectedCandidate.llmRationale ? (
             <p className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700">

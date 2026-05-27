@@ -15,13 +15,15 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import clsx from "clsx";
-import { Info } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GraphEdge, GraphEdgeStatus, GraphNode, GraphPayload } from "../../types";
 import { STATUS_TOKENS } from "../../graph/styles/graphStatusTokens";
 import type { CanvasEdgeData, CanvasNodeData } from "../../graph/hooks/useGraphElements";
 import { api, type BackendGraphSliceEdge, type BackendGraphSliceNode } from "../../lib/api";
 import { formatKgInline, isRawKgId } from "../../lib/kgLabels";
+import { applyExplainModeGraph } from "../../lib/applyExplainModeGraph";
+import { graphDisplayModeForStep } from "../../lib/graphDisplayMode";
+import { stepCaptionFor } from "../../lib/stepCaptions";
 import { stepLayoutFor } from "../../lib/stepLayoutConfig";
 import { CandidateEdge } from "../graph/edges/CandidateEdge";
 import { RelationEdge } from "../graph/edges/RelationEdge";
@@ -43,12 +45,16 @@ interface LiveGraphPanelProps {
   onCandidateSelect?: (candidateId: string) => void;
   onExpandContext?: () => void;
   expandContextPending?: boolean;
+  filteringAvailable?: boolean;
+  llmAvailable?: boolean;
   className?: string;
   title?: string;
 }
 
-const NODE_WIDTH = 168;
-const NODE_HEIGHT = 72;
+const EXPLORE_NODE_WIDTH = 168;
+const EXPLORE_NODE_HEIGHT = 72;
+const EXPLAIN_NODE_WIDTH = 200;
+const EXPLAIN_NODE_HEIGHT = 88;
 
 const nodeTypes = {
   entity: PaperDemoEntityNode,
@@ -99,6 +105,8 @@ function getLayoutedElements(
   nodes: Node<CanvasNodeData>[],
   edges: Edge<CanvasEdgeData>[],
   direction: "LR" | "TB" = "LR",
+  nodeWidth = EXPLORE_NODE_WIDTH,
+  nodeHeight = EXPLORE_NODE_HEIGHT,
 ) {
   const g = new dagre.graphlib.Graph({ multigraph: true });
   g.setDefaultEdgeLabel(() => ({}));
@@ -112,7 +120,7 @@ function getLayoutedElements(
   });
 
   nodes.forEach((node) => {
-    g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+    g.setNode(node.id, { width: nodeWidth, height: nodeHeight });
   });
 
   edges.forEach((edge) => {
@@ -126,8 +134,8 @@ function getLayoutedElements(
     return {
       ...node,
       position: {
-        x: dagreNode.x - NODE_WIDTH / 2,
-        y: dagreNode.y - NODE_HEIGHT / 2,
+        x: dagreNode.x - nodeWidth / 2,
+        y: dagreNode.y - nodeHeight / 2,
       },
     };
   });
@@ -282,10 +290,13 @@ function LiveGraphPanelInner({
   onCandidateSelect,
   onExpandContext,
   expandContextPending = false,
+  filteringAvailable = true,
+  llmAvailable = true,
   className,
-  title = "Interactive backend graph",
+  title = "Interactive graph",
 }: LiveGraphPanelProps) {
   const reactFlow = useReactFlow();
+  const [explainContextExpanded, setExplainContextExpanded] = useState(false);
   const [expandedGraph, setExpandedGraph] = useState<GraphPayload>(graph);
   const [hoverText, setHoverText] = useState<string | null>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
@@ -293,15 +304,47 @@ function LiveGraphPanelInner({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<CanvasNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<CanvasEdgeData>>([]);
 
+  const isExplainMode = graphDisplayModeForStep(activeStep) === "explain";
+  const nodeWidth = isExplainMode ? EXPLAIN_NODE_WIDTH : EXPLORE_NODE_WIDTH;
+  const nodeHeight = isExplainMode ? EXPLAIN_NODE_HEIGHT : EXPLORE_NODE_HEIGHT;
+  const artifactUnavailable =
+    (activeStep === "filtering" && !filteringAvailable) || (activeStep === "llm" && !llmAvailable);
+  const artifactUnavailableLabel =
+    activeStep === "filtering"
+      ? "Filtering not available in online sample"
+      : "LLM validation not available in online sample";
+
   useEffect(() => {
     setExpandedGraph(graph);
-  }, [graph]);
+    setExplainContextExpanded(false);
+  }, [graph, activeStep]);
+
+  const displayGraph = useMemo(
+    () =>
+      isExplainMode
+        ? applyExplainModeGraph(expandedGraph, activeStep, {
+            expandContext: explainContextExpanded,
+            filteringAvailable,
+            llmAvailable,
+            selectedCandidateId,
+          })
+        : { ...expandedGraph, displayMode: "explore" as const },
+    [
+      expandedGraph,
+      activeStep,
+      isExplainMode,
+      explainContextExpanded,
+      filteringAvailable,
+      llmAvailable,
+      selectedCandidateId,
+    ],
+  );
 
   const rfNodes = useMemo<Node<CanvasNodeData>[]>(() => {
-    const graphNodes = buildNodeMap(expandedGraph);
+    const graphNodes = buildNodeMap(displayGraph);
     const highlightedByCandidate = new Set<string>();
     if (selectedCandidateId) {
-      for (const edge of expandedGraph.edges) {
+      for (const edge of displayGraph.edges) {
         if (edge.candidate_id === selectedCandidateId) {
           highlightedByCandidate.add(edge.source);
           highlightedByCandidate.add(edge.target);
@@ -322,7 +365,7 @@ function LiveGraphPanelInner({
         type: isClusterBoundary ? "clusterBoundary" : "entity",
         data: {
           node: graphNode,
-          detailLevel: "medium",
+          detailLevel: isExplainMode ? "close" : "medium",
           showLabels: true,
           evidenceActive: highlighted,
         } satisfies CanvasNodeData,
@@ -332,12 +375,12 @@ function LiveGraphPanelInner({
         zIndex: isClusterBoundary ? 0 : 2,
       } satisfies Node<CanvasNodeData>;
     });
-  }, [expandedGraph, selectedCandidateId]);
+  }, [displayGraph, selectedCandidateId, isExplainMode]);
 
   const rfEdges = useMemo<Edge<CanvasEdgeData>[]>(() => {
     const nodeIds = new Set(rfNodes.map((node) => node.id));
 
-    return expandedGraph.edges
+    return displayGraph.edges
       .filter((backendEdge) => nodeIds.has(backendEdge.source) && nodeIds.has(backendEdge.target))
       .map((backendEdge) => {
         const statusKey = statusForEdge(backendEdge);
@@ -347,10 +390,12 @@ function LiveGraphPanelInner({
         );
         const selectedOrHighlighted = selectedCandidate || Boolean(backendEdge.highlighted);
         const dimOriginal =
-          expandedGraph.layoutMode === "omnia" &&
+          displayGraph.layoutMode === "omnia" &&
           stepLayoutFor(activeStep).dimOriginalEdges &&
           statusKey === "original" &&
           !selectedOrHighlighted;
+        const artifactMuted =
+          artifactUnavailable && (statusKey === "generated" || Boolean(backendEdge.candidate_id));
         const showEdgeLabel = selectedOrHighlighted || hoveredEdgeId === backendEdge.id;
         const edge: GraphEdge = {
           ...backendEdge,
@@ -376,11 +421,13 @@ function LiveGraphPanelInner({
             stroke: token.color,
             strokeWidth: selectedOrHighlighted ? token.strokeWidthSelected : token.strokeWidth,
             strokeDasharray: token.dash,
-            opacity: dimOriginal
-              ? Math.min(token.opacity, 0.22)
-              : selectedOrHighlighted
-                ? Math.max(token.opacity, 0.92)
-                : token.opacity,
+            opacity: artifactMuted
+              ? 0.28
+              : dimOriginal
+                ? Math.min(token.opacity, 0.22)
+                : selectedOrHighlighted
+                  ? Math.max(token.opacity, 0.92)
+                  : token.opacity,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -392,22 +439,34 @@ function LiveGraphPanelInner({
           zIndex: selectedOrHighlighted ? 5 : 1,
         } satisfies Edge<CanvasEdgeData>;
       });
-  }, [expandedGraph.edges, expandedGraph.layoutMode, rfNodes, selectedCandidateId, hoveredEdgeId, activeStep]);
+  }, [displayGraph.edges, displayGraph.layoutMode, rfNodes, selectedCandidateId, hoveredEdgeId, activeStep, artifactUnavailable]);
 
   useEffect(() => {
-    const useOmniaLayout = expandedGraph.layoutMode === "omnia";
+    const useOmniaLayout = displayGraph.layoutMode === "omnia";
     const { nodes: layoutedNodes, edges: layoutedEdges } = useOmniaLayout
       ? { nodes: rfNodes, edges: rfEdges }
-      : getLayoutedElements(rfNodes, rfEdges, "LR");
+      : getLayoutedElements(rfNodes, rfEdges, "LR", nodeWidth, nodeHeight);
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
 
     const id = window.setTimeout(() => {
-      reactFlow.fitView({ padding: 0.15, duration: 400 });
+      reactFlow.fitView({ padding: isExplainMode ? 0.28 : 0.15, duration: 400 });
     }, 60);
 
     return () => window.clearTimeout(id);
-  }, [activeStep, expandedGraph.layoutMode, rfNodes, rfEdges, reactFlow, setNodes, setEdges]);
+  }, [
+    activeStep,
+    displayGraph.layoutMode,
+    rfNodes,
+    rfEdges,
+    reactFlow,
+    setNodes,
+    setEdges,
+    isExplainMode,
+    nodeWidth,
+    nodeHeight,
+    explainContextExpanded,
+  ]);
 
   const expandNode = useCallback(async (nodeId: string, hops: 1 | 2) => {
     if (!sessionId) return;
@@ -420,13 +479,12 @@ function LiveGraphPanelInner({
     }
   }, [sessionId]);
 
-  const selectionHint = selectedClusterId
-    ? `Cluster ${selectedClusterId} highlighted`
-    : selectedCandidateId
-      ? `Candidate ${selectedCandidateId} highlighted`
-      : "Click nodes or edges to inspect";
-  const selectedCluster = expandedGraph.selectedCluster;
-  const explanation = expandedGraph.explanation;
+  const selectedCluster = displayGraph.selectedCluster;
+  const stepCaption = stepCaptionFor(activeStep);
+  const hiddenMembers =
+    displayGraph.totalMemberCount && displayGraph.visibleMemberCount
+      ? Math.max(0, displayGraph.totalMemberCount - displayGraph.visibleMemberCount)
+      : 0;
 
   return (
     <section
@@ -434,18 +492,18 @@ function LiveGraphPanelInner({
       data-testid="live-graph-panel"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-slate-950">{title}</h3>
-          {expandedGraph.stepCaption ? (
-            <p className="mt-0.5 text-[11px] leading-snug text-slate-600">{expandedGraph.stepCaption}</p>
-          ) : (
-            <p className="text-[11px] text-slate-600">{selectionHint}</p>
-          )}
-        </div>
+        <p className="min-w-0 text-sm leading-snug text-slate-700">{stepCaption}</p>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
-            backend session slice
-          </span>
+          {isExplainMode ? (
+            <button
+              type="button"
+              onClick={() => setExplainContextExpanded((value) => !value)}
+              className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700"
+              data-testid="toggle-explain-context"
+            >
+              {explainContextExpanded ? "Show focused view" : "Show more context"}
+            </button>
+          ) : null}
           {onExpandContext ? (
             <button
               type="button"
@@ -457,13 +515,6 @@ function LiveGraphPanelInner({
               {expandContextPending ? "Expanding…" : "Expand context to 100 nodes"}
             </button>
           ) : null}
-          <span
-            className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200"
-            title="Raw IDs come from the benchmark dataset. Labels are shown when available."
-          >
-            <Info className="h-3 w-3" />
-            labels when available
-          </span>
         </div>
       </div>
 
@@ -473,7 +524,9 @@ function LiveGraphPanelInner({
         data-testid="live-graph-canvas"
       >
         <div className="absolute right-3 top-3 z-20 rounded-full border border-slate-200 bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">
-          {expandedGraph.displayed_nodes} nodes | {expandedGraph.displayed_triples} triples
+          {isExplainMode && hiddenMembers > 0
+            ? `+ ${hiddenMembers} more members`
+            : `${displayGraph.displayed_nodes} nodes · ${displayGraph.displayed_triples} triples`}
         </div>
 
         {hoverText ? (
@@ -482,21 +535,27 @@ function LiveGraphPanelInner({
           </div>
         ) : null}
 
-        {selectedCluster ? (
+        {selectedCluster && !isExplainMode ? (
           <div className="pointer-events-none absolute left-3 top-3 z-20 max-w-md rounded-lg border border-indigo-200 bg-white/95 px-3 py-2 text-[11px] text-slate-700 shadow-sm">
             <p className="font-semibold text-indigo-900">
-              Cluster key = ({selectedCluster.shared_relation}, {selectedCluster.shared_tail})
+              Grouped by same relation -&gt; tail pattern
+            </p>
+            <p className="mt-0.5 font-mono text-[10px] text-indigo-800">
+              Pattern:{" "}
+              {formatKgInline(selectedCluster.shared_relation, selectedCluster.shared_relation, "relation")}
+              {" → "}
+              {formatKgInline(selectedCluster.shared_tail)}
             </p>
             <p className="mt-0.5">
               {activeStep === "clustering"
-                ? "Heads on the left share this relation-tail pattern."
+                ? "Heads on the left share this pattern."
                 : activeStep === "candidates"
-                  ? "Blue dashed edges are generated by propagating relation-tail pairs inside the cluster."
+                  ? "OMNIA proposes missing triples because similar entities share this pattern."
                   : activeStep === "filtering"
-                    ? "Candidates are grouped by real TransE output when available."
+                    ? "Weak candidates are removed before semantic validation."
                     : activeStep === "llm"
-                      ? "Semantic validation reuses the same selected candidate."
-                      : "This slice carries the same cluster and candidate through the OMNIA loop."}
+                      ? "Semantic validation checks the selected candidate with retrieved evidence."
+                      : "This graph view follows the same candidate through the OMNIA workflow."}
             </p>
           </div>
         ) : null}
@@ -566,14 +625,26 @@ function LiveGraphPanelInner({
           </div>
         ) : null}
 
-        <div className="absolute bottom-3 left-3 z-20 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-[11px] text-slate-600 shadow-sm">
-          <div className="flex flex-wrap gap-2">
-            <span>Cluster members</span>
-            <span>|</span>
-            <span>relation-tail patterns</span>
-            <span>|</span>
-            <span>generated candidates</span>
+        {artifactUnavailable ? (
+          <div className="pointer-events-none absolute bottom-14 left-1/2 z-20 max-w-md -translate-x-1/2 rounded-lg border border-amber-300 bg-amber-50/95 px-3 py-2 text-center text-[11px] font-semibold text-amber-950 shadow-sm">
+            {artifactUnavailableLabel}
           </div>
+        ) : null}
+
+        <div className="absolute bottom-3 left-3 z-20 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-[11px] text-slate-600 shadow-sm">
+          {isExplainMode ? (
+            <div className="flex flex-wrap gap-x-2 gap-y-1">
+              <span>Solid = existing relation</span>
+              <span>|</span>
+              <span className="text-blue-700">Dashed blue = proposed triple</span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <span>Click nodes to inspect</span>
+              <span>|</span>
+              <span>Expand from inspector</span>
+            </div>
+          )}
         </div>
 
         {expanding ? (
@@ -584,10 +655,12 @@ function LiveGraphPanelInner({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-3 py-2 text-[11px] text-slate-600">
-        <span>Graph source: backend session slice</span>
         <span>
-          Rule: {explanation?.generation_rule ?? "Hk x Pk"}; candidate edges are dashed, original edges are solid.
+          {isExplainMode
+            ? "Focused view for this OMNIA step. Use “Show more context” to widen."
+            : "Exploration view — click nodes or edges to inspect."}
         </span>
+        <span>Solid = existing; dashed blue = proposed candidate</span>
       </div>
 
       <GraphExpansionBridge onExpand={expandNode} />

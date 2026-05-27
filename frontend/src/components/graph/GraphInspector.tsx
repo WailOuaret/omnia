@@ -145,7 +145,7 @@ export function GraphInspector({ graph, selectedNode, selectedEdge, onClear }: G
             <Field label="Cluster" value={selectedEdge.provenance?.cluster_id} />
           </div>
 
-          <Field label="Relation-tail key" value={selectedEdge.provenance?.cluster_key} />
+          <Field label="Relation → tail pattern" value={selectedEdge.provenance?.cluster_key} />
 
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Generated candidate</div>

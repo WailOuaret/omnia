@@ -61,13 +61,13 @@ export function PaperDemoHeader({
 
   const modeBadge = mode === "live"
     ? status === "sync-failed"
-      ? { text: "Live · sync failed", color: "bg-amber-100 text-amber-800 border-amber-200" }
+      ? { text: "Live sample needs attention", color: "bg-amber-100 text-amber-800 border-amber-200" }
       : status === "syncing"
-        ? { text: "Live · syncing…", color: "bg-emerald-100 text-emerald-800 border-emerald-200" }
-        : { text: "Live backend", color: "bg-emerald-100 text-emerald-800 border-emerald-200" }
+        ? { text: "Live sample syncing", color: "bg-emerald-100 text-emerald-800 border-emerald-200" }
+        : { text: "Live dataset sample", color: "bg-emerald-100 text-emerald-800 border-emerald-200" }
     : isScenarioMode
-      ? { text: "Static interactive scenario", color: "bg-sky-100 text-sky-900 border-sky-200" }
-      : { text: "Static demo", color: "bg-slate-100 text-slate-700 border-slate-200" };
+      ? { text: "Prepared interactive sample", color: "bg-sky-100 text-sky-900 border-sky-200" }
+      : { text: "Guided example", color: "bg-slate-100 text-slate-700 border-slate-200" };
 
   return (
     <header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -88,12 +88,11 @@ export function PaperDemoHeader({
           <p className="mt-1 text-sm text-slate-700">{PAPER_DEMO_STEP_GOAL[step]}</p>
           {isScenarioMode ? (
             <p className="mt-1 text-[11px] leading-snug text-sky-900">
-              This online demo uses a prepared interactive scenario generated from the OMNIA workflow.
-              Full backend live mode is available locally.
+              This online demo uses a prepared interactive sample generated from the OMNIA workflow.
             </p>
           ) : mode === "static" ? (
             <p className="mt-1 text-[11px] leading-snug text-amber-800">
-              Backend session unavailable — showing the bundled illustration dataset for this tab.
+              Live sample unavailable; showing the prepared example for this dataset.
             </p>
           ) : null}
         </div>

@@ -193,7 +193,7 @@ export function PaperExplanationPanel({
                   onClick={() => onHighlightEdge?.("t2")}
                   className="mt-2 rounded bg-blue-100 px-2 py-1 text-[12px] text-blue-800"
                 >
-                  Cluster key: {candidate.clusterKey}
+                  Pattern: {candidate.clusterKey}
                 </button>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {candidate.clusterHeads.map((head) => (

@@ -284,7 +284,7 @@ function InteractiveGraphComparison({ graph, datasetLabel }: { graph: GraphPaylo
           <KGGraph
             graph={originalGraph}
             title={`${datasetLabel} original slice`}
-            description="Original backend slice before human feedback is applied."
+            description="Original graph sample before human feedback is applied."
             fitViewKey={`original-${originalGraph.displayed_nodes}-${originalGraph.displayed_triples}`}
             compactChrome
             canvasHeight="h-[clamp(28rem,65vh,52rem)]"
@@ -321,29 +321,64 @@ export function GraphComparisonPanel({
   interactiveGraphPayload,
 }: GraphComparisonPanelProps) {
   const summary = buildDiffSummary(feedbackEvents);
+  const originalTriples = dataset.graph.edges.filter(
+    (edge) => edge.status === "known" || !edge.status,
+  ).length;
+  const finalTriples = originalTriples + summary.added.length + summary.corrected.length;
 
   return (
     <section className="space-y-3" data-testid="graph-comparison-panel">
-      <header className="rounded-xl border border-slate-200 bg-white p-3">
-        <h3 className="text-sm font-semibold text-slate-900">
-          Completed KG comparison — {dataset.label}
-        </h3>
-        <p className="mt-1 text-xs text-slate-600">
-          Left graph shows the original KG. Right graph shows the same KG after every human decision is applied: accepted and corrected triples are added, rejected and uncertain triples are not. Use this view to verify the OMNIA loop is consistent with your decisions.
-        </p>
-      </header>
+      <p className="text-sm text-slate-700">See what changed after feedback.</p>
+
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+        {[
+          ["Original triples", originalTriples],
+          ["Accepted additions", summary.added.length],
+          ["Corrected triples", summary.corrected.length],
+          ["Rejected candidates", summary.rejected.length],
+          ["Review queue", summary.reviewQueue.length],
+          ["Final triples", finalTriples],
+        ].map(([label, value]) => (
+          <div
+            key={label as string}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center"
+          >
+            <div className="text-lg font-semibold text-slate-900">{value as number}</div>
+            <div className="text-[11px] text-slate-600">{label as string}</div>
+          </div>
+        ))}
+      </div>
 
       {interactiveGraphPayload ? (
-        <InteractiveGraphComparison graph={interactiveGraphPayload} datasetLabel={dataset.label} />
-      ) : dataset.id === "covidFact" ? (
-        <CovidComparison dataset={dataset} selectedCandidate={selectedCandidate} feedbackEvents={feedbackEvents} />
-      ) : (
-        <BenchmarkComparison
-          dataset={dataset}
-          selectedCandidate={selectedCandidate}
-          feedbackDecisions={feedbackDecisions}
-        />
-      )}
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-2">
+          <KGGraph
+            graph={interactiveGraphPayload}
+            title={`${dataset.label} — changes after feedback`}
+            description=""
+            compactChrome
+            canvasHeight="h-[clamp(24rem,55vh,40rem)]"
+          />
+        </div>
+      ) : null}
+
+      <details className="rounded-xl border border-slate-200 bg-white p-3">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+          Show detailed before/after graph comparison
+        </summary>
+        <div className="mt-3">
+          {interactiveGraphPayload ? (
+            <InteractiveGraphComparison graph={interactiveGraphPayload} datasetLabel={dataset.label} />
+          ) : dataset.id === "covidFact" ? (
+            <CovidComparison dataset={dataset} selectedCandidate={selectedCandidate} feedbackEvents={feedbackEvents} />
+          ) : (
+            <BenchmarkComparison
+              dataset={dataset}
+              selectedCandidate={selectedCandidate}
+              feedbackDecisions={feedbackDecisions}
+            />
+          )}
+        </div>
+      </details>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <DiffRowList

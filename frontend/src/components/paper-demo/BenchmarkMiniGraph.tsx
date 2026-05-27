@@ -1,4 +1,4 @@
-/** Static fallback only — used when no backend session slice is available. */
+/** Static fallback only — used when no live graph data is available. */
 import type {
   ClusterBox,
   DemoCandidate,
