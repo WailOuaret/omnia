@@ -85,16 +85,6 @@ export function PaperDemoHeader({
           <p className="mt-0.5 truncate text-xs text-slate-600">
             Dataset: <span className="font-semibold text-slate-800">{datasetLabel}</span>
           </p>
-          <p className="mt-1 text-sm text-slate-700">{PAPER_DEMO_STEP_GOAL[step]}</p>
-          {isScenarioMode ? (
-            <p className="mt-1 text-[11px] leading-snug text-sky-900">
-              This online demo uses a prepared interactive sample generated from the OMNIA workflow.
-            </p>
-          ) : mode === "static" ? (
-            <p className="mt-1 text-[11px] leading-snug text-amber-800">
-              Live sample unavailable; showing the prepared example for this dataset.
-            </p>
-          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -153,23 +143,6 @@ export function PaperDemoHeader({
           className="h-full bg-slate-900 transition-all"
           style={{ width: `${((stepIndex + 1) / totalSteps) * 100}%` }}
         />
-      </div>
-      <div className="mt-2 flex flex-wrap gap-1">
-        {PAPER_DEMO_STEP_ORDER.map((id, i) => (
-          <span
-            key={id}
-            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-              i === stepIndex
-                ? "bg-slate-900 text-white"
-                : i < stepIndex
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-slate-100 text-slate-500"
-            }`}
-            title={PAPER_DEMO_STEP_LABEL[id]}
-          >
-            {i + 1}. {PAPER_DEMO_STEP_LABEL[id]}
-          </span>
-        ))}
       </div>
     </header>
   );

@@ -7,6 +7,8 @@ import type { GraphPayload } from "../../types";
 import type { DemoCandidate, DemoDatasetConfig } from "../../demo-data/types";
 import { originalOnlyGraphPayload } from "../../lib/sessionSliceToGraphPayload";
 import type { UserFeedback } from "../../stores/feedbackStore";
+import type { GraphViewMode } from "../../lib/graphViewMode";
+import { GraphViewToolbar } from "./GraphViewToolbar";
 
 type Decision = "accept" | "reject" | "uncertain" | "correct";
 
@@ -16,6 +18,8 @@ interface GraphComparisonPanelProps {
   feedbackDecisions: Record<string, Decision>;
   feedbackEvents: UserFeedback[];
   interactiveGraphPayload?: GraphPayload | null;
+  graphViewMode?: GraphViewMode;
+  onGraphViewModeChange?: (mode: GraphViewMode) => void;
 }
 
 const COVID_CANDIDATE_MAP: Record<string, string> = {
@@ -319,37 +323,62 @@ export function GraphComparisonPanel({
   feedbackDecisions,
   feedbackEvents,
   interactiveGraphPayload,
+  graphViewMode = "guided",
+  onGraphViewModeChange,
 }: GraphComparisonPanelProps) {
   const summary = buildDiffSummary(feedbackEvents);
-  const originalTriples = dataset.graph.edges.filter(
+  const feedbackDelta =
+    summary.added.length + summary.corrected.length + summary.rejected.length + summary.reviewQueue.length;
+  const noFeedbackYet = feedbackEvents.length === 0 || feedbackDelta === 0;
+
+  const originalFromGraph = dataset.graph.edges.filter(
     (edge) => edge.status === "known" || !edge.status,
   ).length;
+  const originalTriples =
+    originalFromGraph > 0
+      ? originalFromGraph
+      : interactiveGraphPayload?.displayed_triples ?? dataset.triples ?? 0;
   const finalTriples = originalTriples + summary.added.length + summary.corrected.length;
 
   return (
     <section className="space-y-3" data-testid="graph-comparison-panel">
       <p className="text-sm text-slate-700">See what changed after feedback.</p>
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-        {[
-          ["Original triples", originalTriples],
-          ["Accepted additions", summary.added.length],
-          ["Corrected triples", summary.corrected.length],
-          ["Rejected candidates", summary.rejected.length],
-          ["Review queue", summary.reviewQueue.length],
-          ["Final triples", finalTriples],
-        ].map(([label, value]) => (
-          <div
-            key={label as string}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center"
-          >
-            <div className="text-lg font-semibold text-slate-900">{value as number}</div>
-            <div className="text-[11px] text-slate-600">{label as string}</div>
-          </div>
-        ))}
-      </div>
+      {noFeedbackYet ? (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm italic text-slate-500">
+          No feedback given yet. Go to Step 6 to accept or reject candidates, then return here to see the
+          completed graph.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+          {[
+            ["Original triples", originalTriples],
+            ["Accepted additions", summary.added.length],
+            ["Corrected triples", summary.corrected.length],
+            ["Rejected candidates", summary.rejected.length],
+            ["Review queue", summary.reviewQueue.length],
+            ["Final triples", finalTriples],
+          ].map(([label, value]) => (
+            <div
+              key={label as string}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center"
+            >
+              <div className="text-lg font-semibold text-slate-900">{value as number}</div>
+              <div className="text-[11px] text-slate-600">{label as string}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {interactiveGraphPayload ? (
+      {onGraphViewModeChange ? (
+        <GraphViewToolbar
+          activeStep="completed"
+          viewMode={graphViewMode}
+          onViewModeChange={onGraphViewModeChange}
+        />
+      ) : null}
+
+      {!noFeedbackYet && interactiveGraphPayload ? (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-2">
           <KGGraph
             graph={interactiveGraphPayload}

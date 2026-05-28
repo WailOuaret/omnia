@@ -51,7 +51,7 @@ export function StepStatsPanel({
 
   const content = (
     <>
-      {!compact ? <h3 className="text-sm font-semibold text-slate-900">Current-Step Stats</h3> : null}
+      {!compact ? <h3 className="text-sm font-semibold text-slate-900">About this step</h3> : null}
       <div className={`space-y-2 text-sm text-slate-700 ${compact ? "" : "mt-3"}`}>
         {step === "kg" ? (
           <>
@@ -123,7 +123,7 @@ export function StepStatsPanel({
               <span className="font-semibold">Generated candidates:</span> {dataset.candidates.length}
             </p>
             <p>
-              <span className="font-semibold">Candidate source:</span> cluster propagation
+              <span className="font-semibold">Why generated:</span> similar entities share the same pattern
             </p>
             <p>
               <span className="font-semibold">Next step:</span> embedding filtering
@@ -170,7 +170,7 @@ export function StepStatsPanel({
               <p className="text-xs italic text-slate-500">
                 {filteringAvailable
                   ? "Select a candidate with TransE filtering scores to inspect distance and threshold."
-                  : "Filtering results are not included in this online sample yet. This step shows where TransE filtering fits in the OMNIA workflow."}
+                  : "Structural filtering scores are not shown in this prepared sample."}
               </p>
             )}
           </>

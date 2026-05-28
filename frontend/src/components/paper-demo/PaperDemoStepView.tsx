@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { GraphComparisonPanel } from "./GraphComparisonPanel";
+import { CandidateTripleCard } from "./CandidateTripleCard";
 import { RestoredGraphStagePanel } from "./RestoredGraphStagePanel";
 import { UserFeedbackPanel } from "./UserFeedbackPanel";
 import type { DemoCandidate, DemoCluster, DemoDatasetConfig } from "../../demo-data/types";
@@ -8,9 +9,25 @@ import { formatKgInline, formatKgLabelParts } from "../../lib/kgLabels";
 import type { UserFeedback } from "../../stores/feedbackStore";
 import type { GraphPayload } from "../../types";
 import type { GraphSelection } from "./LiveGraphPanel";
+import type { GraphViewMode } from "../../lib/graphViewMode";
+import { GraphViewToolbar } from "./GraphViewToolbar";
+import { filteringUnavailableMessage, llmUnavailableMessage } from "../../lib/demoCopy";
 
 type Decision = "accept" | "reject" | "uncertain" | "correct";
 type StepId = "kg" | "clustering" | "candidates" | "filtering" | "llm" | "feedback" | "completed";
+
+type GraphStageExtras = Pick<
+  PaperDemoStepViewProps,
+  | "graphViewMode"
+  | "onGraphViewModeChange"
+  | "onShowAllMembers"
+  | "onShowAllCandidates"
+  | "onExpandContext"
+  | "expandContextPending"
+  | "graphFocusRequest"
+  | "filteringAvailable"
+  | "llmAvailable"
+>;
 
 interface PaperDemoStepViewProps {
   step: StepId;
@@ -37,6 +54,10 @@ interface PaperDemoStepViewProps {
   onExpandContext?: () => void;
   expandContextPending?: boolean;
   graphFocusRequest?: number;
+  graphViewMode?: GraphViewMode;
+  onGraphViewModeChange?: (mode: GraphViewMode) => void;
+  onShowAllMembers?: () => void;
+  onShowAllCandidates?: () => void;
 }
 
 function fmt(n: number) {
@@ -69,19 +90,13 @@ function KgLabel({
   return (
     <span
       className="block min-w-0"
-      title="Names are shown when the dataset provides them."
     >
       <span className={`block truncate font-semibold ${compact ? "text-xs" : "text-sm"} ${inverse ? "text-white" : "text-slate-900"}`}>
         {parts.primary}
       </span>
       <span className={`block truncate font-mono text-[10px] ${inverse ? "text-slate-300" : "text-slate-500"}`}>
-        {parts.isRawId ? "" : parts.secondary}
+        {!parts.isRawId && parts.secondary !== parts.primary ? parts.secondary : ""}
       </span>
-      {parts.isRawId ? (
-        <span className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ring-1 ${inverse ? "bg-amber-200 text-amber-950 ring-amber-100" : "bg-amber-50 text-amber-700 ring-amber-200"}`}>
-          raw ID
-        </span>
-      ) : null}
     </span>
   );
 }
@@ -116,6 +131,10 @@ function StepGraph({
   filteringAvailable = true,
   llmAvailable = true,
   graphFocusRequest = 0,
+  graphViewMode = "guided",
+  onGraphViewModeChange,
+  onShowAllMembers,
+  onShowAllCandidates,
 }: {
   dataset: DemoDatasetConfig;
   activeStep: StepId;
@@ -133,6 +152,10 @@ function StepGraph({
   filteringAvailable?: boolean;
   llmAvailable?: boolean;
   graphFocusRequest?: number;
+  graphViewMode?: GraphViewMode;
+  onGraphViewModeChange?: (mode: GraphViewMode) => void;
+  onShowAllMembers?: () => void;
+  onShowAllCandidates?: () => void;
 }) {
   return (
     <RestoredGraphStagePanel
@@ -152,6 +175,10 @@ function StepGraph({
       llmAvailable={llmAvailable}
       useStaticPaperGraph={useStaticPaperGraph}
       focusRequest={graphFocusRequest}
+      viewMode={graphViewMode}
+      onViewModeChange={onGraphViewModeChange}
+      onShowAllMembers={onShowAllMembers}
+      onShowAllCandidates={onShowAllCandidates}
     />
   );
 }
@@ -285,7 +312,7 @@ function KGStepView({
   selectedClusterId,
   onGraphSelectionChange,
   onSelectCandidate,
-  graphFocusRequest = 0,
+  ...graphStage
 }: {
   dataset: DemoDatasetConfig;
   feedbackDecisions: Record<string, Decision>;
@@ -295,8 +322,7 @@ function KGStepView({
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
   onSelectCandidate: (id: string) => void;
-  graphFocusRequest?: number;
-}) {
+} & GraphStageExtras) {
   const graph = (
     <StepGraph
       dataset={dataset}
@@ -308,7 +334,7 @@ function KGStepView({
       selectedClusterId={selectedClusterId}
       onGraphSelectionChange={onGraphSelectionChange}
       onSelectCandidate={onSelectCandidate}
-      graphFocusRequest={graphFocusRequest}
+      {...graphStage}
     />
   );
   return <GraphStage graph={graph} />;
@@ -354,11 +380,7 @@ function ClusteringStepView({
   onSelectCluster,
   onGraphSelectionChange,
   onSelectCandidate,
-  onExpandContext,
-  expandContextPending,
-  filteringAvailable = true,
-  llmAvailable = true,
-  graphFocusRequest = 0,
+  ...graphStage
 }: {
   dataset: DemoDatasetConfig;
   candidates: DemoCandidate[];
@@ -370,12 +392,7 @@ function ClusteringStepView({
   onSelectCluster?: (clusterId: string) => void;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
   onSelectCandidate: (id: string) => void;
-  onExpandContext?: () => void;
-  expandContextPending?: boolean;
-  filteringAvailable?: boolean;
-  llmAvailable?: boolean;
-  graphFocusRequest?: number;
-}) {
+} & GraphStageExtras) {
   const selectedCluster =
     dataset.clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
   const graph = (
@@ -389,11 +406,7 @@ function ClusteringStepView({
       selectedClusterId={selectedCluster?.id ?? selectedClusterId}
       onGraphSelectionChange={onGraphSelectionChange}
       onSelectCandidate={onSelectCandidate}
-      onExpandContext={onExpandContext}
-      expandContextPending={expandContextPending}
-      filteringAvailable={filteringAvailable}
-      llmAvailable={llmAvailable}
-      graphFocusRequest={graphFocusRequest}
+      {...graphStage}
     />
   );
 
@@ -582,11 +595,7 @@ function CandidateGenStepView({
   sessionId,
   selectedClusterId,
   onGraphSelectionChange,
-  onExpandContext,
-  expandContextPending,
-  filteringAvailable = true,
-  llmAvailable = true,
-  graphFocusRequest = 0,
+  ...graphStage
 }: {
   dataset: DemoDatasetConfig;
   candidates: DemoCandidate[];
@@ -598,12 +607,7 @@ function CandidateGenStepView({
   sessionId?: string | null;
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
-  onExpandContext?: () => void;
-  expandContextPending?: boolean;
-  filteringAvailable?: boolean;
-  llmAvailable?: boolean;
-  graphFocusRequest?: number;
-}) {
+} & GraphStageExtras) {
   const sourceCluster = dataset.clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
   const graph = (
     <StepGraph
@@ -617,11 +621,7 @@ function CandidateGenStepView({
       selectedClusterId={sourceCluster?.id ?? selectedClusterId}
       onGraphSelectionChange={onGraphSelectionChange}
       onSelectCandidate={onSelectCandidate}
-      onExpandContext={onExpandContext}
-      expandContextPending={expandContextPending}
-      filteringAvailable={filteringAvailable}
-      llmAvailable={llmAvailable}
-      graphFocusRequest={graphFocusRequest}
+      {...graphStage}
     />
   );
 
@@ -697,7 +697,10 @@ function CandidateGenStepExplanation({
               <StatChip label="Candidate ID" value={selectedCandidate.candidateId} />
               <StatChip label="Source cluster" value={selectedCandidate.clusterIds?.join(", ") ?? "n/a"} />
               <StatChip label="Status" value={selectedCandidate.status} />
-              <StatChip label="Why generated" value={selectedCandidate.whyGenerated ?? "Cluster propagation"} />
+              <StatChip
+                label="Why generated"
+                value={selectedCandidate.whyGenerated ?? "Similar entities in this group share the same pattern."}
+              />
             </div>
           ) : null}
         </div>
@@ -751,11 +754,7 @@ function FilteringStepView({
   sessionId,
   selectedClusterId,
   onGraphSelectionChange,
-  filteringAvailable = false,
-  llmAvailable = true,
-  onExpandContext,
-  expandContextPending,
-  graphFocusRequest = 0,
+  ...graphStage
 }: {
   dataset: DemoDatasetConfig;
   candidates: DemoCandidate[];
@@ -767,12 +766,7 @@ function FilteringStepView({
   sessionId?: string | null;
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
-  filteringAvailable?: boolean;
-  llmAvailable?: boolean;
-  onExpandContext?: () => void;
-  expandContextPending?: boolean;
-  graphFocusRequest?: number;
-}) {
+} & GraphStageExtras) {
   const graph = (
     <StepGraph
       dataset={dataset}
@@ -785,11 +779,7 @@ function FilteringStepView({
       selectedClusterId={selectedClusterId}
       onGraphSelectionChange={onGraphSelectionChange}
       onSelectCandidate={onSelectCandidate}
-      onExpandContext={onExpandContext}
-      expandContextPending={expandContextPending}
-      filteringAvailable={filteringAvailable}
-      llmAvailable={llmAvailable}
-      graphFocusRequest={graphFocusRequest}
+      {...graphStage}
     />
   );
 
@@ -835,8 +825,8 @@ function FilteringStepExplanation({
         </div>
         {!filteringAvailable || rows.length === 0 ? (
           <EmptyStepBanner>
-            Filtering results are not included in this online sample yet. This step is shown to explain
-            where TransE filtering fits in the OMNIA workflow.
+            Structural filtering scores are not shown in this prepared scenario. This step shows where
+            structural filtering fits in the OMNIA workflow.
           </EmptyStepBanner>
         ) : (
           <>
@@ -901,11 +891,7 @@ function SemanticValidationStepView({
   sessionId,
   selectedClusterId,
   onGraphSelectionChange,
-  llmAvailable = false,
-  filteringAvailable = true,
-  onExpandContext,
-  expandContextPending,
-  graphFocusRequest = 0,
+  ...graphStage
 }: {
   dataset: DemoDatasetConfig;
   candidates: DemoCandidate[];
@@ -917,12 +903,7 @@ function SemanticValidationStepView({
   sessionId?: string | null;
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
-  llmAvailable?: boolean;
-  filteringAvailable?: boolean;
-  onExpandContext?: () => void;
-  expandContextPending?: boolean;
-  graphFocusRequest?: number;
-}) {
+} & GraphStageExtras) {
   const graph = (
     <StepGraph
       dataset={dataset}
@@ -935,11 +916,7 @@ function SemanticValidationStepView({
       selectedClusterId={selectedClusterId}
       onGraphSelectionChange={onGraphSelectionChange}
       onSelectCandidate={onSelectCandidate}
-      onExpandContext={onExpandContext}
-      expandContextPending={expandContextPending}
-      filteringAvailable={filteringAvailable}
-      llmAvailable={llmAvailable}
-      graphFocusRequest={graphFocusRequest}
+      {...graphStage}
     />
   );
 
@@ -1054,7 +1031,9 @@ function FeedbackStepView({
   sessionId,
   selectedClusterId,
   onGraphSelectionChange,
-  graphFocusRequest = 0,
+  graphViewMode = "guided",
+  onGraphViewModeChange,
+  ...graphStage
 }: {
   dataset: DemoDatasetConfig;
   datasetId: DemoDatasetConfig["id"];
@@ -1071,15 +1050,16 @@ function FeedbackStepView({
   sessionId?: string | null;
   selectedClusterId?: string | null;
   onGraphSelectionChange?: (selection: GraphSelection) => void;
-  graphFocusRequest?: number;
-}) {
+} & GraphStageExtras) {
   const existing = selectedCandidate
     ? feedbackEvents
         .filter((event) => event.candidateId === selectedCandidate.candidateId)
         .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]
     : undefined;
 
-  const graph = (
+  const showGraph = graphViewMode === "explore";
+
+  const graph = showGraph ? (
     <StepGraph
       dataset={dataset}
       activeStep="feedback"
@@ -1092,15 +1072,17 @@ function FeedbackStepView({
       selectedClusterId={selectedClusterId}
       onGraphSelectionChange={onGraphSelectionChange}
       onSelectCandidate={onSelectCandidate}
-      graphFocusRequest={graphFocusRequest}
+      graphViewMode={graphViewMode}
+      onGraphViewModeChange={onGraphViewModeChange}
+      {...graphStage}
     />
-  );
+  ) : null;
 
   return (
     <div className="space-y-3">
-      <GraphStage graph={graph} />
       {selectedCandidate ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <CandidateTripleCard candidate={selectedCandidate} decision={latestDecisionForSelected} />
           <UserFeedbackPanel
             key={selectedCandidate.candidateId}
             datasetId={datasetId}
@@ -1110,7 +1092,17 @@ function FeedbackStepView({
             bridgeStatus={bridgeStatus}
           />
         </div>
+      ) : (
+        <EmptyStepBanner>Select a candidate to accept, reject, or correct.</EmptyStepBanner>
+      )}
+      {onGraphViewModeChange ? (
+        <GraphViewToolbar
+          activeStep="feedback"
+          viewMode={graphViewMode}
+          onViewModeChange={onGraphViewModeChange}
+        />
       ) : null}
+      {graph ? <GraphStage graph={graph} /> : null}
     </div>
   );
 }
@@ -1174,24 +1166,17 @@ function CompletedStepView({
   feedbackDecisions,
   feedbackEvents,
   interactiveGraphPayload,
+  graphViewMode = "guided",
+  onGraphViewModeChange,
 }: {
   dataset: DemoDatasetConfig;
   selectedCandidate: DemoCandidate | null;
   feedbackDecisions: Record<string, Decision>;
   feedbackEvents: UserFeedback[];
   interactiveGraphPayload?: GraphPayload | null;
+  graphViewMode?: GraphViewMode;
+  onGraphViewModeChange?: (mode: GraphViewMode) => void;
 }) {
-  if (dataset.id === "covidFact") {
-    return (
-      <GraphComparisonPanel
-        dataset={dataset}
-        selectedCandidate={selectedCandidate}
-        feedbackDecisions={feedbackDecisions}
-        feedbackEvents={feedbackEvents}
-        interactiveGraphPayload={interactiveGraphPayload}
-      />
-    );
-  }
   return (
     <GraphComparisonPanel
       dataset={dataset}
@@ -1199,6 +1184,8 @@ function CompletedStepView({
       feedbackDecisions={feedbackDecisions}
       feedbackEvents={feedbackEvents}
       interactiveGraphPayload={interactiveGraphPayload}
+      graphViewMode={graphViewMode}
+      onGraphViewModeChange={onGraphViewModeChange}
     />
   );
 }
@@ -1232,7 +1219,23 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
     onExpandContext,
     expandContextPending = false,
     graphFocusRequest = 0,
+    graphViewMode = "guided",
+    onGraphViewModeChange,
+    onShowAllMembers,
+    onShowAllCandidates,
   } = props;
+
+  const graphStageExtras = {
+    graphViewMode,
+    onGraphViewModeChange,
+    onShowAllMembers,
+    onShowAllCandidates,
+    onExpandContext,
+    expandContextPending,
+    graphFocusRequest,
+    filteringAvailable,
+    llmAvailable,
+  };
 
   return (
     <div>
@@ -1246,7 +1249,7 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           onGraphSelectionChange={onGraphSelectionChange}
           onSelectCandidate={onSelectCandidate}
           useStaticPaperGraph={useStaticPaperGraph}
-          graphFocusRequest={graphFocusRequest}
+          {...graphStageExtras}
         />
       ) : null}
       {step === "clustering" ? (
@@ -1261,11 +1264,7 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           onGraphSelectionChange={onGraphSelectionChange}
           onSelectCandidate={onSelectCandidate}
           useStaticPaperGraph={useStaticPaperGraph}
-          onExpandContext={onExpandContext}
-          expandContextPending={expandContextPending}
-          filteringAvailable={filteringAvailable}
-          llmAvailable={llmAvailable}
-          graphFocusRequest={graphFocusRequest}
+          {...graphStageExtras}
         />
       ) : null}
       {step === "candidates" ? (
@@ -1280,11 +1279,7 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           selectedClusterId={selectedClusterId}
           onGraphSelectionChange={onGraphSelectionChange}
           useStaticPaperGraph={useStaticPaperGraph}
-          onExpandContext={onExpandContext}
-          expandContextPending={expandContextPending}
-          filteringAvailable={filteringAvailable}
-          llmAvailable={llmAvailable}
-          graphFocusRequest={graphFocusRequest}
+          {...graphStageExtras}
         />
       ) : null}
       {step === "filtering" ? (
@@ -1299,11 +1294,7 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           selectedClusterId={selectedClusterId}
           onGraphSelectionChange={onGraphSelectionChange}
           useStaticPaperGraph={useStaticPaperGraph}
-          filteringAvailable={filteringAvailable}
-          llmAvailable={llmAvailable}
-          onExpandContext={onExpandContext}
-          expandContextPending={expandContextPending}
-          graphFocusRequest={graphFocusRequest}
+          {...graphStageExtras}
         />
       ) : null}
       {step === "llm" ? (
@@ -1318,9 +1309,7 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           selectedClusterId={selectedClusterId}
           onGraphSelectionChange={onGraphSelectionChange}
           useStaticPaperGraph={useStaticPaperGraph}
-          llmAvailable={llmAvailable}
-          filteringAvailable={filteringAvailable}
-          graphFocusRequest={graphFocusRequest}
+          {...graphStageExtras}
         />
       ) : null}
       {step === "feedback" ? (
@@ -1340,7 +1329,7 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           selectedClusterId={selectedClusterId}
           onGraphSelectionChange={onGraphSelectionChange}
           useStaticPaperGraph={useStaticPaperGraph}
-          graphFocusRequest={graphFocusRequest}
+          {...graphStageExtras}
         />
       ) : null}
       {step === "completed" ? (
@@ -1350,6 +1339,8 @@ export function PaperDemoStepView(props: PaperDemoStepViewProps) {
           feedbackDecisions={feedbackDecisions}
           feedbackEvents={feedbackEvents}
           interactiveGraphPayload={interactiveGraphPayload}
+          graphViewMode={graphViewMode}
+          onGraphViewModeChange={onGraphViewModeChange}
         />
       ) : null}
     </div>

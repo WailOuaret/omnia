@@ -96,7 +96,7 @@ export function FilteringDetails({ available }: { available: boolean }) {
   return (
     <div className="space-y-2 text-xs text-slate-700">
       <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-900">
-        Filtering scores are not included in this online sample.
+        Structural filtering scores are not shown in this prepared scenario.
       </p>
       <p>This step shows where OMNIA would remove structurally unlikely candidates before LLM validation.</p>
     </div>

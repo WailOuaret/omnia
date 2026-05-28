@@ -13,6 +13,7 @@ import { DATASETS } from "../demo-data/datasets";
 import type { DemoCandidate, DemoCluster, DemoDatasetConfig, DemoDatasetId } from "../demo-data/types";
 import type { GraphPayload } from "../types";
 import { applyStepGraphPresentation } from "./applyStepGraphPresentation";
+import { normalizeDemoCopy } from "./demoCopy";
 import { pickDefaultCandidateId, pickDefaultClusterId } from "./pickDefaultCluster";
 import { sessionSliceToGraphPayload } from "./sessionSliceToGraphPayload";
 import { sampleIdToDemoDatasetId } from "./sessionToDemoDataset";
@@ -113,15 +114,15 @@ function candidatesFromBackend(rows: BackendCandidateRow[]): DemoCandidate[] {
     threshold: row.threshold ?? undefined,
     llmVerdict: mapLlmVerdict(row.status_bucket, row.llm_decision),
     llmConfidence: row.llm_score ?? undefined,
-    llmRationale: row.llm_rationale || undefined,
+    llmRationale: row.llm_rationale ? normalizeDemoCopy(row.llm_rationale) : undefined,
     retrievedContext: Array.isArray(row.retrieved_context)
       ? (row.retrieved_context as string[]).filter((v) => typeof v === "string")
       : undefined,
     clusterIds: row.cluster_ids ?? (row.source_cluster ? [row.source_cluster] : []),
     whyGenerated:
       typeof row.why_generated === "string"
-        ? row.why_generated
-        : "Generated because this head belongs to the selected cluster and the relation-tail pair appears in the same cluster context.",
+        ? normalizeDemoCopy(row.why_generated)
+        : "Proposed because similar entities in this group share the same relation → tail pattern.",
   }));
 }
 

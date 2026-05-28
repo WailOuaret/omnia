@@ -43,23 +43,9 @@ export function DatasetSelectorPanel({
 
   const sessionMismatch =
     isLiveMode && sessionDatasetId != null && selectedDatasetId !== sessionDatasetId;
-  const selectedDataset =
-    isLiveMode && !sessionMismatch && liveDataset ? liveDataset : DATASETS[selectedDatasetId];
-  if (!selectedDataset) return null;
+  if (!DATASETS[selectedDatasetId]) return null;
 
   const canCreateSession = isBackendLoadable(selectedDatasetId);
-  const demoModeLabel = isStaticScenarioMode
-    ? "Prepared interactive sample"
-    : isLiveMode
-      ? "Live dataset sample"
-      : "Guided example";
-  const demoModeDetail = isStaticScenarioMode
-    ? "Runs in the browser with a prepared OMNIA walkthrough."
-    : isLiveMode
-      ? "Showing a selected graph sample from the dataset."
-      : canCreateSession
-        ? "Ready to load a live graph sample."
-        : "Uses the prepared example for this dataset.";
 
   const handleCreateSession = async () => {
     if (!onCreateSession) return;

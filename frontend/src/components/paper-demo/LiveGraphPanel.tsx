@@ -20,10 +20,12 @@ import type { GraphEdge, GraphEdgeStatus, GraphNode, GraphPayload } from "../../
 import { STATUS_TOKENS } from "../../graph/styles/graphStatusTokens";
 import type { CanvasEdgeData, CanvasNodeData } from "../../graph/hooks/useGraphElements";
 import { api, type BackendGraphSliceEdge, type BackendGraphSliceNode } from "../../lib/api";
-import { formatKgInline, isRawKgId } from "../../lib/kgLabels";
+import { formatKgInline, formatKgLabelParts, humanizeEdgeStatus, isRawKgId } from "../../lib/kgLabels";
 import { applyExplainModeGraph } from "../../lib/applyExplainModeGraph";
 import { graphDisplayModeForStep } from "../../lib/graphDisplayMode";
+import type { GraphViewMode } from "../../lib/graphViewMode";
 import { stepCaptionFor } from "../../lib/stepCaptions";
+import { GraphViewToolbar } from "./GraphViewToolbar";
 import { stepLayoutFor } from "../../lib/stepLayoutConfig";
 import { CandidateEdge } from "../graph/edges/CandidateEdge";
 import { RelationEdge } from "../graph/edges/RelationEdge";
@@ -47,6 +49,10 @@ interface LiveGraphPanelProps {
   expandContextPending?: boolean;
   filteringAvailable?: boolean;
   llmAvailable?: boolean;
+  viewMode?: GraphViewMode;
+  onViewModeChange?: (mode: GraphViewMode) => void;
+  onShowAllMembers?: () => void;
+  onShowAllCandidates?: () => void;
   className?: string;
   title?: string;
 }
@@ -149,6 +155,17 @@ function statusForEdge(edge: GraphEdge) {
 
 function statusLabel(edge: GraphEdge) {
   return edge.provenance_label ?? edge.raw_status ?? edge.status ?? "original";
+}
+
+function formatEdgeHoverTooltip(edge: GraphEdge): string {
+  const relation = formatKgInline(edge.label, edge.label, "relation");
+  const status = humanizeEdgeStatus(statusLabel(edge));
+  const sourceParts = formatKgLabelParts(edge.source, undefined, "entity");
+  const targetParts = formatKgLabelParts(edge.target, undefined, "entity");
+  if (sourceParts.isRawId && targetParts.isRawId) {
+    return `${relation} — ${status}`;
+  }
+  return `${formatKgInline(edge.source)} → ${formatKgInline(edge.target)} via "${relation}" (${status})`;
 }
 
 function buildNodeMap(graph: GraphPayload) {
@@ -292,11 +309,14 @@ function LiveGraphPanelInner({
   expandContextPending = false,
   filteringAvailable = true,
   llmAvailable = true,
+  viewMode = "guided",
+  onViewModeChange,
+  onShowAllMembers,
+  onShowAllCandidates,
   className,
   title = "Interactive graph",
 }: LiveGraphPanelProps) {
   const reactFlow = useReactFlow();
-  const [explainContextExpanded, setExplainContextExpanded] = useState(false);
   const [expandedGraph, setExpandedGraph] = useState<GraphPayload>(graph);
   const [hoverText, setHoverText] = useState<string | null>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
@@ -304,26 +324,27 @@ function LiveGraphPanelInner({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<CanvasNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<CanvasEdgeData>>([]);
 
-  const isExplainMode = graphDisplayModeForStep(activeStep) === "explain";
+  const effectiveViewMode: GraphViewMode = activeStep === "kg" ? "explore" : viewMode;
+  const isExplainMode =
+    graphDisplayModeForStep(activeStep) === "explain" && effectiveViewMode === "guided";
   const nodeWidth = isExplainMode ? EXPLAIN_NODE_WIDTH : EXPLORE_NODE_WIDTH;
   const nodeHeight = isExplainMode ? EXPLAIN_NODE_HEIGHT : EXPLORE_NODE_HEIGHT;
   const artifactUnavailable =
     (activeStep === "filtering" && !filteringAvailable) || (activeStep === "llm" && !llmAvailable);
   const artifactUnavailableLabel =
     activeStep === "filtering"
-      ? "Filtering not available in online sample"
-      : "LLM validation not available in online sample";
+      ? "Filtering scores are not included in this online sample."
+      : "LLM/RAG evidence is not included in this online sample.";
 
   useEffect(() => {
     setExpandedGraph(graph);
-    setExplainContextExpanded(false);
   }, [graph, activeStep]);
 
   const displayGraph = useMemo(
     () =>
       isExplainMode
         ? applyExplainModeGraph(expandedGraph, activeStep, {
-            expandContext: explainContextExpanded,
+            viewMode: effectiveViewMode,
             filteringAvailable,
             llmAvailable,
             selectedCandidateId,
@@ -333,7 +354,7 @@ function LiveGraphPanelInner({
       expandedGraph,
       activeStep,
       isExplainMode,
-      explainContextExpanded,
+      effectiveViewMode,
       filteringAvailable,
       llmAvailable,
       selectedCandidateId,
@@ -465,7 +486,7 @@ function LiveGraphPanelInner({
     isExplainMode,
     nodeWidth,
     nodeHeight,
-    explainContextExpanded,
+    effectiveViewMode,
   ]);
 
   const expandNode = useCallback(async (nodeId: string, hops: 1 | 2) => {
@@ -494,17 +515,18 @@ function LiveGraphPanelInner({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
         <p className="min-w-0 text-sm leading-snug text-slate-700">{stepCaption}</p>
         <div className="flex flex-wrap items-center gap-2">
-          {isExplainMode ? (
-            <button
-              type="button"
-              onClick={() => setExplainContextExpanded((value) => !value)}
-              className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700"
-              data-testid="toggle-explain-context"
-            >
-              {explainContextExpanded ? "Show focused view" : "Show more context"}
-            </button>
+          {onViewModeChange ? (
+            <GraphViewToolbar
+              activeStep={activeStep}
+              viewMode={effectiveViewMode}
+              onViewModeChange={onViewModeChange}
+              onShowAllMembers={onShowAllMembers}
+              onShowAllCandidates={onShowAllCandidates}
+              hiddenMemberCount={hiddenMembers}
+              compact
+            />
           ) : null}
-          {onExpandContext ? (
+          {onExpandContext && (activeStep === "kg" || effectiveViewMode === "explore") ? (
             <button
               type="button"
               onClick={onExpandContext}
@@ -512,7 +534,7 @@ function LiveGraphPanelInner({
               className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700 disabled:opacity-60"
               data-testid="expand-context-button"
             >
-              {expandContextPending ? "Expanding…" : "Expand context to 100 nodes"}
+              {expandContextPending ? "Expanding…" : "Show more context"}
             </button>
           ) : null}
         </div>
@@ -535,7 +557,7 @@ function LiveGraphPanelInner({
           </div>
         ) : null}
 
-        {selectedCluster && !isExplainMode ? (
+        {selectedCluster && !isExplainMode && activeStep !== "kg" ? (
           <div className="pointer-events-none absolute left-3 top-3 z-20 max-w-md rounded-lg border border-indigo-200 bg-white/95 px-3 py-2 text-[11px] text-slate-700 shadow-sm">
             <p className="font-semibold text-indigo-900">
               Grouped by same relation -&gt; tail pattern
@@ -586,16 +608,19 @@ function LiveGraphPanelInner({
           onPaneClick={() => onSelectionChange?.(null)}
           onNodeMouseEnter={(_, node) => {
             const graphNode = node.data.node;
-            setHoverText(`${formatKgInline(graphNode.id, graphNode.label)} | degree ${graphNode.degree}`);
+            const parts = formatKgLabelParts(graphNode.id, graphNode.label, "entity");
+            if (parts.isRawId) {
+              setHoverText(`${graphNode.degree} connected triples in this view`);
+            } else {
+              setHoverText(`${parts.primary} — ${graphNode.degree} connected triples in this view`);
+            }
           }}
           onNodeMouseLeave={() => setHoverText(null)}
           onEdgeMouseEnter={(_, edge) => {
             setHoveredEdgeId(edge.id);
             const graphEdge = edge.data?.edge;
             if (!graphEdge) return;
-            setHoverText(
-              `${formatKgInline(graphEdge.source)} -> ${formatKgInline(graphEdge.target)} | ${formatKgInline(graphEdge.label, graphEdge.label, "relation")} | ${statusLabel(graphEdge)}`,
-            );
+            setHoverText(formatEdgeHoverTooltip(graphEdge));
           }}
           onEdgeMouseLeave={() => {
             setHoveredEdgeId(null);
@@ -656,11 +681,15 @@ function LiveGraphPanelInner({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-3 py-2 text-[11px] text-slate-600">
         <span>
-          {isExplainMode
-            ? "Focused view for this OMNIA step. Use “Show more context” to widen."
-            : "Exploration view — click nodes or edges to inspect."}
+          {activeStep === "kg"
+            ? "Click nodes and edges to inspect. Use Advanced graph controls to search or expand."
+            : isExplainMode
+              ? "Guided view — use Explore dataset for more context."
+              : "Explore view — click nodes or edges to inspect."}
         </span>
-        <span>Solid = existing; dashed blue = proposed candidate</span>
+        {activeStep !== "kg" ? (
+          <span>Solid = existing; dashed blue = proposed</span>
+        ) : null}
       </div>
 
       <GraphExpansionBridge onExpand={expandNode} />

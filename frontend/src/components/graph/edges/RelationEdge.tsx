@@ -7,7 +7,7 @@ import {
 import type { CSSProperties } from "react";
 import type { GraphEdge } from "../../../types";
 import { STATUS_TOKENS } from "../../../graph/styles/graphStatusTokens";
-import { truncateRelationLabel } from "../../../lib/kgLabels";
+import { cleanRelationLabel, truncateRelationLabel } from "../../../lib/kgLabels";
 
 interface EdgeData extends Record<string, unknown> {
   edge: GraphEdge;
@@ -58,7 +58,7 @@ export function renderGraphEdge(props: EdgeProps, tone: EdgeTone) {
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               pointerEvents: "none",
             }}
-            title={data.edge.label}
+            title={cleanRelationLabel(data.edge.label)}
           >
             {compactLabel(data.edge.label)}
           </div>

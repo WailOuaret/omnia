@@ -22,10 +22,11 @@ interface DatasetNavigatorPanelProps {
   isLiveMode?: boolean;
   backendClusters?: Array<{ cluster_id: string; shared_relation: string; shared_tail: string }>;
   onFocusGraph?: () => void;
+  onResetGuidedView?: () => void;
 }
 
 const MODE_OPTIONS: Array<{ id: SliceMode; label: string }> = [
-  { id: "guided", label: "Suggested example" },
+  { id: "guided", label: "Guided view" },
   { id: "entity", label: "Explore around an entity" },
   { id: "relation", label: "Explore by relation" },
   { id: "cluster", label: "Explore by cluster" },
@@ -63,6 +64,7 @@ export function DatasetNavigatorPanel({
   isLiveMode = false,
   backendClusters = [],
   onFocusGraph,
+  onResetGuidedView,
 }: DatasetNavigatorPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const visibleModes = sliceModesVisibleForStep(activeStep);
@@ -109,6 +111,7 @@ export function DatasetNavigatorPanel({
     setClusterId(dataset.clusters[0]?.id ?? "");
     setCandidateStatus("any");
     setFeedbackBucket("any");
+    onResetGuidedView?.();
     onReset();
   };
 
@@ -171,7 +174,8 @@ export function DatasetNavigatorPanel({
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-3" data-testid="dataset-navigator-panel">
-      <div className="flex flex-wrap items-center gap-2">
+      <h3 className="text-sm font-semibold text-slate-900">Graph navigation</h3>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         {onFocusGraph ? (
           <button
             type="button"
@@ -308,8 +312,20 @@ export function DatasetNavigatorPanel({
             onClick={apply}
             className="w-full rounded-md border border-slate-800 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900"
           >
-            Apply view
+            Apply explore view
           </button>
+          {onResetGuidedView ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("guided");
+                onResetGuidedView();
+              }}
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Reset guided view
+            </button>
+          ) : null}
         </div>
       ) : null}
     </section>

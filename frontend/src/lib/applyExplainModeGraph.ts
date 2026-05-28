@@ -13,6 +13,7 @@ function isGeneratedEdge(edge: GraphEdge): boolean {
 
 export interface ExplainModeOptions {
   expandContext?: boolean;
+  viewMode?: "guided" | "explore";
   filteringAvailable?: boolean;
   llmAvailable?: boolean;
   selectedCandidateId?: string | null;
@@ -24,23 +25,25 @@ export function applyExplainModeGraph(
   activeStep: string,
   {
     expandContext = false,
+    viewMode = "guided",
     filteringAvailable = true,
     llmAvailable = true,
     selectedCandidateId = null,
   }: ExplainModeOptions = {},
 ): GraphPayload {
   const displayMode = graphDisplayModeForStep(activeStep);
-  if (displayMode === "explore") {
-    return { ...graph, displayMode: "explore" };
+  if (displayMode === "explore" || viewMode === "explore") {
+    return { ...graph, displayMode: "explore", layoutMode: "dagre" };
   }
 
+  const expandMembers = expandContext;
   const cluster = graph.selectedCluster;
   if (!cluster) {
     return { ...graph, displayMode: "explain" };
   }
 
   const allMembers = cluster.members ?? [];
-  const visibleMembers = expandContext ? allMembers : allMembers.slice(0, EXPLAIN_MAX_MEMBERS);
+  const visibleMembers = expandMembers ? allMembers : allMembers.slice(0, EXPLAIN_MAX_MEMBERS);
   const memberSet = new Set(visibleMembers);
   const sharedTail = cluster.shared_tail;
   const sharedRelation = cluster.shared_relation;

@@ -26,6 +26,11 @@ import {
 } from "../lib/datasetSlice";
 import { buildLiveOmniaViewModel } from "../lib/buildLiveOmniaViewModel";
 import { graphViewLabelForStep } from "../lib/graphDisplayMode";
+import {
+  defaultGraphViewModeForStep,
+  type GraphViewMode,
+  type InspectorListPanel,
+} from "../lib/graphViewMode";
 import { sampleIdToDemoDatasetId } from "../lib/sessionToDemoDataset";
 import {
   exportCompletedKGTSV,
@@ -78,6 +83,8 @@ export function PaperDemoPage() {
   const [refreshToken, setRefreshToken] = useState(0);
   const [activeSlice, setActiveSlice] = useState<DatasetSlice>(GUIDED_SLICE);
   const [graphFocusRequest, setGraphFocusRequest] = useState(0);
+  const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>("explore");
+  const [inspectorListPanel, setInspectorListPanel] = useState<InspectorListPanel>(null);
   const [expandContextPending, setExpandContextPending] = useState(false);
   const liveSession = usePaperDemoSession(enableLiveSession ? selectedDatasetId : null);
   const scenarioSession = usePaperDemoScenario(selectedDatasetId, {
@@ -101,7 +108,12 @@ export function PaperDemoPage() {
     }
   }, [liveSession.mode, liveSession.meta?.sample_id, selectedDatasetId]);
 
-  // Restore slice selection from backend session metadata once on load.
+  useEffect(() => {
+    setGraphViewMode(defaultGraphViewModeForStep(activeStep));
+    setInspectorListPanel(null);
+  }, [activeStep]);
+
+  // ── Restore slice selection from backend session metadata once on load.
   useEffect(() => {
     if (liveSession.mode !== "live" || syncedLiveSliceRef.current) return;
     const backendSlice = liveSession.selectedSlice;
@@ -445,12 +457,14 @@ export function PaperDemoPage() {
   const resetSlice = useCallback(() => {
     setActiveSlice(GUIDED_SLICE);
     setGraphSelection(null);
+    setGraphViewMode(defaultGraphViewModeForStep(activeStep));
+    setInspectorListPanel(null);
     setSelectedClusterId("");
     setSelectedCandidateId("");
     if (liveSession.mode === "live") {
       void liveSession.setSelectedSlice({ mode: "guided" });
     }
-  }, [liveSession]);
+  }, [liveSession, activeStep]);
 
   const onSelectCluster = useCallback(
     (clusterId: string) => {
@@ -841,6 +855,10 @@ export function PaperDemoPage() {
                   shared_tail: c.shared_tail,
                 }))}
                 onFocusGraph={() => setGraphFocusRequest((n) => n + 1)}
+                onResetGuidedView={() => {
+                  setGraphViewMode(defaultGraphViewModeForStep(activeStep));
+                  setInspectorListPanel(null);
+                }}
               />
             ) : null}
             <WorkflowStepMenu activeStep={activeStep} onStepChange={(s) => setActiveStep(s as PaperDemoStepId)} />
@@ -872,6 +890,10 @@ export function PaperDemoPage() {
               onExpandContext={isLiveModeActive ? () => void expandContext() : undefined}
               expandContextPending={expandContextPending}
               graphFocusRequest={graphFocusRequest}
+              graphViewMode={graphViewMode}
+              onGraphViewModeChange={setGraphViewMode}
+              onShowAllMembers={() => setInspectorListPanel("members")}
+              onShowAllCandidates={() => setInspectorListPanel("candidates")}
             />
 
             {isCompleted ? (
@@ -1012,6 +1034,9 @@ export function PaperDemoPage() {
                 filteringAvailable={activeViewModel?.filtering.available ?? !isInteractiveModeActive}
                 llmAvailable={activeViewModel?.llm.available ?? !isInteractiveModeActive}
                 stepExplanation={stepExplanation}
+                inspectorListPanel={inspectorListPanel}
+                onInspectorListPanelChange={setInspectorListPanel}
+                onSelectCandidate={setSelectedCandidateId}
               />
             </aside>
           ) : null}

@@ -6,7 +6,9 @@ import { CovidOmniaGraphStage } from "./covid/CovidOmniaTeacherPanels";
 import { getCandidateById } from "./paperDemoScenario";
 import type { PaperDemoStep, UserRefinementDecision } from "./paperDemoTypes";
 import { CandidateTripleCard } from "./CandidateTripleCard";
-import { stepCaptionFor } from "../../lib/stepCaptions";
+import { GraphViewToolbar } from "./GraphViewToolbar";
+import { filteringUnavailableMessage, llmUnavailableMessage } from "../../lib/demoCopy";
+import type { GraphViewMode } from "../../lib/graphViewMode";
 import type { GraphPayload } from "../../types";
 import type { DemoCandidate, DemoDatasetConfig } from "../../demo-data/types";
 
@@ -33,6 +35,10 @@ interface RestoredGraphStagePanelProps {
    */
   useStaticPaperGraph?: boolean;
   focusRequest?: number;
+  viewMode?: GraphViewMode;
+  onViewModeChange?: (mode: GraphViewMode) => void;
+  onShowAllMembers?: () => void;
+  onShowAllCandidates?: () => void;
 }
 
 const STEP_MAP: Record<string, PaperDemoStep> = {
@@ -106,6 +112,10 @@ interface InnerGraphProps {
   filteringAvailable?: boolean;
   llmAvailable?: boolean;
   focusRequest?: number;
+  viewMode?: GraphViewMode;
+  onViewModeChange?: (mode: GraphViewMode) => void;
+  onShowAllMembers?: () => void;
+  onShowAllCandidates?: () => void;
 }
 
 function InnerGraph({
@@ -124,6 +134,10 @@ function InnerGraph({
   expandContextPending,
   filteringAvailable = true,
   llmAvailable = true,
+  viewMode = "guided",
+  onViewModeChange,
+  onShowAllMembers,
+  onShowAllCandidates,
 }: InnerGraphProps) {
   const paperStep: PaperDemoStep = STEP_MAP[activeStep] ?? "before";
   const paperDecision: UserRefinementDecision = mapDecisionToPaper(selectedDecision);
@@ -131,6 +145,56 @@ function InnerGraph({
   const useCandidateCardOnly =
     (activeStep === "filtering" && !filteringAvailable) ||
     (activeStep === "llm" && !llmAvailable);
+  const hideGraphInGuided =
+    activeStep === "feedback" && viewMode === "guided";
+
+  if (useCandidateCardOnly && selectedCandidate && viewMode === "guided") {
+    const note =
+      activeStep === "filtering"
+        ? filteringUnavailableMessage(!sessionId)
+        : llmUnavailableMessage(!sessionId);
+    return (
+      <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-4 p-6">
+        <div className="w-full max-w-xl space-y-3">
+          <CandidateTripleCard candidate={selectedCandidate} decision={selectedDecision ?? null} />
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {note}
+          </p>
+          {onViewModeChange ? (
+            <GraphViewToolbar
+              activeStep={activeStep}
+              viewMode={viewMode}
+              onViewModeChange={onViewModeChange}
+            />
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  if (hideGraphInGuided && selectedCandidate) {
+    return (
+      <div className="flex h-full min-h-[200px] items-center justify-center p-6">
+        {onViewModeChange ? (
+          <GraphViewToolbar
+            activeStep={activeStep}
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
+        ) : (
+          <p className="text-sm text-slate-600">Use the feedback form below to accept or reject this candidate.</p>
+        )}
+      </div>
+    );
+  }
+
+  if (hideGraphInGuided) {
+    return (
+      <div className="flex h-full min-h-[200px] items-center justify-center p-6 text-sm text-slate-600">
+        Select a candidate to review, then accept or reject it below.
+      </div>
+    );
+  }
 
   if (useCandidateCardOnly && selectedCandidate) {
     return (
@@ -156,6 +220,10 @@ function InnerGraph({
         expandContextPending={expandContextPending}
         filteringAvailable={filteringAvailable}
         llmAvailable={llmAvailable}
+        viewMode={viewMode}
+        onViewModeChange={onViewModeChange}
+        onShowAllMembers={onShowAllMembers}
+        onShowAllCandidates={onShowAllCandidates}
         title={`Interactive graph - ${dataset.label}`}
       />
     );
@@ -207,10 +275,13 @@ export function RestoredGraphStagePanel({
   llmAvailable = true,
   useStaticPaperGraph = true,
   focusRequest = 0,
+  viewMode = "guided",
+  onViewModeChange,
+  onShowAllMembers,
+  onShowAllCandidates,
 }: RestoredGraphStagePanelProps) {
   const [isFocused, setIsFocused] = useState(false);
   const legend = legendForStep(activeStep);
-  const caption = stepCaptionFor(activeStep);
   const tripleText = selectedCandidate
     ? `(${selectedCandidate.head}, ${selectedCandidate.relation}, ${selectedCandidate.tail})`
     : null;
@@ -238,10 +309,8 @@ export function RestoredGraphStagePanel({
       className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3"
       data-testid="restored-graph-stage"
     >
-      <p className="text-sm leading-snug text-slate-700">{caption}</p>
-
       <div
-        className="mt-2 w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-1"
+        className="w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-1"
         style={{ minHeight: "600px", height: "clamp(600px, 72vh, 860px)" }}
       >
         <InnerGraph
@@ -260,6 +329,10 @@ export function RestoredGraphStagePanel({
           expandContextPending={expandContextPending}
           filteringAvailable={filteringAvailable}
           llmAvailable={llmAvailable}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          onShowAllMembers={onShowAllMembers}
+          onShowAllCandidates={onShowAllCandidates}
         />
       </div>
 

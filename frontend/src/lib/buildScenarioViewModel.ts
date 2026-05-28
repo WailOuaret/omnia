@@ -8,6 +8,7 @@ import type { PaperDemoScenario } from "../types/scenario";
 import { scenarioStepKeyForActiveStep } from "../types/scenario";
 import type { GraphPayload } from "../types";
 import { applyStepGraphPresentation } from "./applyStepGraphPresentation";
+import { normalizeDemoCopy } from "./demoCopy";
 import { sessionSliceToGraphPayload } from "./sessionSliceToGraphPayload";
 import { synthesizeClusterSlice } from "./synthesizeClusterSlice";
 import {
@@ -115,12 +116,12 @@ function candidatesFromScenario(rows: PaperDemoScenario["generatedCandidates"]):
     threshold: row.threshold ?? undefined,
     llmVerdict: mapLlmVerdict(row.status_bucket, row.llm_decision),
     llmConfidence: row.llm_score ?? undefined,
-    llmRationale: row.llm_rationale || undefined,
+    llmRationale: row.llm_rationale ? normalizeDemoCopy(row.llm_rationale) : undefined,
     retrievedContext: Array.isArray(row.retrieved_context)
       ? (row.retrieved_context as string[]).filter((v) => typeof v === "string")
       : undefined,
     clusterIds: row.cluster_ids ?? (row.source_cluster ? [row.source_cluster] : []),
-    whyGenerated: row.why_generated || undefined,
+    whyGenerated: row.why_generated ? normalizeDemoCopy(row.why_generated) : undefined,
   }));
 }
 

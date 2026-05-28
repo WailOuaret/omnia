@@ -13,6 +13,8 @@ import type { DemoCandidate, DemoCluster, DemoDatasetConfig } from "../../demo-d
 import type { CompletedSummaryView } from "../../lib/adapters";
 import type { GraphPayload } from "../../types";
 import type { GraphSelection } from "./LiveGraphPanel";
+import type { InspectorListPanel } from "../../lib/graphViewMode";
+import { ClusterMembersList, ProposedTriplesList } from "./InspectorListPanels";
 
 type InspectorTab = "inspector" | "details";
 
@@ -53,6 +55,9 @@ interface PaperDemoInspectorPanelProps {
   scenarioLimitations?: string[];
   filteringAvailable?: boolean;
   llmAvailable?: boolean;
+  inspectorListPanel?: InspectorListPanel;
+  onInspectorListPanelChange?: (panel: InspectorListPanel) => void;
+  onSelectCandidate?: (candidateId: string) => void;
 }
 
 function formatNumber(value: number) {
@@ -191,6 +196,9 @@ export function PaperDemoInspectorPanel({
   scenarioLimitations = [],
   filteringAvailable = true,
   llmAvailable = true,
+  inspectorListPanel = null,
+  onInspectorListPanelChange,
+  onSelectCandidate,
 }: PaperDemoInspectorPanelProps) {
   const [tab, setTab] = useState<InspectorTab>("inspector");
   const hasSelection = Boolean(selection || selectedCandidate);
@@ -221,6 +229,36 @@ export function PaperDemoInspectorPanel({
       <div className="max-h-[calc(100vh-220px)] overflow-auto p-3">
         {tab === "inspector" ? (
           <div className="space-y-3">
+            {inspectorListPanel === "members" && selectedCluster ? (
+              <div className="space-y-2">
+                <ClusterMembersList cluster={selectedCluster} />
+                <button
+                  type="button"
+                  onClick={() => onInspectorListPanelChange?.(null)}
+                  className="text-xs font-semibold text-slate-600 underline"
+                >
+                  Back to inspector
+                </button>
+              </div>
+            ) : null}
+            {inspectorListPanel === "candidates" ? (
+              <div className="space-y-2">
+                <ProposedTriplesList
+                  candidates={candidates}
+                  selectedCandidateId={selectedCandidate?.candidateId}
+                  onSelectCandidate={onSelectCandidate}
+                />
+                <button
+                  type="button"
+                  onClick={() => onInspectorListPanelChange?.(null)}
+                  className="text-xs font-semibold text-slate-600 underline"
+                >
+                  Back to inspector
+                </button>
+              </div>
+            ) : null}
+            {!inspectorListPanel ? (
+              <>
             {!hasSelection ? (
               <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-600">
                 Click a node or edge to inspect it.
@@ -238,7 +276,10 @@ export function PaperDemoInspectorPanel({
               embedded
               filteringAvailable={filteringAvailable}
               llmAvailable={llmAvailable}
+              activeStep={step}
             />
+              </>
+            ) : null}
           </div>
         ) : null}
         {tab === "details" ? (

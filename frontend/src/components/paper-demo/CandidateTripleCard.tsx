@@ -1,5 +1,36 @@
-import { formatKgInline } from "../../lib/kgLabels";
+import { formatKgLabelParts } from "../../lib/kgLabels";
 import type { DemoCandidate } from "../../demo-data/types";
+
+function TriplePart({
+  id,
+  label,
+  kind,
+  tone,
+}: {
+  id: string;
+  label?: string | null;
+  kind: "entity" | "relation";
+  tone: "sky" | "slate" | "amber";
+}) {
+  const parts = formatKgLabelParts(id, label ?? id, kind);
+  const toneClass =
+    tone === "sky"
+      ? "bg-sky-50 text-sky-950 ring-sky-200"
+      : tone === "amber"
+        ? "bg-amber-50 text-amber-950 ring-amber-200"
+        : "bg-slate-100 text-slate-800 ring-slate-200";
+
+  return (
+    <span className={`rounded-lg px-3 py-2 ring-1 ${toneClass} ${kind === "relation" ? "font-medium" : "font-semibold"}`}>
+      <span className={`block ${kind === "relation" ? "text-sm font-mono" : "text-base"}`}>{parts.primary}</span>
+      {parts.isRawId ? (
+        <span className="mt-0.5 block font-mono text-[10px] text-slate-500">{parts.secondary}</span>
+      ) : parts.secondary && parts.secondary !== parts.primary ? (
+        <span className="mt-0.5 block font-mono text-[10px] text-slate-500">{parts.secondary}</span>
+      ) : null}
+    </span>
+  );
+}
 
 export function CandidateTripleCard({
   candidate,
@@ -27,17 +58,11 @@ export function CandidateTripleCard({
       data-testid="candidate-triple-card"
     >
       <div className={`flex flex-wrap items-center justify-center gap-3 ${compact ? "text-sm" : "text-base"}`}>
-        <span className="rounded-lg bg-sky-50 px-3 py-2 font-semibold text-sky-950 ring-1 ring-sky-200">
-          {formatKgInline(candidate.head, undefined, "entity")}
-        </span>
+        <TriplePart id={candidate.head} kind="entity" tone="sky" />
         <span className="font-mono text-slate-500">→</span>
-        <span className="rounded-lg bg-slate-100 px-3 py-2 font-mono text-sm font-medium text-slate-800 ring-1 ring-slate-200">
-          {formatKgInline(candidate.relation, undefined, "relation")}
-        </span>
+        <TriplePart id={candidate.relation} label={candidate.relation} kind="relation" tone="slate" />
         <span className="font-mono text-slate-500">→</span>
-        <span className="rounded-lg bg-amber-50 px-3 py-2 font-semibold text-amber-950 ring-1 ring-amber-200">
-          {formatKgInline(candidate.tail, undefined, "entity")}
-        </span>
+        <TriplePart id={candidate.tail} kind="entity" tone="amber" />
       </div>
     </div>
   );

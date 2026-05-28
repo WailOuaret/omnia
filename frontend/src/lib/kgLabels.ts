@@ -56,6 +56,31 @@ export interface KgLabelParts {
   kind: "entity" | "relation" | "value";
 }
 
+/** WordNet / underscored relation ids → readable title case. */
+export function cleanRelationLabel(rel: string): string {
+  const trimmed = rel.trim();
+  if (!trimmed) return "unknown relation";
+
+  if (trimmed.startsWith("/") && trimmed.includes("/")) {
+    const segment = lastPathSegment(trimmed);
+    return segment.replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  if (trimmed.startsWith("_") || (trimmed.includes("_") && !isSynsetId(trimmed))) {
+    return trimmed
+      .replace(/^_/, "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  if (isSynsetId(trimmed)) {
+    const base = trimmed.split(".")[0] ?? trimmed;
+    return base.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  return trimmed;
+}
+
 export function isRawKgId(value: string | null | undefined): boolean {
   const text = (value ?? "").trim();
   return RAW_ID_PATTERNS.some((pattern) => pattern.test(text));
@@ -73,27 +98,33 @@ export function formatKgLabelParts(
   let readable = trimmedLabel && trimmedLabel !== raw ? trimmedLabel : fallbackRelation;
   if (!readable || readable === raw) {
     if (isFreebaseEntityId(raw)) {
-      readable = raw.slice(3);
-    } else if (isRelationPath(raw)) {
       readable = lastPathSegment(raw);
+    } else if (isRelationPath(raw)) {
+      readable = cleanRelationLabel(lastPathSegment(raw));
+    } else if (kind === "relation" && (raw.startsWith("_") || raw.includes("_"))) {
+      readable = cleanRelationLabel(raw);
     } else if (isSynsetId(raw)) {
-      readable = raw;
+      readable = cleanRelationLabel(raw.split(".")[0] ?? raw);
     }
+  } else if (kind === "relation") {
+    readable = cleanRelationLabel(readable);
   }
 
-  const rawId = isRawKgId(raw) || isFreebaseEntityId(raw) || (isRelationPath(raw) && kind === "relation");
+  const primary = readable ?? raw;
+  const looksLikeOpaqueId =
+    isRawKgId(raw) || isSynsetId(raw) || isFreebaseEntityId(raw) || (kind === "relation" && raw.startsWith("_"));
 
   return {
-    primary: readable ?? raw,
-    secondary: readable && readable !== raw ? raw : raw,
-    isRawId: rawId && (!trimmedLabel || trimmedLabel === raw),
+    primary,
+    secondary: primary !== raw ? raw : raw,
+    isRawId: looksLikeOpaqueId && primary === raw,
     kind,
   };
 }
 
 /** Inspector-only hint when no human-readable label exists. */
 export function missingLabelHint(): string {
-  return "Label unavailable";
+  return "No human-readable name in dataset";
 }
 
 export function formatKgInline(id: string | null | undefined, label?: string | null, kind: "entity" | "relation" | "value" = "entity") {
@@ -108,12 +139,18 @@ export function formatKgInline(id: string | null | undefined, label?: string | n
 
 /** Short relation label for edge rendering; full path stays in tooltip. */
 export function truncateRelationLabel(label: string, maxLen = 22): string {
-  const trimmed = label.trim();
-  if (trimmed.length <= maxLen) return trimmed;
-  if (trimmed.startsWith("/") && trimmed.includes("/")) {
-    const parts = trimmed.split("/").filter(Boolean);
-    const last = parts[parts.length - 1]?.replace(/_/g, " ") ?? trimmed;
-    return last.length <= maxLen ? last : `${last.slice(0, maxLen - 1)}…`;
-  }
-  return `${trimmed.slice(0, maxLen - 1)}…`;
+  const cleaned = cleanRelationLabel(label);
+  if (cleaned.length <= maxLen) return cleaned;
+  return `${cleaned.slice(0, maxLen - 1)}…`;
+}
+
+export function humanizeEdgeStatus(status: string): string {
+  const normalized = status.trim().toLowerCase();
+  if (!normalized || normalized === "original") return "existing triple";
+  if (normalized === "known") return "known triple";
+  if (normalized.includes("candidate") || normalized === "generated") return "generated candidate";
+  if (normalized === "accepted") return "accepted addition";
+  if (normalized === "rejected") return "rejected candidate";
+  if (normalized === "validated") return "validated triple";
+  return status.replace(/_/g, " ");
 }
